@@ -64,8 +64,8 @@
 
 ## 6. GitHub Pages 정적웹 공개 배포 (GitHub Pages Deployment)
 
-- **Repository**: [https://github.com/ljyoon1104/iris-ai-lab](https://github.com/ljyoon1104/iris-ai-lab)
-- **Public URL**: [https://ljyoon1104.github.io/iris-ai-lab/](https://ljyoon1104.github.io/iris-ai-lab/)
+- **Repository**: [https://github.com/ljyoon1104-code/iris-ai-lab](https://github.com/ljyoon1104-code/iris-ai-lab)
+- **Public URL**: [https://ljyoon1104-code.github.io/iris-ai-lab/](https://ljyoon1104-code.github.io/iris-ai-lab/)
 - **Vite Base Path**: `/iris-ai-lab/`
 - **Build & CI/CD**: GitHub Actions Workflow (`.github/workflows/deploy.yml`) - `npm ci` ➔ `npm run verify` ➔ `npm run build` ➔ GitHub Pages Deploy.
 

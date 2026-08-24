@@ -3,7 +3,7 @@
 인공지능(AI) 기초 및 정보 교과 수업을 위해 개발된 **학생 참여형 웹 기반 머신러닝 실습 플랫폼**입니다.
 백엔드 서버나 외부 AI API 호출 없이 **학생 브라우저 내부(Serverless / Client-only)**에서 100% 실행되며, 코딩 없이도 기계학습 문제 해결 6단계 전 과정을 시각적으로 경험할 수 있습니다.
 
-- 🌐 **학생용 무료 공개 웹 사이트**: [https://ljyoon1104.github.io/iris-ai-lab/](https://ljyoon1104.github.io/iris-ai-lab/)
+- 🌐 **학생용 무료 공개 웹 사이트**: [https://ljyoon1104-code.github.io/iris-ai-lab/](https://ljyoon1104-code.github.io/iris-ai-lab/)
 
 ---
 
@@ -83,8 +83,8 @@ src/
 
 main 브랜치에 코드를 push하면 `.github/workflows/deploy.yml`의 GitHub Actions 워크플로가 자동으로 `npm run verify` ➔ `npm run build`를 거쳐 GitHub Pages에 배포됩니다.
 
-- **GitHub Repository**: [https://github.com/ljyoon1104/iris-ai-lab](https://github.com/ljyoon1104/iris-ai-lab)
-- **GitHub Pages Public URL**: [https://ljyoon1104.github.io/iris-ai-lab/](https://ljyoon1104.github.io/iris-ai-lab/)
+- **GitHub Repository**: [https://github.com/ljyoon1104-code/iris-ai-lab](https://github.com/ljyoon1104-code/iris-ai-lab)
+- **GitHub Pages Public URL**: [https://ljyoon1104-code.github.io/iris-ai-lab/](https://ljyoon1104-code.github.io/iris-ai-lab/)
 
 ---
 
