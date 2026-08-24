@@ -57,20 +57,21 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Main Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <PrimaryButton
+              variant="white"
               size="lg"
               onClick={onStartOrContinue}
-              icon={<Play size={20} className="fill-current" />}
-              className="bg-white text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 shadow-md font-extrabold"
+              icon={<Play size={20} className="fill-current text-emerald-950" />}
+              className="shadow-md font-black"
             >
               {hasProgress ? '이어하기' : '학습 시작하기'}
             </PrimaryButton>
 
             {hasProgress && (
               <SecondaryButton
+                variant="white-outline"
                 size="lg"
                 onClick={onResetProgress}
                 icon={<RotateCcw size={18} />}
-                className="bg-white/10 text-white border-white/30 hover:bg-white/20 hover:border-white/50"
               >
                 처음부터
               </SecondaryButton>
