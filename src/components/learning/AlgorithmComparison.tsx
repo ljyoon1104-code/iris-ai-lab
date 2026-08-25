@@ -23,12 +23,12 @@ export const AlgorithmComparison: React.FC<AlgorithmComparisonProps> = ({
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-          <Scale size={18} className="text-emerald-600" />
-          <span>동일한 새 붓꽃 데이터에 대한 알고리즘 비교</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+        <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <Scale size={18} className="text-emerald-600 shrink-0" />
+          <span className="break-words [word-break:keep-all]">동일한 새 붓꽃 데이터에 대한 알고리즘 비교</span>
         </h4>
-        <span className="text-xs font-bold font-mono text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+        <span className="text-[11px] sm:text-xs font-bold font-mono text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg break-words">
           꽃잎 길이: {point.petalLength}cm | 꽃잎 너비: {point.petalWidth}cm
         </span>
       </div>

@@ -17,7 +17,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
         {/* 1. k-NN */}
         <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-2">
-          <div className="flex items-center justify-between font-bold text-emerald-950">
+          <div className="flex flex-wrap items-center justify-between gap-1 font-bold text-emerald-950">
             <span className="flex items-center gap-1.5 text-sm">
               <Target size={16} className="text-emerald-600" />
               1. k-NN
@@ -33,7 +33,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
 
         {/* 2. Decision Tree */}
         <div className="p-4 rounded-xl bg-teal-50/80 border border-teal-200 space-y-2">
-          <div className="flex items-center justify-between font-bold text-teal-950">
+          <div className="flex flex-wrap items-center justify-between gap-1 font-bold text-teal-950">
             <span className="flex items-center gap-1.5 text-sm">
               <GitBranch size={16} className="text-teal-600" />
               2. 의사결정트리
@@ -49,7 +49,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
 
         {/* 3. Linear Regression */}
         <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-2">
-          <div className="flex items-center justify-between font-bold text-emerald-950">
+          <div className="flex flex-wrap items-center justify-between gap-1 font-bold text-emerald-950">
             <span className="flex items-center gap-1.5 text-sm">
               <LineChart size={16} className="text-emerald-600" />
               3. 선형 회귀
@@ -65,7 +65,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
 
         {/* 4. k-means */}
         <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 space-y-2">
-          <div className="flex items-center justify-between font-bold text-blue-950">
+          <div className="flex flex-wrap items-center justify-between gap-1 font-bold text-blue-950">
             <span className="flex items-center gap-1.5 text-sm">
               <PieChart size={16} className="text-blue-600" />
               4. k-means
@@ -81,7 +81,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
 
         {/* 5. Reinforcement Learning */}
         <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2 col-span-1 sm:col-span-2 lg:col-span-2">
-          <div className="flex items-center justify-between font-bold text-amber-950">
+          <div className="flex flex-wrap items-center justify-between gap-1 font-bold text-amber-950">
             <span className="flex items-center gap-1.5 text-sm">
               <Bot size={16} className="text-amber-600" />
               5. 강화학습 (Q-Learning)

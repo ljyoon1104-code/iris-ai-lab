@@ -46,28 +46,28 @@ export const ModuleCard: React.FC<ModuleCardProps> = ({ module, isCompleted, onS
         }
       }}
       aria-label={`${module.code} ${module.title} 영역 학습 시작하기`}
-      className="group relative bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md hover:border-emerald-500/60 transition-all duration-200 cursor-pointer flex flex-col justify-between focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="group relative bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs hover:shadow-md hover:border-emerald-500/60 transition-all duration-200 cursor-pointer flex flex-col justify-between focus-visible:ring-2 focus-visible:ring-emerald-500"
     >
       <div>
         {/* Card Header: Code Badge & Status */}
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center font-extrabold text-xs tracking-wider px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <span className="inline-flex items-center justify-center font-extrabold text-xs tracking-wider px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
               {module.code}
             </span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors shrink-0">
               {icon}
             </div>
           </div>
 
           {/* Status badge: text + icon */}
           {isCompleted ? (
-            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
               <CheckCircle2 size={13} />
               <span>완료</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
               <Clock size={13} />
               <span>학습 전</span>
             </span>
@@ -75,12 +75,12 @@ export const ModuleCard: React.FC<ModuleCardProps> = ({ module, isCompleted, onS
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-1.5">
+        <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-1.5 break-words [word-break:keep-all]">
           {module.title}
         </h3>
 
         {/* Description */}
-        <p className="text-sm text-slate-600 leading-relaxed font-normal">
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal break-words [word-break:keep-all]">
           {module.shortDesc}
         </p>
       </div>

@@ -40,29 +40,29 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer min-h-[52px] flex items-start justify-between gap-3 ${borderClasses} ${
+      className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer min-h-[52px] flex flex-col sm:flex-row sm:items-start justify-between gap-3 max-w-full ${borderClasses} ${
         disabled ? 'opacity-80 cursor-default' : ''
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5 min-w-0">
         <span className={`w-7 h-7 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 ${badgeClasses}`}>
           {optionKey}
         </span>
-        <div className="space-y-1">
-          <p className="text-sm font-bold leading-snug">{label}</p>
-          {subText && <p className="text-xs text-slate-500 font-normal leading-relaxed">{subText}</p>}
+        <div className="space-y-1 min-w-0">
+          <p className="text-xs sm:text-sm font-bold leading-snug break-words [word-break:keep-all]">{label}</p>
+          {subText && <p className="text-xs text-slate-500 font-normal leading-relaxed break-words [word-break:keep-all]">{subText}</p>}
         </div>
       </div>
 
       {status === 'correct' && (
-        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700 shrink-0 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700 shrink-0 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300 self-start sm:self-auto">
           <CheckCircle2 size={15} />
           <span>✓ 정답입니다</span>
         </span>
       )}
 
       {status === 'incorrect' && (
-        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-rose-700 shrink-0 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-300">
+        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-rose-700 shrink-0 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-300 self-start sm:self-auto">
           <XCircle size={15} />
           <span>X 다시 생각해보세요</span>
         </span>

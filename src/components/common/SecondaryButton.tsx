@@ -19,16 +19,16 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const sizeClasses = {
-    sm: 'px-4 py-2 text-sm font-medium',
-    md: 'px-5 py-3 text-base font-semibold',
-    lg: 'px-6 py-4 text-lg font-bold',
+    sm: 'px-3.5 py-2 text-xs sm:text-sm font-medium',
+    md: 'px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold',
+    lg: 'px-5 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-bold',
   };
 
   const variantClasses = {
     secondary:
-      'bg-white border-2 border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:bg-slate-100 focus-visible:ring-slate-400 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400',
+      'bg-white border-2 border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:bg-slate-100 focus-visible:ring-slate-400 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400',
     'white-outline':
-      'bg-white/15 border-2 border-white/40 text-white shadow-sm hover:bg-white/25 hover:border-white/60 hover:text-white active:bg-white/30 focus-visible:ring-white disabled:bg-white/5 disabled:border-white/20 disabled:text-white/40 font-bold',
+      'bg-white/15 border-2 border-white/40 text-white shadow-xs hover:bg-white/25 hover:border-white/60 hover:text-white active:bg-white/30 focus-visible:ring-white disabled:bg-white/5 disabled:border-white/20 disabled:text-white/40 font-bold',
   };
 
   return (
@@ -39,7 +39,7 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
         transition-all duration-150
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
         disabled:cursor-not-allowed disabled:shadow-none
-        min-h-[48px] cursor-pointer
+        min-h-[44px] cursor-pointer max-w-full
         ${fullWidth ? 'w-full' : ''}
         ${sizeClasses[size]}
         ${variantClasses[variant]}
@@ -48,7 +48,9 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
       {...props}
     >
       {icon && <span className="shrink-0">{icon}</span>}
-      <span>{children}</span>
+      <span className="min-w-0 break-words [word-break:keep-all] text-center leading-tight whitespace-normal">
+        {children}
+      </span>
     </button>
   );
 };

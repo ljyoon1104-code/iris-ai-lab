@@ -18,9 +18,11 @@
     padding: 0;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
 
-  /* Accessibility touch targets */
+  /* Accessibility touch targets & overflow safe defaults */
   button, a, input, select {
     min-height: 44px;
     touch-action: manipulation;
@@ -33,7 +35,19 @@
   }
 }
 
-/* Custom Utilities for smooth layout */
+/* Custom Utilities for smooth layout & safe text handling */
 .safe-padding-bottom {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.safe-text {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+button {
+  max-width: 100%;
 }

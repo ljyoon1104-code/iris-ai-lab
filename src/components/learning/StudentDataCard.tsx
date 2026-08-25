@@ -88,9 +88,9 @@ export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title 
   return (
     <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-2 text-xs">
       {title && (
-        <div className="font-extrabold text-slate-900 pb-1.5 border-b border-slate-100 flex justify-between items-center">
-          <span>{title}</span>
-          <span className="text-[10px] text-slate-500 font-mono">ID: #{record.id}</span>
+        <div className="font-extrabold text-slate-900 pb-1.5 border-b border-slate-100 flex justify-between items-center gap-2">
+          <span className="break-words [word-break:keep-all]">{title}</span>
+          <span className="text-[10px] text-slate-500 font-mono shrink-0">ID: #{record.id}</span>
         </div>
       )}
 
@@ -101,13 +101,13 @@ export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title 
           return (
             <div
               key={field}
-              className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium"
+              className="flex flex-row items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium gap-2 min-w-0"
             >
-              <span className="text-slate-600 font-bold">{formatted.label}</span>
+              <span className="text-slate-600 font-bold shrink-0">{formatted.label}</span>
 
-              <div className="text-right">
+              <div className="text-right min-w-0 break-words">
                 <span
-                  className={`font-bold ${
+                  className={`font-bold inline-block ${
                     formatted.isMissing
                       ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200'
                       : formatted.isStringData

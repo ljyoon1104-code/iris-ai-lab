@@ -391,34 +391,34 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                 </span>
               </div>
 
-              <div className="w-full overflow-x-auto bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="min-w-[320px] text-xs font-mono text-center space-y-2">
+              <div className="w-full overflow-x-auto bg-slate-50 p-2 sm:p-4 rounded-2xl border border-slate-200">
+                <div className="w-full text-xs font-mono text-center space-y-1.5 sm:space-y-2">
                   {/* Column Headers */}
-                  <div className="grid grid-cols-4 gap-2 font-bold text-slate-800 border-b border-slate-300 pb-2.5">
-                    <div className="text-emerald-900 bg-emerald-100 p-2 rounded-lg font-extrabold text-[11px] flex items-center justify-center">
-                      실제 ↓ \ 예측 →
+                  <div className="grid grid-cols-4 gap-1 sm:gap-2 font-bold text-slate-800 border-b border-slate-300 pb-2">
+                    <div className="text-emerald-900 bg-emerald-100 p-1 sm:p-2 rounded-lg font-extrabold text-[9px] sm:text-[11px] flex items-center justify-center">
+                      실제\예측
                     </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-200">
-                      <span>세토사</span>
-                      <span className="text-[10px] text-slate-400 block font-normal">Setosa</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-[11px] sm:text-xs">세토사</span>
+                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Setosa</span>
                     </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-200">
-                      <span>버시컬러</span>
-                      <span className="text-[10px] text-slate-400 block font-normal">Versicolor</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-[11px] sm:text-xs">버시컬러</span>
+                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Versicolor</span>
                     </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-200">
-                      <span>버지니카</span>
-                      <span className="text-[10px] text-slate-400 block font-normal">Virginica</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-[11px] sm:text-xs">버지니카</span>
+                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Virginica</span>
                     </div>
                   </div>
 
                   {/* Matrix Rows */}
                   {currentEval.confusionMatrix.rows.map((actSp: IrisSpecies) => (
-                    <div key={actSp} className="grid grid-cols-4 gap-2 items-center">
+                    <div key={actSp} className="grid grid-cols-4 gap-1 sm:gap-2 items-center">
                       {/* Row Header (Actual Species) */}
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 font-bold text-slate-900 text-left flex flex-col">
-                        <span>{SPECIES_MAP[actSp].korean}</span>
-                        <span className="text-[9px] text-slate-400 font-normal">실제 {SPECIES_MAP[actSp].english}</span>
+                      <div className="p-1.5 sm:p-2.5 bg-white rounded-lg border border-slate-200 font-bold text-slate-900 text-left flex flex-col justify-center">
+                        <span className="text-[11px] sm:text-xs">{SPECIES_MAP[actSp].korean}</span>
+                        <span className="text-[8px] sm:text-[9px] text-slate-400 font-normal hidden sm:block">실제 {SPECIES_MAP[actSp].english}</span>
                       </div>
 
                       {/* 3 Column Cells */}
@@ -434,8 +434,8 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                               setSelectedCell({ actual: actSp, predicted: predSp });
                               setHasCheckedMatrix(true);
                             }}
-                            className={`p-3 rounded-xl font-bold transition-all min-h-[50px] cursor-pointer flex flex-col items-center justify-center relative ${
-                              isSelected ? 'ring-4 ring-blue-400 scale-105 z-10 shadow-md' : ''
+                            className={`p-1.5 sm:p-3 rounded-xl font-bold transition-all min-h-[44px] sm:min-h-[50px] cursor-pointer flex flex-col items-center justify-center relative ${
+                              isSelected ? 'ring-3 ring-blue-400 scale-102 z-10 shadow-md' : ''
                             } ${
                               isDiagonal
                                 ? 'bg-emerald-500 text-white border-2 border-emerald-600 shadow-xs'
@@ -444,9 +444,9 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                             }`}
                           >
-                            <span className="text-base font-black font-mono">{count}</span>
-                            <span className="text-[9px] opacity-90 font-sans">
-                              {isDiagonal ? '✓ 정답' : count > 0 ? '오답' : '0개'}
+                            <span className="text-sm sm:text-base font-black font-mono leading-none">{count}</span>
+                            <span className="text-[8px] sm:text-[9px] opacity-90 font-sans mt-0.5">
+                              {isDiagonal ? '✓정답' : count > 0 ? '오답' : '0개'}
                             </span>
                           </button>
                         );

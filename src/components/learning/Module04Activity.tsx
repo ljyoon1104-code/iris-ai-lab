@@ -576,18 +576,31 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 4×4 상관관계 히트맵 (Pearson Correlation Matrix)
               </span>
 
-              <div className="w-full overflow-x-auto bg-white p-3 rounded-lg border border-slate-200">
-                <div className="min-w-[300px] grid grid-cols-5 gap-1.5 text-center font-mono text-[11px]">
-                  <div className="p-2 bg-slate-100 font-bold rounded">속성</div>
-                  <div className="p-2 bg-slate-100 font-bold rounded">꽃받침길이</div>
-                  <div className="p-2 bg-slate-100 font-bold rounded">꽃받침너비</div>
-                  <div className="p-2 bg-slate-100 font-bold rounded">꽃잎길이</div>
-                  <div className="p-2 bg-slate-100 font-bold rounded">꽃잎너비</div>
+              <div className="w-full overflow-x-auto bg-white p-2 sm:p-3 rounded-lg border border-slate-200">
+                <div className="w-full grid grid-cols-5 gap-1 text-center font-mono text-[10px] sm:text-[11px]">
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">속성</div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
+                    <span className="hidden sm:inline">꽃받침길이</span>
+                    <span className="sm:hidden">받침길이</span>
+                  </div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
+                    <span className="hidden sm:inline">꽃받침너비</span>
+                    <span className="sm:hidden">받침너비</span>
+                  </div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
+                    <span className="hidden sm:inline">꽃잎길이</span>
+                    <span className="sm:hidden">꽃잎길이</span>
+                  </div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
+                    <span className="hidden sm:inline">꽃잎너비</span>
+                    <span className="sm:hidden">꽃잎너비</span>
+                  </div>
 
                   {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(rowFeat => (
                     <React.Fragment key={rowFeat}>
-                      <div className="p-2 bg-slate-100 font-bold rounded text-left">
-                        {NUMERIC_FEATURE_LABELS[rowFeat].short}
+                      <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded text-left flex items-center">
+                        <span className="hidden sm:inline">{NUMERIC_FEATURE_LABELS[rowFeat].short}</span>
+                        <span className="sm:hidden">{rowFeat === 'sepalLength' ? '받침길이' : rowFeat === 'sepalWidth' ? '받침너비' : rowFeat === 'petalLength' ? '꽃잎길이' : '꽃잎너비'}</span>
                       </div>
                       {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(colFeat => {
                         const cell = correlationMatrix.cells.find(c => c.featureX === rowFeat && c.featureY === colFeat);
@@ -598,7 +611,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                           <div
                             key={colFeat}
                             onMouseEnter={() => setVisitedHeatmap(true)}
-                            className={`p-2 rounded font-extrabold flex items-center justify-center ${
+                            className={`p-1 sm:p-2 rounded font-extrabold flex items-center justify-center ${
                               isHigh
                                 ? 'bg-emerald-600 text-white font-black shadow-xs'
                                 : val > 0
