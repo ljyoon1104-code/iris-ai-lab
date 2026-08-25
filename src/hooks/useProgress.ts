@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { LearningProgress } from '../types';
-import { loadProgress, saveProgress, clearProgress, DEFAULT_PROGRESS } from '../utils/storage';
+import {
+  loadProgress,
+  saveProgress,
+  clearAllLearningData,
+  DEFAULT_PROGRESS,
+} from '../utils/storage';
 
 export function useProgress() {
   const [progress, setProgressState] = useState<LearningProgress>(() => loadProgress());
@@ -8,6 +13,14 @@ export function useProgress() {
   useEffect(() => {
     saveProgress(progress);
   }, [progress]);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setProgressState(DEFAULT_PROGRESS);
+    };
+    window.addEventListener('learning_data_reset', handleReset);
+    return () => window.removeEventListener('learning_data_reset', handleReset);
+  }, []);
 
   const setModuleCompleted = (moduleId: number) => {
     setProgressState(prev => {
@@ -27,7 +40,7 @@ export function useProgress() {
   };
 
   const resetAllProgress = () => {
-    clearProgress();
+    clearAllLearningData();
     setProgressState(DEFAULT_PROGRESS);
   };
 
@@ -41,6 +54,7 @@ export function useProgress() {
     setModuleCompleted,
     setCurrentModule,
     resetAllProgress,
+    resetAllLearningData: resetAllProgress,
     calculatePercentage,
   };
 }

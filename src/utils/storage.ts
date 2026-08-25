@@ -1,7 +1,8 @@
 import type { LearningProgress } from '../types';
 
-const STORAGE_KEY = 'iris_ai_lab_progress_v1';
-const OLD_STORAGE_KEY = 'fruit_ai_lab_progress_v1';
+export const STORAGE_KEY = 'iris_ai_lab_progress_v1';
+export const OLD_STORAGE_KEY = 'fruit_ai_lab_progress_v1';
+export const EXPERIMENTS_STORAGE_KEY = 'iris_ai_lab_experiments';
 
 export const DEFAULT_PROGRESS: LearningProgress = {
   currentModuleId: 1,
@@ -10,6 +11,7 @@ export const DEFAULT_PROGRESS: LearningProgress = {
 };
 
 export const loadProgress = (): LearningProgress => {
+  if (typeof localStorage === 'undefined') return DEFAULT_PROGRESS;
   try {
     let saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
@@ -29,6 +31,7 @@ export const loadProgress = (): LearningProgress => {
 };
 
 export const saveProgress = (progress: LearningProgress): void => {
+  if (typeof localStorage === 'undefined') return;
   try {
     const updated = {
       ...progress,
@@ -40,12 +43,43 @@ export const saveProgress = (progress: LearningProgress): void => {
   }
 };
 
-export const clearProgress = (): void => {
+/**
+ * Reset all learning progress, saved experiments, and legacy migration keys in localStorage,
+ * and dispatch custom event to notify memory states in active React components.
+ */
+export const clearAllLearningData = (): void => {
+  if (typeof localStorage === 'undefined') return;
   try {
+    // 1. Explicitly remove known learning and legacy keys
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(OLD_STORAGE_KEY);
-    localStorage.removeItem('iris_ai_lab_experiments');
+    localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
+
+    // 2. Dynamically scan and remove any remaining learning/experiment/model keys
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.includes('iris_ai_lab') ||
+          key.includes('fruit_ai_lab') ||
+          key.includes('progress') ||
+          key.includes('experiment') ||
+          key.includes('model') ||
+          key.includes('evaluation'))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // 3. Dispatch custom event for active React component memory reset
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('learning_data_reset'));
+    }
   } catch (e) {
-    console.error('Failed to clear progress:', e);
+    console.error('Failed to clear all learning data:', e);
   }
 };
+
+export const clearProgress = clearAllLearningData;

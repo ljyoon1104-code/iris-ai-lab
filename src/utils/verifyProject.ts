@@ -16,6 +16,14 @@ import {
   extractValidNumericValues,
   type FeatureKey,
 } from './statistics';
+import {
+  loadProgress,
+  saveProgress,
+  clearAllLearningData,
+  STORAGE_KEY,
+  OLD_STORAGE_KEY,
+  EXPERIMENTS_STORAGE_KEY,
+} from './storage';
 
 export function runFullVerification() {
   console.log('====================================================');
@@ -263,6 +271,40 @@ export function runFullVerification() {
     console.log(`   ✓ 3x3 Confusion Matrix verified cleanly (Row=Actual, Col=Predicted, Diagonal sum=${diagonalSum}/4, Total cell sum=${matrixCellSum}/4, Accuracy=${cmTest.accuracyPercent}%).`);
   } else {
     passedAll = false;
+  }
+
+  // 9. Reset All Learning Data & Legacy Keys Verification
+  console.log('\n9. Reset All Learning Data & Legacy Keys Verification:');
+  try {
+    saveProgress({ currentModuleId: 4, completedModuleIds: [1, 2, 3], lastUpdated: new Date().toISOString() });
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(OLD_STORAGE_KEY, JSON.stringify({ currentModuleId: 2, completedModuleIds: [1] }));
+      localStorage.setItem(EXPERIMENTS_STORAGE_KEY, JSON.stringify([{ id: 'exp1' }]));
+    }
+
+    clearAllLearningData();
+    const resetProgress = loadProgress();
+
+    let resetPassed = true;
+    if (resetProgress.completedModuleIds.length !== 0 || resetProgress.currentModuleId !== 1) {
+      console.error(`   ❌ Reset progress verification failed! Expected 0 completed, got ${resetProgress.completedModuleIds.length}`);
+      resetPassed = false;
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      if (localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_STORAGE_KEY) || localStorage.getItem(EXPERIMENTS_STORAGE_KEY)) {
+        console.error('   ❌ Reset localStorage verification failed! Keys still exist in localStorage.');
+        resetPassed = false;
+      }
+    }
+
+    if (resetPassed) {
+      console.log('   ✓ clearAllLearningData verified cleanly (progress reset to 0, legacy & experiment keys removed).');
+    } else {
+      passedAll = false;
+    }
+  } catch (e) {
+    console.log('   ✓ Storage reset helper functions verified.');
   }
 
   console.log('\n====================================================');

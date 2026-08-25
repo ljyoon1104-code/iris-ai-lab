@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MODULES } from '../data/modules';
 import { ModuleCard } from '../components/learning/ModuleCard';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { PrimaryButton } from '../components/common/PrimaryButton';
 import { SecondaryButton } from '../components/common/SecondaryButton';
+import { Modal } from '../components/common/Modal';
 import { MLProcessBar } from '../components/learning/MLProcessBar';
 import { Play, RotateCcw, Sparkles } from 'lucide-react';
 
@@ -23,6 +24,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   onResetProgress,
 }) => {
   const hasProgress = completedModuleIds.length > 0;
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isResetCompleteNoticeOpen, setIsResetCompleteNoticeOpen] = useState(false);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -70,7 +73,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <SecondaryButton
                 variant="white-outline"
                 size="lg"
-                onClick={onResetProgress}
+                onClick={() => setIsResetConfirmOpen(true)}
                 icon={<RotateCcw size={18} />}
               >
                 처음부터
@@ -123,6 +126,59 @@ export const HomePage: React.FC<HomePageProps> = ({
           ))}
         </div>
       </section>
+
+      {/* Reset Confirmation Modal */}
+      <Modal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        title="학습기록을 초기화할까요?"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 leading-relaxed font-medium">
+            학습 진행률과 저장된 실험기록이 모두 삭제됩니다.<br />
+            삭제한 기록은 복구할 수 없습니다.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setIsResetConfirmOpen(false)}
+              className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => {
+                onResetProgress();
+                setIsResetConfirmOpen(false);
+                setIsResetCompleteNoticeOpen(true);
+              }}
+              className="px-4 py-2.5 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+            >
+              모두 초기화
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Completion Notice Modal */}
+      <Modal
+        isOpen={isResetCompleteNoticeOpen}
+        onClose={() => setIsResetCompleteNoticeOpen(false)}
+        title="초기화 완료"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700 font-bold leading-relaxed">
+            학습 진행률과 실험기록을 모두 초기화했습니다.
+          </p>
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => setIsResetCompleteNoticeOpen(false)}
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

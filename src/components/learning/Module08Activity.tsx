@@ -78,6 +78,22 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
     }
   }, [experiments]);
 
+  // Listen for global reset event to reset in-memory experiment states
+  useEffect(() => {
+    const handleReset = () => {
+      setExperiments([]);
+      setSelectedFinalExpId(null);
+      setSelectedCell(null);
+      setQuizUserAnswer(null);
+      setSelectedMisclassifiedId(null);
+      setReflectionQ1(null);
+      setReflectionQ2(null);
+    };
+
+    window.addEventListener('learning_data_reset', handleReset);
+    return () => window.removeEventListener('learning_data_reset', handleReset);
+  }, []);
+
   // Execute evaluation on current setup
   const runCurrentEvaluation = (): ExperimentResult => {
     const split = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, splitRatio, 42);
