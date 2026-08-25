@@ -5,6 +5,16 @@ import { trainLinearRegression, predictLinearRegression } from '../algorithms/li
 import { runKMeansWithHistory } from '../algorithms/kmeans';
 import { QLearningAgent } from '../algorithms/reinforcementLearning';
 import { stratifiedSplitDataset, evaluateClassifier, buildConfusionMatrix } from '../algorithms/evaluation';
+import {
+  calculateMean,
+  calculateMedian,
+  calculateQuartiles,
+  calculateBoxPlotStats,
+  calculateHistogramBins,
+  calculateCorrelationMatrix,
+  extractValidNumericValues,
+  type FeatureKey,
+} from './statistics';
 
 export function runFullVerification() {
   console.log('====================================================');
@@ -47,6 +57,68 @@ export function runFullVerification() {
     passedAll = false;
   } else {
     console.log('   ✓ BIASED_IRIS_DATASET verified (80% imbalance).');
+  }
+
+  // 1.5 Statistics & Data Visualization Helpers Check (Section 39)
+  console.log('\n1.5 Statistical & Data Visualization Helpers Check:');
+  const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
+  let statsPassed = true;
+
+  features.forEach(feat => {
+    const vals = ORIGINAL_IRIS_DATASET.map(r => r[feat]);
+    const mean = calculateMean(vals);
+    const median = calculateMedian(vals);
+    const { q1, q3, iqr } = calculateQuartiles(vals);
+    const boxStats = calculateBoxPlotStats(vals);
+
+    if (isNaN(mean) || isNaN(median) || isNaN(q1) || isNaN(q3) || isNaN(iqr) || !isFinite(mean) || isNaN(boxStats.iqr)) {
+      console.error(`   ❌ NaN or Infinity found in ${feat} stats!`);
+      statsPassed = false;
+    }
+
+    // Check histogram bin total
+    const bins = calculateHistogramBins(vals, 8);
+    const binTotal = bins.reduce((sum, b) => sum + b.count, 0);
+    if (binTotal !== vals.length) {
+      console.error(`   ❌ Histogram bin count sum mismatch for ${feat}: got ${binTotal}, expected ${vals.length}`);
+      statsPassed = false;
+    }
+  });
+
+  // Verify Pearson Correlation Matrix (Symmetry, Diagonal = 1.0, Range -1 to 1)
+  const corr = calculateCorrelationMatrix(ORIGINAL_IRIS_DATASET, features);
+  for (let i = 0; i < features.length; i++) {
+    for (let j = 0; j < features.length; j++) {
+      const val = corr.matrix[i][j];
+      if (isNaN(val) || val < -1.0 || val > 1.0) {
+        console.error(`   ❌ Invalid Pearson correlation value at (${i},${j}): ${val}`);
+        statsPassed = false;
+      }
+      if (i === j && val !== 1.0) {
+        console.error(`   ❌ Correlation matrix diagonal not 1.0 at (${i},${i}): ${val}`);
+        statsPassed = false;
+      }
+      if (corr.matrix[i][j] !== corr.matrix[j][i]) {
+        console.error(`   ❌ Correlation matrix not symmetric at (${i},${j}) vs (${j},${i})`);
+        statsPassed = false;
+      }
+    }
+  }
+
+  // Check outlier detection on ERROR_IRIS_DATASET for sepalLength (50.0cm outlier)
+  const errSepalVals = extractValidNumericValues(ERROR_IRIS_DATASET, 'sepalLength');
+  const errBoxStats = calculateBoxPlotStats(errSepalVals);
+  if (!errBoxStats.outliers.includes(50)) {
+    console.error('   ❌ Outlier 50.0cm in ERROR_IRIS_DATASET not flagged by BoxPlot IQR rule!');
+    statsPassed = false;
+  }
+
+  if (statsPassed) {
+    console.log(`   ✓ All statistical calculations (Mean, Median, Quartiles, IQR, Fences, Histogram Bins, Pearson Matrix) verified cleanly.`);
+    console.log(`     - Sepal Length: Mean=${calculateMean(ORIGINAL_IRIS_DATASET.map(r => r.sepalLength))}cm, Median=${calculateMedian(ORIGINAL_IRIS_DATASET.map(r => r.sepalLength))}cm, Q1=${calculateQuartiles(ORIGINAL_IRIS_DATASET.map(r => r.sepalLength)).q1}cm, Q3=${calculateQuartiles(ORIGINAL_IRIS_DATASET.map(r => r.sepalLength)).q3}cm`);
+    console.log(`     - Petal Length <-> Petal Width Correlation = ${corr.matrix[2][3]}`);
+  } else {
+    passedAll = false;
   }
 
   // 2. k-NN Distance Unit Test
