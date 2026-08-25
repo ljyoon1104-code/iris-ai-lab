@@ -3,6 +3,7 @@ import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { ActivityProgress } from './ActivityProgress';
 import { ChoiceCard } from './ChoiceCard';
 import { PromptCard } from './PromptCard';
+import { StudentDataCard } from './StudentDataCard';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
 import { Modal } from '../common/Modal';
@@ -676,9 +677,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted,
                       )}
                     </div>
 
-                    <div className="text-xs text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 font-mono">
-                      값: {rec ? JSON.stringify(rec) : ''}
-                    </div>
+                    {/* Student readable data card */}
+                    {rec && (
+                      <StudentDataCard record={rec} title={`[데이터 #${ans.recordId}]`} />
+                    )}
+
+                    <span className="text-xs font-bold text-slate-800 block pt-1">
+                      이 데이터에는 어떤 오류가 있나요?
+                    </span>
 
                     {/* Issue type selector buttons */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
