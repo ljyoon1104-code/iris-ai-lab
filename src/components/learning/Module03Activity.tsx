@@ -76,7 +76,15 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
-      {/* Internal Activity Progress */}
+      {/* Official 6-stage badge banner */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+          [공식 6단계 과정] ② 데이터 수집
+        </span>
+        <span className="text-xs text-slate-500 font-medium">03 데이터 수집 및 구성</span>
+      </div>
+
+      {/* Activity Progress */}
       <ActivityProgress
         currentStep={currentStep}
         totalSteps={totalSteps}

@@ -619,6 +619,14 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               "문제와 데이터의 형태에 따라 적절한 학습 방법이 달라집니다."
             </div>
 
+            {/* Section 25 Ending Page Connection */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2 text-xs">
+              <span className="font-bold text-slate-900 block text-sm">💡 다음 학습 영역 연결 안내:</span>
+              <p className="text-slate-700 font-bold leading-relaxed">
+                "문제에 맞는 학습 방법을 선택했다면 알고리즘이 어떻게 작동하는지 실험해봅니다."
+              </p>
+            </div>
+
             <div className="pt-2 text-center space-y-2">
               {isCompleted && (
                 <div className="text-xs font-bold text-emerald-700 bg-emerald-100 p-2 rounded-xl inline-block">
@@ -626,7 +634,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
                 </div>
               )}
               <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
-                05 학습 방법 알아보기 학습 완료하기
+                05 학습 방법 완료 & 06 알고리즘 실험실로 이동
               </PrimaryButton>
             </div>
           </div>

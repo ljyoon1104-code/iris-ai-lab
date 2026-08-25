@@ -34,6 +34,14 @@ export const Module01Activity: React.FC<Module01ActivityProps> = ({ isCompleted,
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
+      {/* Official 6-stage badge banner */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+          [공식 6단계 과정] ① 문제 정의
+        </span>
+        <span className="text-xs text-slate-500 font-medium">01 AI 조수와의 만남</span>
+      </div>
+
       {/* Activity Progress Header */}
       <ActivityProgress
         currentStep={currentStep}

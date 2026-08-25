@@ -153,9 +153,24 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
       {/* Module Completion Button */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs text-center space-y-3">
-        {/* Key Summary Sentence Banner */}
+        <div className="flex items-center justify-between text-xs font-bold text-slate-500 pb-1">
+          <span className="text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+            [공식 6단계 과정] ④ 기계학습 알고리즘 선정
+          </span>
+          <span>06 알고리즘 실험실</span>
+        </div>
+
+        {/* Section 24 Key Summary Sentence Banner */}
         <div className="p-4 rounded-2xl bg-emerald-600 text-white text-center font-extrabold text-sm shadow-sm max-w-xl mx-auto">
-          "알고리즘마다 데이터를 판단하는 방법이 다릅니다."
+          "알고리즘의 설정에 따라 결과가 달라질 수 있습니다."
+        </div>
+
+        {/* Section 25 Ending Page Connection */}
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2 text-xs max-w-xl mx-auto">
+          <span className="font-bold text-slate-900 block text-sm">💡 다음 학습 영역 연결 안내:</span>
+          <p className="text-slate-700 font-bold leading-relaxed">
+            "알고리즘을 이해했다면 이제 실제 데이터를 이용해 모델을 만들어봅니다."
+          </p>
         </div>
 
         {isCompleted && (
@@ -164,7 +179,7 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
           </div>
         )}
         <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
-          06 알고리즘 실험실 전체 완료 처리하기
+          06 알고리즘 실험실 완료 & 07 모델 만들기로 이동
         </PrimaryButton>
       </div>
     </div>

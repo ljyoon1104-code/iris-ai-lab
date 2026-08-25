@@ -3,11 +3,9 @@ import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import {
   trainLinearRegression,
   predictLinearRegression,
-  getResidualSamples,
   type FeatureKey,
 } from '../../algorithms/linearRegression';
-import { SecondaryButton } from '../common/SecondaryButton';
-import { LineChart, Sliders } from 'lucide-react';
+import { LineChart, Sliders, Eye, HelpCircle } from 'lucide-react';
 
 const FEATURE_NAMES: Record<FeatureKey, string> = {
   sepalLength: '꽃받침 길이 (cm)',
@@ -32,11 +30,12 @@ export const LinearRegressionLab: React.FC = () => {
   const [manualSlope, setManualSlope] = useState<number>(0.3);
   const [manualIntercept, setManualIntercept] = useState<number>(0.0);
 
+  const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
+
   // Train OLS model
   const regResult = trainLinearRegression(ORIGINAL_IRIS_DATASET, xAxis, yAxis);
   const predictedY = predictLinearRegression(regResult.slope, regResult.intercept, inputX);
   const manualPredY = predictLinearRegression(manualSlope, manualIntercept, inputX);
-  const residuals = getResidualSamples(ORIGINAL_IRIS_DATASET, regResult.slope, regResult.intercept, xAxis, yAxis, 3);
 
   // SVG bounds
   const xSpec = FEATURE_MIN_MAX[xAxis];
@@ -52,150 +51,136 @@ export const LinearRegressionLab: React.FC = () => {
   const getSvgY = (val: number) =>
     svgHeight - padding - ((val - ySpec.min) / (ySpec.max - ySpec.min)) * (svgHeight - 2 * padding);
 
-  // Regression line endpoints
-  const lineX1 = xSpec.min;
-  const lineY1 = predictLinearRegression(regResult.slope, regResult.intercept, lineX1);
-  const lineX2 = xSpec.max;
-  const lineY2 = predictLinearRegression(regResult.slope, regResult.intercept, lineX2);
+  const activeSlope = isManualMode ? manualSlope : regResult.slope;
+  const activeIntercept = isManualMode ? manualIntercept : regResult.intercept;
+  const activePredY = isManualMode ? manualPredY : predictedY;
 
-  // Manual line endpoints
-  const manY1 = predictLinearRegression(manualSlope, manualIntercept, lineX1);
-  const manY2 = predictLinearRegression(manualSlope, manualIntercept, lineX2);
-
-  const inputSvgX = getSvgX(inputX);
-  const inputSvgY = getSvgY(predictedY);
+  const lineX1Val = xSpec.min;
+  const lineY1Val = predictLinearRegression(activeSlope, activeIntercept, lineX1Val);
+  const lineX2Val = xSpec.max;
+  const lineY2Val = predictLinearRegression(activeSlope, activeIntercept, lineX2Val);
 
   return (
-    <div className="space-y-6">
-      {/* Banner */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-950 space-y-1">
-        <span className="font-extrabold text-sm text-emerald-900 block flex items-center gap-1.5">
-          <LineChart size={18} className="text-emerald-600" />
-          <span>선형 회귀 (Linear Regression) 시뮬레이터</span>
-        </span>
-        <p className="leading-relaxed">
-          두 수치형 속성 간의 분포 패턴을 가장 잘 표현하는 최적 직선($y = ax + b$)을 찾아 수치 값을 예측합니다.
-        </p>
+    <div className="space-y-6 animate-fadeIn">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <span className="font-extrabold text-slate-900 block flex items-center gap-1.5">
+            <Sliders size={16} className="text-teal-600" />
+            <span>[무엇을 바꿀 수 있나요?]</span>
+          </span>
+          <p className="text-slate-600 leading-relaxed font-medium">
+            x축/y축 측정 수치 속성, 입력 x값, 그리고 직접 기울기/절편을 수동 조정할 수 있습니다.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <span className="font-extrabold text-slate-900 block flex items-center gap-1.5">
+            <Eye size={16} className="text-blue-600" />
+            <span>[무엇을 관찰하면 되나요?]</span>
+          </span>
+          <p className="text-slate-600 leading-relaxed font-medium">
+            데이터 점들의 대략적 위치와 기울기 직선($y=ax+b$)의 오차(잔차) 분포 형태를 관찰하세요.
+          </p>
+        </div>
       </div>
 
-      {/* Axis Selector & Control Panel */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <span className="text-xs font-bold text-slate-800">속성 (Feature) 설정:</span>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <span className="text-slate-500 font-semibold">독립변수 (X):</span>
-              <select
-                value={xAxis}
-                onChange={e => setXAxis(e.target.value as FeatureKey)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
-              >
-                {(Object.keys(FEATURE_NAMES) as FeatureKey[]).map(f => (
-                  <option key={f} value={f} disabled={f === yAxis}>
-                    {FEATURE_NAMES[f]}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <LineChart size={20} className="text-teal-600" />
+            <span>선형회귀 (Linear Regression) 추론 시뮬레이터</span>
+          </h3>
 
-            <div className="flex items-center gap-1">
-              <span className="text-slate-500 font-semibold">종속변수 (y):</span>
-              <select
-                value={yAxis}
-                onChange={e => setYAxis(e.target.value as FeatureKey)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
-              >
-                {(Object.keys(FEATURE_NAMES) as FeatureKey[]).map(f => (
-                  <option key={f} value={f} disabled={f === xAxis}>
-                    {FEATURE_NAMES[f]}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsManualMode(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                !isManualMode ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              최소자승법 자동 계산
+            </button>
+            <button
+              onClick={() => setIsManualMode(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                isManualMode ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              수동 기울기 조정
+            </button>
           </div>
         </div>
 
-        {/* Real-time X Predictor Control */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-900">
-              새 입력값 X ({FEATURE_NAMES[xAxis]}) 조절:
-            </span>
-            <span className="font-extrabold text-emerald-800 bg-white px-2.5 py-1 rounded border border-slate-300 font-mono text-sm">
-              X = {inputX} cm
-            </span>
+        {/* Axis Selections */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <span className="font-bold text-slate-700 block mb-1">독립변수 X축 (원인 수치):</span>
+            <select
+              value={xAxis}
+              onChange={e => setXAxis(e.target.value as FeatureKey)}
+              className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
+            >
+              <option value="petalLength">꽃잎 길이 (petalLength)</option>
+              <option value="sepalLength">꽃받침 길이 (sepalLength)</option>
+              <option value="sepalWidth">꽃받침 너비 (sepalWidth)</option>
+              <option value="petalWidth">꽃잎 너비 (petalWidth)</option>
+            </select>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setInputX(x => Math.max(xSpec.min, Math.round((x - 0.1) * 10) / 10))}
-              className="w-10 h-10 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer text-base"
+          <div>
+            <span className="font-bold text-slate-700 block mb-1">종속변수 Y축 (예측 대상 수치):</span>
+            <select
+              value={yAxis}
+              onChange={e => setYAxis(e.target.value as FeatureKey)}
+              className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
             >
-              -
-            </button>
+              <option value="petalWidth">꽃잎 너비 (petalWidth)</option>
+              <option value="petalLength">꽃잎 길이 (petalLength)</option>
+              <option value="sepalLength">꽃받침 길이 (sepalLength)</option>
+              <option value="sepalWidth">꽃받침 너비 (sepalWidth)</option>
+            </select>
+          </div>
+
+          <div>
+            <span className="font-bold text-slate-700 block mb-1">입력 X값 (cm):</span>
             <input
-              type="range"
+              type="number"
+              step="0.1"
               min={xSpec.min}
               max={xSpec.max}
-              step={xSpec.step}
               value={inputX}
-              onChange={e => setInputX(parseFloat(e.target.value))}
-              className="w-full accent-emerald-600 min-h-[44px]"
+              onChange={e => setInputX(parseFloat(e.target.value) || xSpec.min)}
+              className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs font-mono min-h-[44px]"
             />
-            <button
-              onClick={() => setInputX(x => Math.min(xSpec.max, Math.round((x + 0.1) * 10) / 10))}
-              className="w-10 h-10 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer text-base"
-            >
-              +
-            </button>
-          </div>
-
-          {/* Realtime Predicted Y Output */}
-          <div className="p-3 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
-            <span>컴퓨터 회귀선 실시간 예측값 (y):</span>
-            <span className="text-base font-mono font-black">{predictedY} cm</span>
           </div>
         </div>
 
-        {/* Manual Fitting Mode Toggle */}
-        <div className="pt-1 flex justify-end">
-          <SecondaryButton
-            size="sm"
-            onClick={() => setIsManualMode(!isManualMode)}
-            icon={<Sliders size={14} />}
-          >
-            {isManualMode ? '컴퓨터 최적 직선 전용 보기' : '직선을 직접 맞춰보기 (수동 조절)'}
-          </SecondaryButton>
-        </div>
-
-        {/* Manual Fit Sliders */}
+        {/* Manual Sliders if manual mode */}
         {isManualMode && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 space-y-3 text-xs animate-fadeIn">
-            <span className="font-extrabold text-amber-900 block flex items-center gap-1.5">
-              <Sliders size={16} />
-              <span>학생 수동 직선 조절 패널 (기울기 & 절편)</span>
-            </span>
-
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-3">
+            <span className="font-extrabold text-amber-950 block">🛠️ 수동 직선 방정식 조정 (y = a·x + b)</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <span className="font-bold text-slate-700 block mb-1">
-                  기울기 a (Slope): {manualSlope}
-                </span>
+                <div className="flex justify-between font-bold text-amber-900 mb-1">
+                  <span>기울기 a</span>
+                  <span className="font-mono">{manualSlope.toFixed(2)}</span>
+                </div>
                 <input
                   type="range"
-                  min="-1.0"
+                  min="-1.5"
                   max="1.5"
                   step="0.05"
                   value={manualSlope}
                   onChange={e => setManualSlope(parseFloat(e.target.value))}
-                  className="w-full accent-amber-600 min-h-[44px]"
+                  className="w-full accent-amber-600 cursor-pointer"
                 />
               </div>
-
               <div>
-                <span className="font-bold text-slate-700 block mb-1">
-                  절편 b (Intercept): {manualIntercept}
-                </span>
+                <div className="flex justify-between font-bold text-amber-900 mb-1">
+                  <span>절편 b</span>
+                  <span className="font-mono">{manualIntercept.toFixed(2)}</span>
+                </div>
                 <input
                   type="range"
                   min="-3.0"
@@ -203,138 +188,142 @@ export const LinearRegressionLab: React.FC = () => {
                   step="0.1"
                   value={manualIntercept}
                   onChange={e => setManualIntercept(parseFloat(e.target.value))}
-                  className="w-full accent-amber-600 min-h-[44px]"
+                  className="w-full accent-amber-600 cursor-pointer"
                 />
               </div>
             </div>
-
-            <div className="p-3 bg-white rounded-lg border border-amber-200 text-amber-950 font-bold flex justify-between">
-              <span>수동 직선 예측값: {manualPredY} cm</span>
-              <span>컴퓨터 최적 직선 예측값: {predictedY} cm</span>
-            </div>
           </div>
         )}
-      </div>
 
-      {/* SVG Scatter Plot & Regression Line */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-extrabold text-slate-900">Iris 150개 점 & 회귀 직선 ($y = ax + b$)</span>
-          <span className="font-mono text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded">
-            {regResult.equationString} ($R^2 = {regResult.rSquared}$)
-          </span>
+        {/* Result Equation Banner */}
+        <div className="p-4 rounded-xl bg-teal-600 text-white text-xs space-y-2 shadow-xs">
+          <div className="flex items-center justify-between font-bold border-b border-teal-500 pb-2">
+            <span>도출된 선형 회귀 방정식 (Linear Model)</span>
+            <span className="font-mono font-black text-sm">R² 설명력: {(regResult.rSquared * 100).toFixed(1)}%</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-teal-100 text-[11px] block">추정 방정식</span>
+              <span className="text-lg font-black font-mono">
+                y = {activeSlope.toFixed(2)} × x {activeIntercept >= 0 ? `+ ${activeIntercept.toFixed(2)}` : `- ${Math.abs(activeIntercept).toFixed(2)}`}
+              </span>
+            </div>
+
+            <div className="text-right">
+              <span className="text-teal-100 text-[11px] block">입력 X = {inputX}cm 예측 Y값</span>
+              <span className="text-2xl font-black font-mono text-amber-300">{activePredY.toFixed(2)} cm</span>
+            </div>
+          </div>
         </div>
 
-        <div className="w-full overflow-x-auto flex justify-center bg-slate-50/70 p-2 rounded-xl border border-slate-200">
-          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full max-w-[500px] h-auto">
-            {/* Grid Axes Lines */}
-            <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#cbd5e1" strokeWidth="1.5" />
-            <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#cbd5e1" strokeWidth="1.5" />
+        {/* SVG Plot */}
+        <div className="w-full overflow-x-auto bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto min-w-[320px]">
+            {/* Axis */}
+            <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#cbd5e1" strokeWidth="2" />
+            <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#cbd5e1" strokeWidth="2" />
 
-            {/* 150 Iris Points */}
-            {ORIGINAL_IRIS_DATASET.map(r => {
-              const cx = getSvgX(r[xAxis]);
-              const cy = getSvgY(r[yAxis]);
-              return (
-                <circle
-                  key={r.id}
-                  cx={cx}
-                  cy={cy}
-                  r="3.5"
-                  fill="#059669"
-                  opacity="0.6"
-                />
-              );
-            })}
-
-            {/* OLS Regression Line (Green Solid) */}
-            <line
-              x1={getSvgX(lineX1)}
-              y1={getSvgY(lineY1)}
-              x2={getSvgX(lineX2)}
-              y2={getSvgY(lineY2)}
-              stroke="#047857"
-              strokeWidth="3.5"
-            />
-
-            {/* Manual Line if enabled (Amber Dashed) */}
-            {isManualMode && (
-              <line
-                x1={getSvgX(lineX1)}
-                y1={getSvgY(manY1)}
-                x2={getSvgX(lineX2)}
-                y2={getSvgY(manY2)}
-                stroke="#d97706"
-                strokeWidth="2.5"
-                strokeDasharray="6 4"
-              />
-            )}
-
-            {/* Input Point X Marker (Orange) */}
-            <circle cx={inputSvgX} cy={inputSvgY} r="7" fill="#f59e0b" stroke="#b45309" strokeWidth="2" />
-
-            {/* Axes Labels */}
-            <text x={svgWidth / 2} y={svgHeight - 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#475569">
+            {/* Labels */}
+            <text x={svgWidth / 2} y={svgHeight - 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569">
               {FEATURE_NAMES[xAxis]}
             </text>
-            <text x="15" y={svgHeight / 2} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#475569" transform={`rotate(-90 15 ${svgHeight / 2})`}>
+            <text x="15" y={svgHeight / 2} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569" transform={`rotate(-90 15 ${svgHeight / 2})`}>
               {FEATURE_NAMES[yAxis]}
             </text>
-          </svg>
-        </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold pt-2 border-t border-slate-100">
-          <span className="flex items-center gap-1.5 text-emerald-800">
-            <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span> 실제 데이터 점 (150개)
-          </span>
-          <span className="flex items-center gap-1.5 text-emerald-950">
-            <span className="w-5 h-1 bg-emerald-700 inline-block"></span> 최적 회귀선
-          </span>
-          {isManualMode && (
-            <span className="flex items-center gap-1.5 text-amber-700">
-              <span className="w-5 h-1 bg-amber-600 border-dashed inline-block"></span> 학생 수동 직선
-            </span>
-          )}
-          <span className="flex items-center gap-1.5 text-amber-700">
-            ● 예측 지점 (X={inputX}cm, y={predictedY}cm)
-          </span>
+            {/* Data points */}
+            {ORIGINAL_IRIS_DATASET.map(r => (
+              <circle
+                key={r.id}
+                cx={getSvgX(r[xAxis])}
+                cy={getSvgY(r[yAxis])}
+                r="3.5"
+                fill="#0d9488"
+                opacity="0.5"
+              />
+            ))}
+
+            {/* Regression Line */}
+            <line
+              x1={getSvgX(lineX1Val)}
+              y1={getSvgY(lineY1Val)}
+              x2={getSvgX(lineX2Val)}
+              y2={getSvgY(lineY2Val)}
+              stroke="#0f172a"
+              strokeWidth="3"
+            />
+
+            {/* Prediction Point */}
+            <circle
+              cx={getSvgX(inputX)}
+              cy={getSvgY(activePredY)}
+              r="7"
+              fill="#e11d48"
+              stroke="#ffffff"
+              strokeWidth="2"
+            />
+          </svg>
         </div>
       </div>
 
-      {/* Actual vs Predicted Sample Comparison */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-        <span className="text-xs font-extrabold text-slate-900 block">
-          실제 데이터와 회귀선 예측값 비교 샘플
+      {/* Observation Question Card (Section 5) */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+        <span className="font-extrabold text-slate-900 block text-sm flex items-center gap-1.5">
+          <HelpCircle size={16} className="text-teal-600" />
+          <span>[핵심 관찰 질문] 점들의 모임 형태와 직선 예측</span>
         </span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-          {residuals.map(sample => (
-            <div key={sample.recordId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-              <span className="font-bold text-slate-900 block text-[11px]">ID #{sample.recordId} (X = {sample.xValue}cm)</span>
-              <div className="text-[11px] text-slate-700">실제 값: <strong>{sample.actualY} cm</strong></div>
-              <div className="text-[11px] text-emerald-800">예측 값: <strong>{sample.predictedY} cm</strong></div>
-              <div className="text-[11px] text-amber-800 font-bold">오차(잔차): {sample.residual} cm</div>
-            </div>
+        <p className="text-slate-700 font-medium leading-relaxed">
+          질문: <strong>점들이 직선 주변에 가까이 모여 있을수록 직선으로 수치를 예측하기 쉬울까요?</strong>
+        </p>
+
+        <div className="space-y-2">
+          {[
+            {
+              key: 'ans1',
+              label: '네. 데이터 점들이 직선에 가까이 촘촘하게 뭉쳐 있을수록 오차가 적어 선형 예측이 쉬워집니다.',
+            },
+            {
+              key: 'ans2',
+              label: '아니요. 점들이 흩어져 있을수록 직선으로 예측하기가 훨씬 쉽습니다.',
+            },
+          ].map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => setUserObservationChoice(opt.key)}
+              className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
+                userObservationChoice === opt.key
+                  ? opt.key === 'ans1'
+                    ? 'bg-teal-600 text-white border-teal-600'
+                    : 'bg-rose-600 text-white border-rose-600'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
           ))}
         </div>
 
-        <div className="p-3.5 rounded-xl bg-slate-100 text-xs text-slate-700 leading-relaxed font-medium">
-          💡 <strong>핵심 가이드:</strong> 회귀선이 모든 실제 점과 100% 일치하지는 않으며, 데이터 전체의 경향성을 나타내는 직선을 통해 미래 수치 값을 예측합니다.
-        </div>
-      </div>
-
-      {/* Observation Reflection Question Card */}
-      <div className="p-4 rounded-2xl bg-slate-900 text-white text-xs space-y-2 shadow-xs">
-        <span className="font-extrabold text-teal-300 block text-sm flex items-center gap-1.5">
-          🧐 생각하기 (관찰 질문)
-        </span>
-        <p className="font-bold text-slate-100">
-          "왜 회귀선의 예측값(추정선)과 모든 실제 점의 수치가 정확히 일치하지 않고 오차(잔차)가 존재할까요?"
-        </p>
-        <p className="text-slate-300 text-[11px] leading-relaxed">
-          💡 실제 수치 데이터는 노이즈와 다양한 환경 요소가 섞여 있으므로, 선형 회귀는 전체 점들의 오차 합을 최소화하는 전반적 추측 선($y=ax+b$)을 찾아 미래 수치를 예측합니다.
-        </p>
+        {userObservationChoice && (
+          <div
+            className={`p-3 rounded-lg text-xs leading-relaxed animate-fadeIn ${
+              userObservationChoice === 'ans1'
+                ? 'bg-teal-50 text-teal-950 border border-teal-200'
+                : 'bg-rose-50 text-rose-950 border border-rose-200'
+            }`}
+          >
+            {userObservationChoice === 'ans1' ? (
+              <span>
+                ✓ <strong>정답입니다!</strong> 상관관계가 강하여 점들이 직선 근처에 길게 늘어설수록 잔차(오차)가 작아져 정확한 수치 추정이 가능해집니다.
+              </span>
+            ) : (
+              <span>
+                X 다시 확인해보세요. 점들이 흩어져 있으면 오차가 매우 커지므로, 점들이 직선 근처에 길게 모여 있을 때 선형회귀 예측이 용이해집니다.
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

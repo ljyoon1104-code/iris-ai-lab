@@ -2,31 +2,27 @@ import React, { useState } from 'react';
 import {
   QLearningAgent,
   DEFAULT_GRID_CONFIG,
-  type RLEpisodeResult,
   type PolicyPathResult,
 } from '../../algorithms/reinforcementLearning';
-import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
-import { Bot, Play, RotateCcw, Compass } from 'lucide-react';
+import { Bot, Play, RotateCcw, Compass, Sliders, Eye, HelpCircle } from 'lucide-react';
 
 export const ReinforcementLearningLab: React.FC = () => {
   const [agent] = useState(() => new QLearningAgent(DEFAULT_GRID_CONFIG, 42));
-  const [lastBatchResult, setLastBatchResult] = useState<RLEpisodeResult | null>(null);
-  const [explorationLevel, setExplorationLevel] = useState<'low' | 'medium' | 'high'>('medium');
+  const [explorationLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [showPathOnMap, setShowPathOnMap] = useState<boolean>(false);
+  const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
   const handleTrainEpisodes = (numEpisodes: number) => {
     // Set epsilon according to exploration level
     agent.epsilon = explorationLevel === 'low' ? 0.1 : explorationLevel === 'medium' ? 0.3 : 0.6;
-    const res = agent.trainBatch(numEpisodes);
-    setLastBatchResult(res);
+    agent.trainBatch(numEpisodes);
     // Show path evaluation automatically after training
     setShowPathOnMap(true);
   };
 
   const handleReset = () => {
     agent.initQTable();
-    setLastBatchResult(null);
     setShowPathOnMap(false);
   };
 
@@ -37,7 +33,7 @@ export const ReinforcementLearningLab: React.FC = () => {
   const lastPathPos = visiblePath.length > 0 ? visiblePath[visiblePath.length - 1] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       {/* Banner */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 space-y-1">
         <span className="font-extrabold text-sm text-amber-900 block flex items-center gap-1.5">
@@ -49,226 +45,184 @@ export const ReinforcementLearningLab: React.FC = () => {
         </p>
       </div>
 
-      {/* Grid Visualizer & Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {/* 5x5 Grid Visualization */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-extrabold text-slate-900">5 × 5 온실 격자 지도</span>
-            <span className="font-mono text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded">
-              누적 에피소드 학습: {agent.episodesTrained}회
-            </span>
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <span className="font-extrabold text-slate-900 block flex items-center gap-1.5">
+            <Sliders size={16} className="text-amber-600" />
+            <span>[무엇을 바꿀 수 있나요?]</span>
+          </span>
+          <p className="text-slate-600 leading-relaxed font-medium">
+            시뮬레이션 반복 횟수(10회, 50회, 100회)와 탐험율(Exploration)을 조절할 수 있습니다.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <span className="font-extrabold text-slate-900 block flex items-center gap-1.5">
+            <Eye size={16} className="text-blue-600" />
+            <span>[무엇을 관찰하면 되나요?]</span>
+          </span>
+          <p className="text-slate-600 leading-relaxed font-medium">
+            경험 횟수가 누적될수록 장애물을 피하고 목표 도착 지점까지의 최적 이동 경로가 완성되는지 관찰하세요.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <Compass size={20} className="text-amber-600" />
+            <span>Q-Learning 학습 실행 조종간</span>
+          </h3>
+
+          <SecondaryButton size="sm" onClick={handleReset} icon={<RotateCcw size={14} />}>
+            Q-Table 학습 초기화
+          </SecondaryButton>
+        </div>
+
+        {/* Action Controls */}
+        <div className="space-y-3 text-xs">
+          <span className="font-bold text-slate-700 block">학습 에피소드 반복 횟수 선택 실행:</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              onClick={() => handleTrainEpisodes(10)}
+              className="p-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-xs cursor-pointer min-h-[44px] flex items-center justify-center gap-2"
+            >
+              <Play size={16} /> 10회 에피소드 학습
+            </button>
+            <button
+              onClick={() => handleTrainEpisodes(50)}
+              className="p-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-xs cursor-pointer min-h-[44px] flex items-center justify-center gap-2"
+            >
+              <Play size={16} /> 50회 에피소드 누적 학습
+            </button>
+            <button
+              onClick={() => handleTrainEpisodes(100)}
+              className="p-3 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-xl transition-all shadow-xs cursor-pointer min-h-[44px] flex items-center justify-center gap-2"
+            >
+              <Play size={16} /> 100회 에피소드 집중 학습
+            </button>
+          </div>
+        </div>
+
+        {/* Status metric banner */}
+        <div className="p-4 bg-slate-900 text-white rounded-xl text-xs space-y-2 font-mono">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+            <span className="text-amber-400 font-bold">누적 에피소드: {agent.episodesTrained}회</span>
+            <span>최종 평가: {policyResult.reachedGoal ? '✓ 목표 도착 성공' : 'X 실패/미완료'}</span>
           </div>
 
-          {/* 5x5 Grid Cells */}
-          <div className="grid grid-cols-5 gap-1.5 p-2 bg-slate-900 rounded-xl aspect-square">
-            {Array.from({ length: 5 }).map((_, r) =>
-              Array.from({ length: 5 }).map((_, c) => {
-                const isStart = r === 0 && c === 0;
-                const isGoal = r === 4 && c === 4;
+          <div className="flex justify-between text-[11px] text-slate-300">
+            <span>도착 사유: {policyResult.terminatedReason}</span>
+            <span>이동 경로 길이: {visiblePath.length} steps</span>
+          </div>
+        </div>
+
+        {/* 5x5 Grid Map Visual */}
+        <div className="space-y-2 text-xs">
+          <span className="font-bold text-slate-800 block">5 × 5 온실 격자 지도 (실시간 최적 정책 경로)</span>
+
+          <div className="grid grid-cols-5 gap-1.5 bg-slate-100 p-3 rounded-2xl border border-slate-300 max-w-sm mx-auto">
+            {Array.from({ length: 5 }, (_, r) =>
+              Array.from({ length: 5 }, (_, c) => {
+                const isStart = r === DEFAULT_GRID_CONFIG.start.r && c === DEFAULT_GRID_CONFIG.start.c;
+                const isGoal = r === DEFAULT_GRID_CONFIG.goal.r && c === DEFAULT_GRID_CONFIG.goal.c;
                 const isObstacle = DEFAULT_GRID_CONFIG.obstacles.some(o => o.r === r && o.c === c);
-                const isInVisiblePath = visiblePathSet.has(`${r},${c}`);
-                const isLastPos = lastPathPos && lastPathPos.r === r && lastPathPos.c === c;
-
-                let bgClass = 'bg-slate-800 text-slate-400';
-                let content = '';
-
-                if (isStart) {
-                  bgClass = 'bg-blue-600 text-white font-bold';
-                  content = 'S (시작)';
-                } else if (isGoal) {
-                  if (isInVisiblePath && policyResult.reachedGoal) {
-                    bgClass = 'bg-emerald-500 text-white font-black ring-2 ring-emerald-300 animate-pulse';
-                    content = '★ G (+10)';
-                  } else {
-                    bgClass = 'bg-emerald-600 text-white font-bold animate-pulse';
-                    content = 'G (+10)';
-                  }
-                } else if (isObstacle) {
-                  if (isInVisiblePath) {
-                    bgClass = 'bg-rose-600 text-white font-black ring-2 ring-rose-300';
-                    content = '★ X (-5)';
-                  } else {
-                    bgClass = 'bg-rose-600 text-white font-bold';
-                    content = 'X (-5)';
-                  }
-                } else if (isInVisiblePath) {
-                  if (isLastPos && !policyResult.reachedGoal) {
-                    bgClass = 'bg-amber-600 text-white font-extrabold ring-2 ring-amber-300';
-                    content = '★ 중단';
-                  } else {
-                    bgClass = 'bg-amber-500 text-slate-950 font-extrabold ring-2 ring-amber-300';
-                    content = '★';
-                  }
-                }
+                const isPath = visiblePathSet.has(`${r},${c}`);
+                const isEndPos = lastPathPos && lastPathPos.r === r && lastPathPos.c === c;
 
                 return (
                   <div
-                    key={`${r}_${c}`}
-                    className={`rounded-lg flex flex-col items-center justify-center text-[10px] sm:text-xs text-center p-1 font-mono transition-all ${bgClass}`}
+                    key={`${r}-${c}`}
+                    className={`aspect-square rounded-xl p-1 flex flex-col items-center justify-center text-center font-bold text-[10px] transition-all relative ${
+                      isGoal
+                        ? 'bg-emerald-500 text-white border-2 border-emerald-600 shadow-xs'
+                        : isObstacle
+                        ? 'bg-slate-700 text-slate-300 border border-slate-800'
+                        : isPath
+                        ? 'bg-amber-300 text-amber-950 border-2 border-amber-500 font-black'
+                        : 'bg-white border border-slate-200 text-slate-600'
+                    }`}
                   >
-                    <span>{content}</span>
+                    {isStart && <span className="text-[9px] text-emerald-800 block font-mono">출발</span>}
+                    {isGoal && <span className="text-xs">🏆 목표</span>}
+                    {isObstacle && <span className="text-[10px]">🚫 장애물</span>}
+                    {!isGoal && !isObstacle && (
+                      <span className="font-mono text-[9px] opacity-75">
+                        ({r},{c})
+                      </span>
+                    )}
+
+                    {isEndPos && (
+                      <div className="absolute inset-0 bg-rose-500/80 rounded-xl flex items-center justify-center text-white text-[10px] font-extrabold animate-pulse">
+                        🤖 로봇
+                      </div>
+                    )}
                   </div>
                 );
               })
             )}
           </div>
-
-          {/* Grid Legend */}
-          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] font-bold pt-1 text-slate-700">
-            <span className="flex items-center gap-1 text-blue-700">● S: 로봇 시작 (0,0)</span>
-            <span className="flex items-center gap-1 text-emerald-700">● G: 목표 (+10점)</span>
-            <span className="flex items-center gap-1 text-rose-700">● X: 장애물 (-5점)</span>
-            <span className="flex items-center gap-1 text-amber-700">★: 현재 배운 경로</span>
-          </div>
-
-          {/* Strict Policy Evaluation Result Card */}
-          {showPathOnMap && (
-            <div className={`p-4 rounded-xl border text-xs space-y-1.5 animate-fadeIn shadow-xs ${
-              policyResult.reachedGoal
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                : 'bg-rose-50 border-rose-300 text-rose-950'
-            }`}>
-              <div className="flex items-center justify-between font-extrabold text-sm">
-                <span>
-                  {policyResult.reachedGoal ? '✓ 목표 지점 도달 성공' : '△ 아직 목표 지점에 도달하지 못함'}
-                </span>
-                <span className={`text-[11px] px-2 py-0.5 rounded font-mono font-bold ${
-                  policyResult.reachedGoal ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
-                }`}>
-                  {policyResult.reachedGoal ? '정책 탐색 성공' : '추가 학습 필요'}
-                </span>
-              </div>
-
-              <p className="leading-relaxed font-medium">
-                {policyResult.reachedGoal ? (
-                  <>
-                    현재 학습된 정책으로 시작점 S(0,0)에서 목표 지점 G(4,4)까지 <strong>성공적으로 도달</strong>했습니다.
-                    <br />
-                    <span className="font-mono text-[11px]">이동 횟수: {policyResult.totalSteps}회 | 누적 보상: {policyResult.totalReward}점</span>
-                  </>
-                ) : (
-                  <>
-                    {policyResult.terminatedReason === 'loop' && '현재 배운 경로가 동일한 위치를 반복 순환하고 있습니다.'}
-                    {policyResult.terminatedReason === 'obstacle' && '현재 배운 경로가 이동 중 장애물(X)에 충돌했습니다.'}
-                    {policyResult.terminatedReason === 'maxSteps' && '최대 이동 횟수 내에 목표 지점까지 이어지는 경로를 찾지 못했습니다.'}
-                    {policyResult.terminatedReason === 'invalidPolicy' && '아직 충분히 학습되지 않아 유효한 이동 경로를 결정하지 못했습니다.'}
-                    <br />
-                    <span className="font-mono text-[11px]">현재 이동 횟수: {policyResult.totalSteps}회 | 상태: 추가 학습 필요</span>
-                  </>
-                )}
-              </p>
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Training Controls & Policy Path Button */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-          <span className="text-xs font-extrabold text-slate-900 block">로봇 학습 제어 패널</span>
+      {/* Observation Question Card (Section 5) */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+        <span className="font-extrabold text-slate-900 block text-sm flex items-center gap-1.5">
+          <HelpCircle size={16} className="text-amber-600" />
+          <span>[핵심 관찰 질문] 강화학습 경험 누적과 행동 선택</span>
+        </span>
 
-          {/* Exploration Level Selector */}
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-800 block">탐험 비율 (Exploration ε) 설정:</span>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { key: 'low', label: '낮음 (10%)' },
-                { key: 'medium', label: '보통 (30%)' },
-                { key: 'high', label: '높음 (60%)' },
-              ].map(item => (
-                <button
-                  key={item.key}
-                  onClick={() => setExplorationLevel(item.key as any)}
-                  className={`p-2 rounded-xl border text-xs font-bold transition-all min-h-[44px] cursor-pointer ${
-                    explorationLevel === item.key
-                      ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-300'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <p className="text-slate-700 font-medium leading-relaxed">
+          질문: <strong>에이전트(로봇)가 여러 번 시행착오 경험을 누적할수록 어떤 행동을 선택하는 경향이 생기나요?</strong>
+        </p>
 
-          {/* Action Buttons */}
-          <div className="space-y-2 pt-2">
-            <span className="text-xs font-bold text-slate-800 block">학습 수행 실행:</span>
-            <div className="grid grid-cols-3 gap-2">
-              <PrimaryButton size="sm" onClick={() => handleTrainEpisodes(1)} icon={<Play size={14} />}>
-                1회 학습
-              </PrimaryButton>
-              <PrimaryButton size="sm" onClick={() => handleTrainEpisodes(10)} icon={<Play size={14} />}>
-                10회 학습
-              </PrimaryButton>
-              <PrimaryButton size="sm" onClick={() => handleTrainEpisodes(100)} icon={<Play size={14} />}>
-                100회 학습
-              </PrimaryButton>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-            <SecondaryButton size="sm" onClick={handleReset} icon={<RotateCcw size={16} />}>
-              처음부터 (초기화)
-            </SecondaryButton>
-            <SecondaryButton
-              size="sm"
-              onClick={() => setShowPathOnMap(!showPathOnMap)}
-              icon={<Compass size={16} />}
+        <div className="space-y-2">
+          {[
+            {
+              key: 'ans1',
+              label: '경험이 늘어날수록 장애물을 피하고 보상이 가장 높은 최적의 경로 행동(Q값 선택)을 찾아 집중하게 됩니다.',
+            },
+            {
+              key: 'ans2',
+              label: '경험이 늘어날수록 로봇이 보상을 무시하고 임의로 방황하며 실패율이 더 높아집니다.',
+            },
+          ].map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => setUserObservationChoice(opt.key)}
+              className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
+                userObservationChoice === opt.key
+                  ? opt.key === 'ans1'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-rose-600 text-white border-rose-600'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
             >
-              {showPathOnMap ? '현재 배운 경로 숨기기' : '현재 배운 경로 지도에 보기'}
-            </SecondaryButton>
-          </div>
-
-          {/* Last Batch Training Stats (Distinct from Policy Path Result) */}
-          {lastBatchResult && (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between font-bold text-slate-900">
-                <span>학습 수행 완료: 누적 {agent.episodesTrained}회 에피소드</span>
-                <span className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-mono font-bold">
-                  Q-Table 갱신 완료
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">
-                에피소드 시뮬레이션을 완료하고 보상 경험을 Q-Table에 기록했습니다. 지도에서 [현재 배운 경로 보기]를 통해 목표 도달 여부를 평가하세요.
-              </p>
-            </div>
-          )}
+              {opt.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* RL Key Concept Summary */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-        <span className="text-xs font-extrabold text-slate-900 block">
-          강화학습 3대 구성 요소 요약
-        </span>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <span className="font-extrabold text-blue-900 block text-sm">상태 (State)</span>
-            <p className="text-slate-600">로봇이 위치해 있는 현재 온실 격자 칸 위치 (행, 열)</p>
+        {userObservationChoice && (
+          <div
+            className={`p-3 rounded-lg text-xs leading-relaxed animate-fadeIn ${
+              userObservationChoice === 'ans1'
+                ? 'bg-amber-50 text-amber-950 border border-amber-200'
+                : 'bg-rose-50 text-rose-950 border border-rose-200'
+            }`}
+          >
+            {userObservationChoice === 'ans1' ? (
+              <span>
+                ✓ <strong>정답입니다!</strong> Q-Learning은 보상이 높았던 행동의 Q-Table 가치를 강화하므로, 충분히 경험하면 스스로 최적의 최단 목적지 이동 경로를 선택하게 됩니다.
+              </span>
+            ) : (
+              <span>
+                X 다시 확인해보세요. 학습 에피소드가 100회로 누적되면 로봇이 보상을 보장하는 경로 행동에 집중하므로 안전하게 목표점에 도달합니다.
+              </span>
+            )}
           </div>
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <span className="font-extrabold text-amber-900 block text-sm">행동 (Action)</span>
-            <p className="text-slate-600">로봇이 선택할 수 있는 4가지 방향 (위/아래/왼쪽/오른쪽)</p>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <span className="font-extrabold text-emerald-900 block text-sm">보상 (Reward)</span>
-            <p className="text-slate-600">목표 도착(+10점), 장애물 충돌(-5점), 일반 이동 손실(-1점: 불필요한 이동을 줄이고 효율적 경로를 찾도록 부여)</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Observation Reflection Question Card */}
-      <div className="p-4 rounded-2xl bg-slate-900 text-white text-xs space-y-2 shadow-xs">
-        <span className="font-extrabold text-amber-300 block text-sm flex items-center gap-1.5">
-          🧐 생각하기 (관찰 질문)
-        </span>
-        <p className="font-bold text-slate-100">
-          "학습 횟수(1회, 10회, 100회)를 반복하면서 로봇의 행동 패턴과 목표 도달 성공 여부는 어떻게 달라졌나요?"
-        </p>
-        <p className="text-slate-300 text-[11px] leading-relaxed">
-          💡 처음에는 여러 방향을 자유롭게 시도해보고(탐험), 경험이 쌓이면 더 높은 보상을 받은 행동을 점차 자주 선택하면서 경로 정책을 스스로 다듬어갑니다.
-        </p>
+        )}
       </div>
     </div>
   );

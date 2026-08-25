@@ -3,6 +3,7 @@ import type { LearningProgress } from '../types';
 export const STORAGE_KEY = 'iris_ai_lab_progress_v1';
 export const OLD_STORAGE_KEY = 'fruit_ai_lab_progress_v1';
 export const EXPERIMENTS_STORAGE_KEY = 'iris_ai_lab_experiments';
+export const SELECTED_FEATURES_KEY = 'iris_ai_lab_selected_features';
 
 export const DEFAULT_PROGRESS: LearningProgress = {
   currentModuleId: 1,
@@ -54,6 +55,7 @@ export const clearAllLearningData = (): void => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(OLD_STORAGE_KEY);
     localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
+    localStorage.removeItem(SELECTED_FEATURES_KEY);
 
     // 2. Dynamically scan and remove any remaining learning/experiment/model keys
     const keysToRemove: string[] = [];
