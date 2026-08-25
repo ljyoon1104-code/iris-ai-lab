@@ -1,4 +1,5 @@
 import { ORIGINAL_IRIS_DATASET, ERROR_IRIS_DATASET, BIASED_IRIS_DATASET, ERROR_IRIS_ANSWERS } from '../data/irisDataset';
+import type { IrisSpecies } from '../types/iris';
 import { calculateDistance } from '../algorithms/knn';
 import { trainDecisionTree, traceDecisionPath } from '../algorithms/decisionTree';
 import { trainLinearRegression, predictLinearRegression } from '../algorithms/linearRegression';
@@ -222,10 +223,47 @@ export function runFullVerification() {
     console.log('   ✓ Q-Learning Policy Path evaluation verified.');
   }
 
-  // 8. Confusion Matrix 3x3 Verification
-  console.log('\n8. 3x3 Confusion Matrix Verification:');
-  const cmTest = buildConfusionMatrix(['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'], ['Iris-setosa', 'Iris-versicolor', 'Iris-versicolor']);
-  console.log(`   - Matrix Total: ${cmTest.totalCount}, Correct: ${cmTest.correctCount}, Accuracy: ${cmTest.accuracyPercent}%`);
+  // 8. Confusion Matrix 3x3 Verification (Rule 20)
+  console.log('\n8. 3x3 Confusion Matrix Rigorous Verification:');
+  const actualList: IrisSpecies[] = ['Iris-setosa', 'Iris-versicolor', 'Iris-versicolor', 'Iris-virginica'];
+  const predList: IrisSpecies[] = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica', 'Iris-virginica'];
+  const cmTest = buildConfusionMatrix(actualList, predList);
+
+  let cmPassed = true;
+  // Matrix sum check
+  let matrixCellSum = 0;
+  let diagonalSum = 0;
+  const spList: IrisSpecies[] = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'];
+
+  spList.forEach(act => {
+    spList.forEach(pred => {
+      const count = cmTest.matrix[act][pred];
+      matrixCellSum += count;
+      if (act === pred) diagonalSum += count;
+    });
+  });
+
+  if (matrixCellSum !== cmTest.totalCount || cmTest.totalCount !== 4) {
+    console.error(`   ❌ Confusion matrix total count mismatch: cell sum = ${matrixCellSum}, totalCount = ${cmTest.totalCount}`);
+    cmPassed = false;
+  }
+
+  if (diagonalSum !== cmTest.correctCount || cmTest.correctCount !== 3) {
+    console.error(`   ❌ Confusion matrix diagonal sum mismatch: diagonalSum = ${diagonalSum}, correctCount = ${cmTest.correctCount}`);
+    cmPassed = false;
+  }
+
+  // Row (Actual) vs Column (Predicted) indexing check for (Iris-versicolor -> Iris-virginica)
+  if (cmTest.matrix['Iris-versicolor']['Iris-virginica'] !== 1) {
+    console.error(`   ❌ Confusion matrix Row (Actual) vs Column (Predicted) index mismatch! Expected matrix['Iris-versicolor']['Iris-virginica'] == 1, got ${cmTest.matrix['Iris-versicolor']['Iris-virginica']}`);
+    cmPassed = false;
+  }
+
+  if (cmPassed) {
+    console.log(`   ✓ 3x3 Confusion Matrix verified cleanly (Row=Actual, Col=Predicted, Diagonal sum=${diagonalSum}/4, Total cell sum=${matrixCellSum}/4, Accuracy=${cmTest.accuracyPercent}%).`);
+  } else {
+    passedAll = false;
+  }
 
   console.log('\n====================================================');
   if (passedAll) {
