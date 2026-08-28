@@ -41,6 +41,8 @@ import {
   Sliders,
   Info,
   Sparkles,
+  Table,
+  Check,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 import {
@@ -130,6 +132,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const [showScalingFormula, setShowScalingFormula] = useState<boolean>(false);
   const [isScalingExecuted, setIsScalingExecuted] = useState<boolean>(false);
   const [encodingChoice, setEncodingChoice] = useState<string | null>(null);
+
+  // ACTIVITY 7: Full Dataset Review & Pagination State
+  const [isFullDatasetOpen, setIsFullDatasetOpen] = useState<boolean>(false);
+  const [fullDatasetPage, setFullDatasetPage] = useState<number>(1);
+  const pageSize = 15;
 
   // ACTIVITY 8: Scatter, Heatmap, Key Features State
   const [scatterX, setScatterX] = useState<FeatureKey>('petalLength');
@@ -256,6 +263,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     }
   };
 
+  // Pagination for Activity 7 full preprocessed dataset view
+  const totalFullPages = Math.ceil(workingDataset.length / pageSize);
+  const currentFullDatasetSlice = useMemo(() => {
+    const start = (fullDatasetPage - 1) * pageSize;
+    return workingDataset.slice(start, start + pageSize);
+  }, [workingDataset, fullDatasetPage]);
+
+  // Unique modified record count
+  const uniqueModifiedRecordCount = useMemo(() => {
+    return new Set(module04Edits.map(e => e.recordId)).size;
+  }, [module04Edits]);
+
   const promptText = `오류 데이터(결측치, 이상치, 표현 불일치, 데이터형 오류)가 포함된 붓꽃 데이터셋을 정제하고 Min-Max 스케일링 및 원-핫 인코딩으로 변환하는 전처리 과정이 기계학습 모델의 정확도에 미치는 영향을 설명해줘.`;
 
   // Checklist items
@@ -268,6 +287,33 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     { id: 'review', label: '전처리 결과 확인하기', isCompleted: activityCompletion.reviewComplete },
     { id: 'relation', label: '속성 관계 확인하기', isCompleted: activityCompletion.relationComplete },
   ];
+
+  // Formatting helpers for modified records review
+  const getErrorReasonLabel = (type: string) => {
+    switch (type) {
+      case 'missing': return '결측치 채우기';
+      case 'outlier': return '잘못 입력된 이상치 수정';
+      case 'inconsistent': return '표준 품종 표기 통일';
+      case 'invalidType': return '숫자 데이터형 변환';
+      default: return '오류 정제';
+    }
+  };
+
+  const formatBeforeDisplay = (edit: Module04Edit) => {
+    if (edit.errorType === 'missing') return '값 없음 (null)';
+    if (edit.errorType === 'inconsistent') return `"${edit.before}"`;
+    if (edit.errorType === 'invalidType') return `"${edit.before}" (문자)`;
+    if (typeof edit.before === 'number') return `${edit.before} cm`;
+    return String(edit.before);
+  };
+
+  const formatAfterDisplay = (edit: Module04Edit) => {
+    if (edit.field === 'species') {
+      return edit.after === 'Iris-setosa' ? '세토사 (Iris-setosa)' : edit.after === 'Iris-versicolor' ? '버시컬러 (Iris-versicolor)' : '버지니카 (Iris-virginica)';
+    }
+    if (typeof edit.after === 'number') return `${edit.after} cm`;
+    return String(edit.after);
+  };
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
@@ -289,7 +335,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             : currentActivity === 6
             ? '활동 6. [변환] 데이터를 학습하기 좋은 형태로 바꿔보자'
             : currentActivity === 7
-            ? '활동 7. [확인] 전처리가 잘 되었을까?'
+            ? '활동 7. [확인] 내가 수정한 데이터 확인하기'
             : '활동 8. [관계] 속성끼리는 어떤 관계가 있을까?'
         }
       />
@@ -1306,85 +1352,264 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 7: 전처리가 잘 되었는지 확인해보자 */}
+      {/* ACTIVITY 7: [내가 수정한 데이터 확인하기] */}
       {currentActivity === 7 && (
         <div className="space-y-5 animate-fadeIn">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>활동 7. [전처리가 잘 되었을까?] (전/후 결과 비교)</span>
+              <span>활동 7. [내가 수정한 데이터 확인하기]</span>
             </h3>
 
-            {/* Pre vs Post Error Counts Table */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <span className="font-extrabold text-slate-900 block text-sm">
-                [전처리 전/후 전체 데이터 오류 상태 비교표]
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1.5">
+              <span className="font-extrabold text-slate-900 text-sm block">
+                "전처리 활동에서 수정한 데이터가 실제 작업용 데이터에 어떻게 반영되었는지 확인해봅시다."
               </span>
+              <p className="text-slate-600 leading-relaxed font-medium">
+                내가 수정한 데이터는 실제 작업용 데이터셋(workingDataset)에 실시간으로 반영되어 다음 기계학습 단계(05~08)에 사용됩니다.
+              </p>
+            </div>
 
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-center border-collapse bg-white rounded-xl overflow-hidden font-mono text-[11px]">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="p-2.5 text-left font-sans">오류 항목</th>
-                      <th className="p-2.5 text-rose-700 font-sans">전처리 전 (오류 데이터)</th>
-                      <th className="p-2.5 text-emerald-800 font-sans">전처리 후 (현재 데이터)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <tr>
-                      <td className="p-2.5 text-left font-bold text-slate-700">결측치 (Missing)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
-                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.missing} 개</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 text-left font-bold text-slate-700">이상치 (Outliers)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
-                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.outlier} 개</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 text-left font-bold text-slate-700">표현 불일치 (Inconsistent)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
-                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.inconsistent} 개</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 text-left font-bold text-slate-700">데이터형 오류 (Invalid Type)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
-                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.invalidType} 개</td>
-                    </tr>
-                  </tbody>
-                </table>
+            {/* Conceptual Data Flow (A-8) */}
+            <div className="p-4 bg-white rounded-xl border border-slate-200 text-xs space-y-3 shadow-2xs">
+              <span className="font-bold text-slate-800 block text-xs">[전처리 데이터 처리 흐름]</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center font-bold">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block">1. 원본 데이터</span>
+                  <span className="text-slate-800 text-xs">정상 기준 데이터</span>
+                </div>
+                <div className="p-3 bg-rose-50 rounded-lg border border-rose-200">
+                  <span className="text-[10px] text-rose-700 block">2. 활동 시작 데이터</span>
+                  <span className="text-rose-900 text-xs">교육용 12개 오류 포함</span>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <span className="text-[10px] text-emerald-700 block">3. 현재 데이터 (내가 수정)</span>
+                  <span className="text-emerald-900 text-xs font-black">workingDataset</span>
+                </div>
               </div>
             </div>
 
-            {/* Student Edit History Log */}
+            {/* Error Counter Dashboard & Status Note (A-7) */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <span className="font-extrabold text-slate-900 block text-sm">
-                [학생 수정 기록 로그 (module04Edits): 총 {module04Edits.length}건]
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-900 text-sm">[전처리 후 현재 데이터 오류 상태]</span>
+                <span className="text-xs font-mono font-bold text-slate-600">
+                  남은 오류: {currentErrorCounts.total}개
+                </span>
+              </div>
 
-              {module04Edits.length === 0 ? (
-                <p className="text-slate-500 italic p-3 bg-white rounded-lg border border-slate-200">
-                  아직 수정된 기록이 없습니다. 이전 활동에서 결측치, 이상치, 표현 오류를 직접 수정해보세요.
-                </p>
-              ) : (
-                <div className="space-y-2 font-mono text-[11px]">
-                  {module04Edits.map((edit, idx) => (
-                    <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
-                      <div>
-                        <span className="font-bold text-emerald-800">레코드 #{edit.recordId}</span>
-                        <span className="text-slate-500 font-sans ml-2">[{edit.field}]</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-rose-600 line-through mr-2">{String(edit.before)}</span>
-                        <span className="text-emerald-700 font-black">➔ {String(edit.after)}</span>
-                      </div>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center font-mono text-[11px]">
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">결측치</span>
+                  <span className={`font-black text-sm ${currentErrorCounts.missing === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {currentErrorCounts.missing} 개
+                  </span>
+                </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">이상치</span>
+                  <span className={`font-black text-sm ${currentErrorCounts.outlier === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {currentErrorCounts.outlier} 개
+                  </span>
+                </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">표현 불일치</span>
+                  <span className={`font-black text-sm ${currentErrorCounts.inconsistent === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {currentErrorCounts.inconsistent} 개
+                  </span>
+                </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">데이터형 오류</span>
+                  <span className={`font-black text-sm ${currentErrorCounts.invalidType === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {currentErrorCounts.invalidType} 개
+                  </span>
+                </div>
+              </div>
+
+              {currentErrorCounts.total === 0 && (
+                <div className="p-3 bg-emerald-100 text-emerald-950 rounded-lg font-black text-center text-xs shadow-2xs">
+                  🎉 현재 발견된 교육용 데이터 오류를 모두 올바르게 수정했습니다!
                 </div>
               )}
             </div>
 
-            {/* Module 04 Activity Only Reset Button */}
+            {/* A-1, A-2, A-3, A-10, A-11: Modified Records Cards Section */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                <span className="font-extrabold text-slate-900 text-sm">
+                  [내가 수정한 레코드 카드]
+                </span>
+                <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200">
+                  수정한 데이터: <strong className="text-emerald-700">{uniqueModifiedRecordCount}개</strong> | 수정한 항목: <strong className="text-emerald-700">{module04Edits.length}개</strong>
+                </span>
+              </div>
+
+              {module04Edits.length === 0 ? (
+                <div className="p-5 bg-white rounded-xl border border-slate-200 text-center space-y-2">
+                  <span className="font-extrabold text-slate-800 text-sm block">
+                    아직 직접 수정한 데이터가 없습니다.
+                  </span>
+                  <p className="text-slate-500 text-xs">
+                    앞의 전처리 활동(활동 3~5)에서 결측치, 이상치, 표현 불일치, 데이터형 오류를 직접 수정해보세요.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {module04Edits.map((edit, idx) => {
+                    const actualRecord = workingDataset.find(r => r.id === edit.recordId);
+                    const actualVal = actualRecord ? (actualRecord as any)[edit.field] : edit.after;
+                    const isValVerified = String(actualVal) === String(edit.after);
+
+                    return (
+                      <div key={idx} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            [데이터 #{edit.recordId}]
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                            {getErrorReasonLabel(edit.errorType)}
+                          </span>
+                        </div>
+
+                        <div className="font-bold text-slate-700 text-xs">
+                          대상 속성: <span className="text-slate-900 font-mono">[{NUMERIC_FEATURE_LABELS[edit.field as FeatureKey]?.full || '품종'}]</span>
+                        </div>
+
+                        {/* Mobile & PC Before / After Comparison Cards (A-2) */}
+                        <div className="grid grid-cols-2 gap-2 text-center font-mono text-[11px]">
+                          <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-lg space-y-0.5">
+                            <span className="font-sans font-bold text-[10px] text-rose-700 block">수정 전</span>
+                            <span className="font-bold text-rose-950 text-xs">{formatBeforeDisplay(edit)}</span>
+                          </div>
+                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-0.5">
+                            <span className="font-sans font-bold text-[10px] text-emerald-700 block">수정 후 (현재 반영)</span>
+                            <span className="font-black text-emerald-950 text-xs">{formatAfterDisplay(edit)}</span>
+                          </div>
+                        </div>
+
+                        {/* Real workingDataset validation check (A-3) */}
+                        <div className="text-[10px] text-slate-500 font-sans flex items-center justify-between pt-1 border-t border-slate-100">
+                          <span>작업 데이터 검증:</span>
+                          <span className={isValVerified ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {isValVerified ? '✓ workingDataset 일치' : '⚠️ 작업 데이터 검증 필요'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* A-4, A-5, A-6: Full Preprocessed Dataset View & Pagination */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-900 text-sm">
+                  [전체 전처리 작업 데이터 (workingDataset: 총 {workingDataset.length}개)]
+                </span>
+                <PrimaryButton
+                  size="sm"
+                  onClick={() => setIsFullDatasetOpen(!isFullDatasetOpen)}
+                  icon={<Table size={16} />}
+                >
+                  {isFullDatasetOpen ? '전체 데이터 닫기' : '전체 전처리 데이터 보기'}
+                </PrimaryButton>
+              </div>
+
+              {isFullDatasetOpen && (
+                <div className="space-y-3 pt-2">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                    <div className="w-full overflow-x-auto">
+                      <table className="w-full text-center border-collapse font-mono text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                            <th className="p-2">ID</th>
+                            <th className="p-2">꽃받침 길이</th>
+                            <th className="p-2">꽃받침 너비</th>
+                            <th className="p-2">꽃잎 길이</th>
+                            <th className="p-2">꽃잎 너비</th>
+                            <th className="p-2">품종</th>
+                            <th className="p-2">상태</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {currentFullDatasetSlice.map((rec: ErrorIrisRecord) => {
+                            const isModified = module04Edits.some(e => e.recordId === rec.id);
+
+                            return (
+                              <tr key={rec.id} className={isModified ? 'bg-emerald-50/70 font-bold' : 'hover:bg-slate-50'}>
+                                <td className="p-2 text-slate-500">#{rec.id}</td>
+                                <td className="p-2">{rec.sepalLength !== null ? `${rec.sepalLength} cm` : '값 없음'}</td>
+                                <td className="p-2">{rec.sepalWidth !== null ? `${rec.sepalWidth} cm` : '값 없음'}</td>
+                                <td className="p-2">{rec.petalLength !== null ? `${rec.petalLength} cm` : '값 없음'}</td>
+                                <td className="p-2">{rec.petalWidth !== null ? `${rec.petalWidth} cm` : '값 없음'}</td>
+                                <td className="p-2 font-sans font-bold">
+                                  {rec.species === 'Iris-setosa' ? '세토사' : rec.species === 'Iris-versicolor' ? '버시컬러' : rec.species === 'Iris-virginica' ? '버지니카' : rec.species}
+                                </td>
+                                <td className="p-2">
+                                  {isModified ? (
+                                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-sans font-extrabold inline-flex items-center gap-0.5">
+                                      <Check size={10} /> 수정됨
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 font-sans">일반</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls (A-5) */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 font-mono text-xs">
+                      <SecondaryButton
+                        size="sm"
+                        disabled={fullDatasetPage === 1}
+                        onClick={() => setFullDatasetPage(p => Math.max(1, p - 1))}
+                      >
+                        이전
+                      </SecondaryButton>
+
+                      <span className="font-bold text-slate-700">
+                        페이지 {fullDatasetPage} / {totalFullPages}
+                      </span>
+
+                      <SecondaryButton
+                        size="sm"
+                        disabled={fullDatasetPage === totalFullPages}
+                        onClick={() => setFullDatasetPage(p => Math.min(totalFullPages, p + 1))}
+                      >
+                        다음
+                      </SecondaryButton>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* A-9: Scaling / Encoding Preview Distinction Card */}
+            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2 text-xs text-indigo-950">
+              <span className="font-extrabold block text-sm flex items-center gap-1.5">
+                <Sliders size={16} className="text-indigo-600" />
+                <span>[데이터 변환 체험 구분 안내]</span>
+              </span>
+              <p className="leading-relaxed">
+                위 작업 데이터(workingDataset)에는 결측치·이상치·표현·자료형 정제 결과가 cm 수치로 저장되어 있습니다. Min-Max 스케일링(0~1) 및 원-핫 인코딩([1,0,0])은 AI 탐구를 위한preview이며 원본 cm 수치를 덮어쓰지 않습니다.
+              </p>
+            </div>
+
+            {/* A-14: Concluding Statement */}
+            <div className="p-4 rounded-xl bg-slate-900 text-white space-y-1 text-center text-xs shadow-xs">
+              <p className="font-bold leading-relaxed text-sm">
+                "데이터 전처리는 설명을 읽는 활동이 아니라 실제 데이터를 확인하고 필요한 부분을 수정하는 과정입니다."
+              </p>
+              <p className="text-slate-300 text-xs">
+                내가 수정한 결과가 실제 작업용 데이터에 완벽하게 반영되었습니다.
+              </p>
+            </div>
+
+            {/* Module 04 Activity Only Reset Button (A-12) */}
             <div className="pt-2 flex justify-between items-center border-t border-slate-200">
               <SecondaryButton
                 size="sm"
