@@ -52,7 +52,7 @@ export const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
             ) : (
               <Circle size={16} className="text-slate-400 shrink-0" />
             )}
-            <span className="truncate">{item.label}</span>
+            <span className="break-words [word-break:keep-all]">{item.label}</span>
           </div>
         ))}
       </div>

@@ -49,7 +49,7 @@ export const PromptCard: React.FC<PromptCardProps> = ({ promptText, title = '추
         </button>
       </div>
 
-      <p className="text-xs sm:text-sm font-mono leading-relaxed text-slate-200 whitespace-pre-wrap break-words [word-break:break-all]">
+      <p className="text-xs sm:text-sm font-mono leading-relaxed text-slate-200 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:keep-all]">
         "{promptText}"
       </p>
 

@@ -18,10 +18,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 }) => {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="하단 주 메뉴"
     >
-      <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
+      <div className="max-w-md mx-auto px-2 sm:px-4 h-16 flex items-center justify-around">
         <button
           onClick={onGoHome}
           className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors cursor-pointer ${

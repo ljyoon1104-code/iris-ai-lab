@@ -34,7 +34,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
       role="dialog"
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-[min(calc(100vw-32px),520px)] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100dvh-32px)]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/50 gap-2">

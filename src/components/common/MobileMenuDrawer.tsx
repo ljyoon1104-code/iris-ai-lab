@@ -62,7 +62,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
       {/* Drawer Panel decoupled from Header Stacking Context */}
       <aside
-        className="relative z-50 w-full max-w-sm sm:max-w-md bg-white h-[100dvh] max-h-[100dvh] flex flex-col shadow-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] overflow-hidden"
+        className="relative z-50 w-[86vw] max-w-[360px] sm:max-w-md bg-white h-[100dvh] max-h-[100dvh] flex flex-col shadow-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Drawer Header */}
