@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Flower2, Menu, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Flower2, Menu, RotateCcw } from 'lucide-react';
 import { Modal } from './Modal';
-import { MODULES } from '../../data/modules';
+import { MobileMenuDrawer } from './MobileMenuDrawer';
 
 interface HeaderProps {
   progressPercent: number;
@@ -20,7 +20,6 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
-
   const [isResetCompleteNoticeOpen, setIsResetCompleteNoticeOpen] = useState(false);
 
   return (
@@ -72,39 +71,15 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Mobile Navigation Drawer / Menu Modal */}
-      <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="학습 영역 목록">
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500 mb-2 font-medium">원하는 학습 영역으로 바로 이동할 수 있습니다.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {MODULES.map(mod => {
-              const isCompleted = completedModuleIds.includes(mod.id);
-              return (
-                <button
-                  key={mod.id}
-                  onClick={() => {
-                    onSelectModule(mod.id);
-                    setIsMenuOpen(false);
-                  }}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition-all cursor-pointer min-h-[48px]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center justify-center">
-                      {mod.code}
-                    </span>
-                    <span className="font-semibold text-sm text-slate-800">{mod.title}</span>
-                  </div>
-                  {isCompleted ? (
-                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-                  ) : (
-                    <span className="text-xs text-slate-400">대기</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </Modal>
+      {/* Mobile Navigation Drawer */}
+      <MobileMenuDrawer
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        completedModuleIds={completedModuleIds}
+        onSelectModule={onSelectModule}
+        progressPercent={progressPercent}
+      />
+
 
       {/* Reset Confirmation Modal */}
       <Modal
