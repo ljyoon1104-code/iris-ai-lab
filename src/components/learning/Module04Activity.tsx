@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { ActivityProgress } from './ActivityProgress';
 import { PromptCard } from './PromptCard';
@@ -38,7 +38,13 @@ import {
   Target,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
-import { SELECTED_FEATURES_KEY } from '../../utils/storage';
+import {
+  SELECTED_FEATURES_KEY,
+  loadModule04Completion,
+  saveModule04Completion,
+  DEFAULT_MODULE04_COMPLETION,
+  type Module04CompletionState,
+} from '../../utils/storage';
 
 interface Module04ActivityProps {
   isCompleted: boolean;
@@ -47,29 +53,37 @@ interface Module04ActivityProps {
 
 export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted: _isCompleted, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 9; // 9 structured learning steps
+  const totalSteps = 8; // 8 streamlined learning steps
   const topRef = useActivityScrollTop<HTMLDivElement>(currentStep);
 
-  // Completion criteria trackers
-  const [visitedStats, setVisitedStats] = useState(false);
-  const [visitedHistogram, setVisitedHistogram] = useState(false);
-  const [visitedBoxplot, setVisitedBoxplot] = useState(false);
-  const [changedScatterPair, setChangedScatterPair] = useState(false);
-  const [visitedHeatmap, setVisitedHeatmap] = useState(false);
+  // Persistent Minimal Completion Criteria State (Single Source of Truth)
+  const [completionState, setCompletionState] = useState<Module04CompletionState>(() => loadModule04Completion());
+
+  useEffect(() => {
+    saveModule04Completion(completionState);
+  }, [completionState]);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setCompletionState(DEFAULT_MODULE04_COMPLETION);
+    };
+    window.addEventListener('learning_data_reset', handleReset);
+    return () => window.removeEventListener('learning_data_reset', handleReset);
+  }, []);
 
   // Data Detective Working Dataset & Notebook States
   const [workingDataset] = useState<ErrorIrisRecord[]>(() => cloneDataset(ERROR_IRIS_DATASET));
   const [detectiveSetIndex] = useState(0); // 0 to 3 (4 sets of 5)
   const [isNotebookOpen, setIsNotebookOpen] = useState<boolean>(false);
 
-  // STEP 5: [이상치를 데이터로 확인해볼까?] State
-  const [selectedFeature, setSelectedFeature] = useState<FeatureKey>('sepalLength'); // Initial feature with clear outlier
+  // STEP 4: [이상치를 데이터로 확인해볼까?] State
+  const [selectedFeature, setSelectedFeature] = useState<FeatureKey>('sepalLength');
 
-  // STEP 7: [속성끼리는 어떤 관계가 있을까?] State
+  // STEP 6: [속성끼리는 어떤 관계가 있을까?] State
   const [scatterX, setScatterX] = useState<FeatureKey>('petalLength');
   const [scatterY, setScatterY] = useState<FeatureKey>('petalWidth');
 
-  // STEP 8: [핵심 속성 2개 선택] State (Section 3)
+  // STEP 7: [핵심 속성 2개 선택] State
   const [selectedFeatures04, setSelectedFeatures04] = useState<FeatureKey[]>(() => {
     try {
       const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
@@ -81,6 +95,26 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return ['petalLength', 'petalWidth'];
   });
   const [featureSelectionReason, setFeatureSelectionReason] = useState<string | null>(null);
+
+  // Automatically update step-based completion criteria
+  useEffect(() => {
+    if (currentStep === 2) {
+      setCompletionState(prev => ({ ...prev, detectiveViewed: true }));
+    } else if (currentStep === 4) {
+      setCompletionState(prev => ({ ...prev, outlierViewed: true }));
+    } else if (currentStep === 6) {
+      setCompletionState(prev => ({ ...prev, scatterViewed: true, heatmapViewed: true }));
+    }
+  }, [currentStep]);
+
+  // Sync keyFeaturesSelected state with actual selection count (selectedFeatures04.length === 2)
+  const isKeyFeaturesSelected = selectedFeatures04.length === 2;
+  useEffect(() => {
+    setCompletionState(prev => {
+      if (prev.keyFeaturesSelected === isKeyFeaturesSelected) return prev;
+      return { ...prev, keyFeaturesSelected: isKeyFeaturesSelected };
+    });
+  }, [isKeyFeaturesSelected]);
 
   // Real 3 Normal Iris Records from ORIGINAL_IRIS_DATASET
   const normalSampleSetosa = ORIGINAL_IRIS_DATASET[0]; // ID 1
@@ -145,14 +179,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
   const promptText = `오류 데이터(결측치, 이상치, 표현 불일치, 데이터형 오류)가 포함된 붓꽃 데이터셋을 [기초 통계량 → 히스토그램 → 박스플롯 → 산점도 → 히트맵] 순으로 탐구할 때, 각 시각화 도구가 이상치와 속성 간 관계를 발견하는 데 가지는 고유한 역할 3가지를 정리해줘.`;
 
-  // Checklist items
+  // Minimal 5 Checklist Items
   const checklistItems = [
-    { id: 'stats', label: '기초 통계량 비교 확인', isCompleted: visitedStats || currentStep >= 5 },
-    { id: 'hist', label: '히스토그램 관찰', isCompleted: visitedHistogram || currentStep >= 5 },
-    { id: 'box', label: '박스플롯 이상치 확인', isCompleted: visitedBoxplot || currentStep >= 5 },
-    { id: 'scatter', label: '산점도 속성 조합 변경', isCompleted: changedScatterPair || currentStep >= 7 },
-    { id: 'heatmap', label: '상관계수 히트맵 확인', isCompleted: visitedHeatmap || currentStep >= 7 },
-    { id: 'features', label: '핵심 속성 2개 선택 (06 실험 연동)', isCompleted: selectedFeatures04.length === 2 },
+    { id: 'detective', label: '데이터 탐정 활동', isCompleted: completionState.detectiveViewed },
+    { id: 'outlier', label: '이상치 시각화 확인', isCompleted: completionState.outlierViewed },
+    { id: 'scatter', label: '산점도 속성 관찰', isCompleted: completionState.scatterViewed },
+    { id: 'heatmap', label: '상관계수 히트맵 확인', isCompleted: completionState.heatmapViewed },
+    { id: 'features', label: '핵심 속성 2개 선택', isCompleted: completionState.keyFeaturesSelected },
   ];
 
   return (
@@ -165,20 +198,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           currentStep === 1
             ? '[확인 단계] 1. 데이터 유형과 역할 확인 (수치형/범주형, X/y)'
             : currentStep === 2
-            ? '[관찰 단계] 2. 정상 데이터 관찰 (탐정 수첩)'
+            ? '[탐정 단계] 2. 데이터 탐정 (정상 관찰 & 오류 데이터 찾기)'
             : currentStep === 3
-            ? '[찾기 단계] 3. 오류 데이터 찾기 (탐정 활동)'
+            ? '[판별 단계] 3. 오류 종류 판별하기 (4가지 오류 카드)'
             : currentStep === 4
-            ? '[판별 단계] 4. 오류 종류 판별하기'
+            ? '[확인 단계] 4. 이상치를 통계와 시각화로 확인 (통계량 ➔ 히스토그램 ➔ 박스플롯)'
             : currentStep === 5
-            ? '[확인 단계] 5. 이상치를 통계와 시각화로 확인'
+            ? '[처리 단계] 5. 적절한 전처리 방법 판단 (4가지 전략)'
             : currentStep === 6
-            ? '[처리 단계] 6. 적절한 전처리 방법 판단'
+            ? '[관찰 단계] 6. 속성 간 관계 확인 (산점도 & 히트맵)'
             : currentStep === 7
-            ? '[관찰 단계] 7. 속성 간 관계 확인 (산점도 & 히트맵)'
-            : currentStep === 8
-            ? '[선택 단계] 8. 핵심 속성 2개 선택 (06 실험 연동)'
-            : '[비교/완료 단계] 9. 전처리 전/후 비교 및 마무리'
+            ? '[선택 단계] 7. 핵심 속성 2개 선택 (06 알고리즘 실험 연동)'
+            : '[비교/완료 단계] 8. 전처리 전/후 비교 및 마무리'
         }
       />
 
@@ -196,7 +227,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          데이터를 무작정 수정하거나 삭제하지 않고, <strong>"확인 ➔ 관찰 ➔ 찾기 ➔ 판별 ➔ 처리 ➔ 속성선택"</strong>의 정밀한 흐름을 거칩니다.
+          데이터를 무작정 수정하거나 삭제하지 않고, <strong>"확인 ➔ 탐정 ➔ 판별 ➔ 이상치 ➔ 처리 ➔ 관계관찰 ➔ 속성선택"</strong>의 정밀한 흐름을 거칩니다.
         </p>
       </div>
 
@@ -232,59 +263,52 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 2: 정상 데이터 관찰 (탐정 수첩) */}
+      {/* STEP 2: 데이터 탐정 (정상 데이터 관찰 & 오류 데이터 찾기) */}
       {currentStep === 2 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <BookOpen size={20} className="text-emerald-600" />
-              <span>[관찰 단계] 활동 2: 정상 붓꽃 데이터 관찰하기 (탐정 수첩)</span>
-            </h3>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              오류를 찾기 전에 먼저 문제없는 정상 데이터의 수치 범위와 특징 형태를 눈여겨봅니다.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              {[normalSampleSetosa, normalSampleVersicolor, normalSampleVirginica].map(rec => (
-                <div key={rec.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                  <div className="flex justify-between items-center font-bold text-emerald-800">
-                    <span>ID #{rec.id} ({SPECIES_MAP[rec.species].korean})</span>
-                    <span className="text-[10px] bg-emerald-100 px-2 py-0.5 rounded font-mono">정상</span>
-                  </div>
-                  <div className="space-y-1 font-mono text-[11px] text-slate-700">
-                    <div>꽃받침 길이: {rec.sepalLength} cm</div>
-                    <div>꽃받침 너비: {rec.sepalWidth} cm</div>
-                    <div>꽃잎 길이: {rec.petalLength} cm</div>
-                    <div>꽃잎 너비: {rec.petalWidth} cm</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-2 text-center">
-              <SecondaryButton size="sm" onClick={() => setIsNotebookOpen(true)} icon={<Search size={16} />}>
-                탐정 수첩 가이드 전체 열기
-              </SecondaryButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3: 오류 데이터 찾기 */}
-      {currentStep === 3 && (
-        <div className="space-y-5 animate-fadeIn">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Search size={20} className="text-rose-600" />
-              <span>[찾기 단계] 활동 3: 오류 데이터 찾아내기 (데이터 탐정)</span>
+              <span>[탐정 단계] 활동 2: 데이터 탐정 (정상 예시 관찰 & 오류 데이터 찾기)</span>
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              제시된 레코드 5개 중 이상치, 결측치, 표현 불일치, 데이터형 오류가 포함된 데이터점을 탐색하세요.
+              정상 데이터 예시 수치를 먼저 확인한 뒤, 제시된 레코드 카드 중 이상치, 결측치, 표현 불일치, 데이터형 오류가 포함된 데이터점을 탐색하세요.
             </p>
 
-            <div className="space-y-3">
+            {/* Normal Iris Reference Card Samples */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <BookOpen size={16} className="text-emerald-600" />
+                  <span>📖 탐정 수첩: 정상 데이터 수치 기준</span>
+                </span>
+                <SecondaryButton size="sm" onClick={() => setIsNotebookOpen(true)}>
+                  탐정 수첩 전체 열기
+                </SecondaryButton>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                {[normalSampleSetosa, normalSampleVersicolor, normalSampleVirginica].map(rec => (
+                  <div key={rec.id} className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <div className="flex justify-between items-center font-bold text-emerald-800 text-[11px]">
+                      <span>ID #{rec.id} ({SPECIES_MAP[rec.species].korean})</span>
+                      <span className="text-[9px] bg-emerald-100 px-1.5 py-0.5 rounded">정상</span>
+                    </div>
+                    <div className="space-y-0.5 font-mono text-[10px] text-slate-600">
+                      <div>받침: {rec.sepalLength} x {rec.sepalWidth} cm</div>
+                      <div>꽃잎: {rec.petalLength} x {rec.petalWidth} cm</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Student Data Cards (Human Readable - No JSON) */}
+            <div className="space-y-3 pt-2">
+              <span className="font-extrabold text-slate-900 text-xs block">
+                🕵️ 탐색 대상 데이터 카드 (실제 붓꽃 데이터 5건):
+              </span>
               {currentDetectiveRecords.map(rec => (
                 <StudentDataCard
                   key={rec.id}
@@ -296,13 +320,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 4: 오류 종류 판별하기 */}
-      {currentStep === 4 && (
+      {/* STEP 3: 오류 종류 판별하기 */}
+      {currentStep === 3 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <HelpCircle size={20} className="text-amber-600" />
-              <span>[판별 단계] 활동 4: 오류 종류 판별하기 (사람이 읽기 쉬운 카드)</span>
+              <span>[판별 단계] 활동 3: 오류 종류 판별하기 (사람이 읽기 쉬운 카드)</span>
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed">
@@ -326,13 +350,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 5: 이상치를 통계와 시각화로 확인 */}
-      {currentStep === 5 && (
+      {/* STEP 4: 이상치를 통계와 시각화로 확인 */}
+      {currentStep === 4 && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <BarChart2 size={20} className="text-emerald-600" />
-              <span>[확인 단계] 활동 5: 이상치를 통계와 시각화로 확인 (통계량 ➔ 히스토그램 ➔ 박스플롯)</span>
+              <span>[확인 단계] 활동 4: 이상치를 통계와 시각화로 확인 (통계량 ➔ 히스토그램 ➔ 박스플롯)</span>
             </h3>
 
             {/* Feature Selector Tabs */}
@@ -340,12 +364,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(feat => (
                 <button
                   key={feat}
-                  onClick={() => {
-                    setSelectedFeature(feat);
-                    setVisitedStats(true);
-                    setVisitedHistogram(true);
-                    setVisitedBoxplot(true);
-                  }}
+                  onClick={() => setSelectedFeature(feat)}
                   className={`px-3 py-2 rounded-xl font-bold cursor-pointer transition-all min-h-[44px] ${
                     selectedFeature === feat
                       ? 'bg-emerald-600 text-white shadow-xs'
@@ -439,7 +458,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
             </div>
 
-            {/* Crucial Outlier Educational Guidance (Section 2) */}
+            {/* Crucial Outlier Educational Guidance */}
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-950 space-y-2">
               <span className="font-extrabold text-rose-900 block text-sm flex items-center gap-1.5">
                 <Info size={16} />
@@ -456,13 +475,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 6: 적절한 전처리 방법 판단 */}
-      {currentStep === 6 && (
+      {/* STEP 5: 적절한 전처리 방법 판단 */}
+      {currentStep === 5 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>[처리 단계] 활동 6: 적절한 전처리 방법 판단하기</span>
+              <span>[처리 단계] 활동 5: 적절한 전처리 방법 판단하기</span>
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed">
@@ -486,13 +505,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 7: 속성 간 관계 확인 (산점도 & 히트맵) */}
-      {currentStep === 7 && (
+      {/* STEP 6: 속성 간 관계 확인 (산점도 & 히트맵) */}
+      {currentStep === 6 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <TrendingUp size={20} className="text-teal-600" />
-              <span>[관찰 단계] 활동 7: 속성 간 관계 확인 (산점도 & 상관관계 히트맵)</span>
+              <span>[관찰 단계] 활동 6: 속성 간 관계 확인 (산점도 & 상관관계 히트맵)</span>
             </h3>
 
             {/* Scatter Plot */}
@@ -502,10 +521,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <div className="flex gap-2">
                   <select
                     value={scatterX}
-                    onChange={e => {
-                      setScatterX(e.target.value as FeatureKey);
-                      setChangedScatterPair(true);
-                    }}
+                    onChange={e => setScatterX(e.target.value as FeatureKey)}
                     className="p-2 bg-white border border-slate-300 rounded-lg font-bold text-xs min-h-[44px] cursor-pointer"
                   >
                     <option value="petalLength">꽃잎 길이 (X축)</option>
@@ -515,10 +531,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </select>
                   <select
                     value={scatterY}
-                    onChange={e => {
-                      setScatterY(e.target.value as FeatureKey);
-                      setChangedScatterPair(true);
-                    }}
+                    onChange={e => setScatterY(e.target.value as FeatureKey)}
                     className="p-2 bg-white border border-slate-300 rounded-lg font-bold text-xs min-h-[44px] cursor-pointer"
                   >
                     <option value="petalWidth">꽃잎 너비 (Y축)</option>
@@ -610,7 +623,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         return (
                           <div
                             key={colFeat}
-                            onMouseEnter={() => setVisitedHeatmap(true)}
                             className={`p-1 sm:p-2 rounded font-extrabold flex items-center justify-center ${
                               isHigh
                                 ? 'bg-emerald-600 text-white font-black shadow-xs'
@@ -636,13 +648,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 8: [어떤 속성이 품종을 구분하는 데 도움이 될까?] 핵심 속성 2개 선택 (Section 3 & 4) */}
-      {currentStep === 8 && (
+      {/* STEP 7: [어떤 속성이 품종을 구분하는 데 도움이 될까?] 핵심 속성 2개 선택 */}
+      {currentStep === 7 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Target size={20} className="text-emerald-600" />
-              <span>[선택 단계] 활동 8: [어떤 속성이 품종을 구분하는 데 도움이 될까?]</span>
+              <span>[선택 단계] 활동 7: [어떤 속성이 품종을 구분하는 데 도움이 될까?]</span>
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
@@ -680,7 +692,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </p>
             </div>
 
-            {/* Reflection Question Section 3 */}
+            {/* Reflection Question */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
               <span className="font-extrabold text-slate-900 block text-sm">
                 질문: 왜 이 두 속성을 선택했나요?
@@ -710,21 +722,21 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* STEP 9: [비교/완료 단계] 전처리 전/후 비교 및 마무리 (Section 24 & 25) */}
-      {currentStep === 9 && (
+      {/* STEP 8: [비교/완료 단계] 전처리 전/후 비교 및 마무리 */}
+      {currentStep === 8 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>[비교/완료 단계] 활동 9: 전처리 전/후 데이터셋 상태 비교 및 마무리</span>
+              <span>[비교/완료 단계] 활동 8: 전처리 전/후 데이터셋 상태 비교 및 마무리</span>
             </h3>
 
-            {/* Section 24 Summary Sentence */}
+            {/* Summary Sentence */}
             <div className="p-4 rounded-2xl bg-emerald-600 text-white text-center font-extrabold text-sm shadow-sm">
               "데이터를 정리하고 시각화하면 이상치와 속성의 특징을 더 쉽게 발견할 수 있습니다."
             </div>
 
-            {/* Section 25 Ending Transition Card */}
+            {/* Ending Transition Card */}
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3 max-w-xl mx-auto text-xs">
               <span className="font-extrabold text-slate-900 block text-sm">
                 💡 다음 학습 영역 연결 안내:
@@ -745,7 +757,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* Activity Checklist */}
+      {/* Minimal Activity Checklist */}
       <ActivityChecklist
         items={checklistItems}
         onProceedNext={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
