@@ -9,6 +9,116 @@ export const NUMERIC_FEATURE_LABELS: Record<FeatureKey, { full: string; short: s
   petalWidth: { full: '꽃잎 너비', short: '꽃잎 너비', unit: 'cm' },
 };
 
+export interface NumericFeatureGuide {
+  label: string;
+  shortLabel: string;
+  description: string;
+  observationPoint: string;
+  statsGuide: string;
+  histogramGuide: string;
+  histogramQuestion: string;
+  boxplotGuide: string;
+  boxplotNote: string;
+  reflectionQuestion: string;
+}
+
+export const NUMERIC_FEATURE_GUIDES: Record<FeatureKey, NumericFeatureGuide> = {
+  sepalLength: {
+    label: '꽃받침 길이',
+    shortLabel: '받침 길이',
+    description: '꽃받침 길이는 붓꽃 꽃의 바깥쪽에 위치한 꽃받침의 길이를 나타내며, 붓꽃 전체의 크기와 밀접한 수치입니다.',
+    observationPoint: '대부분의 수치가 어느 범위에 모여 있는지, 매우 크거나 작은 예외 값이 따로 존재하는지 관찰해보세요.',
+    statsGuide: '최솟값과 최댓값의 차이 범위를 살펴보고, 평균과 중앙값이 서로 비슷한지 확인해보세요.',
+    histogramGuide: '꽃받침 길이가 어느 수치 구간(cm)에 가장 높게 모여 있는지 분포 형태를 확인해보세요.',
+    histogramQuestion: '꽃받침 길이가 가장 많이 모여 있는 중심 구간은 어디인가요?',
+    boxplotGuide: '상자에서 멀리 떨어진 50.0cm 같은 극단적인 수치가 수염(fence) 밖에 위치하는지 살펴보세요.',
+    boxplotNote: '현재 데이터에 포함된 50.0cm 수치는 소수점 오타로 발생한 명백한 입력 오류 이상치입니다.',
+    reflectionQuestion: '꽃받침 길이에 50.0cm 같은 이상치가 포함되면 평균 수치에 어떤 영향을 주게 될까요?',
+  },
+  sepalWidth: {
+    label: '꽃받침 너비',
+    shortLabel: '받침 너비',
+    description: '꽃받침 너비는 꽃받침의 폭(가로 크기)을 나타내며, 꽃받침 길이와 비교했을 때 상대적으로 수치 범위가 좁게 나타납니다.',
+    observationPoint: '다른 속성에 비해 전체 값의 변화 폭이 좁은 편이므로 중앙값을 중심으로 어떻게 분포하는지 관찰해보세요.',
+    statsGuide: '평균과 중앙값을 비교하고, 최솟값과 최댓값이 전체 범위에서 얼마나 떨어져 있는지 확인해보세요.',
+    histogramGuide: '꽃받침 너비 값이 어느 수치 구간에 대칭적으로 모여 있는지 살펴보세요.',
+    histogramQuestion: '꽃받침 너비의 분포가 가운데를 중심으로 종 모양처럼 모여 있나요?',
+    boxplotGuide: '상자의 범위(IQR)와 수염 밖으로 떨어진 값이 실제 존재하는 관측치인지 구별해보세요.',
+    boxplotNote: '박스플롯에서 수염 밖에 점이 보여도 희귀한 자연 관측값일 수 있으므로 함부로 삭제하면 안 됩니다.',
+    reflectionQuestion: '꽃받침 너비처럼 범위가 좁은 속성을 볼 때 이상치를 판단하는 주의점은 무엇일까요?',
+  },
+  petalLength: {
+    label: '꽃잎 길이',
+    shortLabel: '꽃잎 길이',
+    description: '꽃잎 길이는 붓꽃 꽃잎의 세로 길이를 나타내며, 세가지 품종(세토사, 버시컬러, 버지니카)의 특성을 구분하는 데 매우 뚜렷한 차이를 보이는 속성입니다.',
+    observationPoint: '수치들이 하나의 범위에만 모이는지, 아니면 서로 다른 여러 무리(그룹)처럼 떨어져 보이는지 관찰해보세요.',
+    statsGuide: '최솟값과 최댓값의 범위가 다른 속성보다 넓게 퍼져 있는지 확인해보세요.',
+    histogramGuide: '꽃잎 길이의 분포가 하나의 큰 덩어리인지, 여러 구간으로 나누어진 여러 무리로 보이는지 관찰해보세요.',
+    histogramQuestion: '꽃잎 길이의 히스토그램 봉우리가 2개 이상으로 나뉘어 보이는 이유는 무엇일까요?',
+    boxplotGuide: '값의 넓은 범위 자체가 무조건 이상치라는 뜻은 아님에 주의하세요.',
+    boxplotNote: '현재 데이터 #104에 30.0cm 이상치가 섞여 있으나, 원래 붓꽃의 꽃잎 길이는 품종별로 그룹화되어 넓은 범위를 가집니다.',
+    reflectionQuestion: '꽃잎 길이 수치가 몇 개의 무리로 나누어져 분포한다면, 이것은 어떤 의미일까요?',
+  },
+  petalWidth: {
+    label: '꽃잎 너비',
+    shortLabel: '꽃잎 너비',
+    description: '꽃잎 너비는 붓꽃 꽃잎의 가로 폭을 나타내며, 꽃잎 길이와 함께 붓꽃 품종을 분류하는 데 강한 상관관계를 가지는 주요 속성입니다.',
+    observationPoint: '작은 수치 구간과 큰 수치 구간에 각각 데이터가 어떻게 나뉘어 분포하는지 살펴보세요.',
+    statsGuide: '최솟값과 최댓값의 차이가 어느 정도인지 확인하고 평균과 중앙값의 위치를 파악해보세요.',
+    histogramGuide: '꽃잎 너비 수치들이 한곳에 모이는지, 몇 개의 구간으로 나뉘어 분포하는지 관찰해보세요.',
+    histogramQuestion: '작은 꽃잎 너비를 가진 그룹과 큰 너비를 가진 그룹이 명확히 구별되나요?',
+    boxplotGuide: '상자의 위치(IQR)와 전체 범위를 살펴보고 극단적으로 떨어진 예외 수치가 있는지 확인해보세요.',
+    boxplotNote: '꽃잎 너비는 0.1cm~2.5cm 사이에 분포하며, 극단적으로 떨어진 수치는 정밀하게 검증해야 합니다.',
+    reflectionQuestion: '꽃잎 너비 수치 하나만으로도 서로 다른 붓꽃 품종의 특징을 어느 정도 구분할 수 있을까요?',
+  },
+};
+
+export function getFeatureDynamicGuidance(
+  feature: FeatureKey,
+  workingDataset: any[]
+): {
+  base: NumericFeatureGuide;
+  hasIntentionalError: boolean;
+  errorGuide: string;
+  statsDiffNote: string;
+} {
+  const base = NUMERIC_FEATURE_GUIDES[feature];
+
+  let hasIntentionalError = false;
+  let errorGuide = '이 속성에서는 값의 전체적인 분포와 범위를 중심으로 살펴보세요.';
+
+  if (feature === 'sepalLength') {
+    const has50 = workingDataset.some(r => typeof r.sepalLength === 'number' && r.sepalLength > 20);
+    if (has50) {
+      hasIntentionalError = true;
+      errorGuide = '⚠️ 현재 데이터에는 50.0cm라는 매우 큰 꽃받침 길이 오타 이상치가 포함되어 있습니다. 통계량과 그래프를 이용해 확인해보세요.';
+    }
+  } else if (feature === 'petalLength') {
+    const has30 = workingDataset.some(r => typeof r.petalLength === 'number' && r.petalLength > 20);
+    if (has30) {
+      hasIntentionalError = true;
+      errorGuide = '⚠️ 현재 데이터에는 30.0cm라는 극단적인 꽃잎 길이 이상치가 포함되어 있습니다. 히스토그램과 박스플롯에서 확인해보세요.';
+    }
+  }
+
+  const validVals = extractValidNumericValues(workingDataset, feature);
+  const mean = calculateMean(validVals);
+  const median = calculateMedian(validVals);
+  const diff = Math.abs(mean - median);
+
+  let statsDiffNote = `평균(${mean}cm)과 중앙값(${median}cm)이 비교적 비슷하여 대칭적인 분포 형태를 보여줍니다.`;
+  if (diff >= 0.2) {
+    statsDiffNote = `평균(${mean}cm)과 중앙값(${median}cm)에 ${diff.toFixed(2)}cm의 차이가 발생했습니다. 극단적으로 크거나 작은 값(이상치)의 영향을 확인해보세요.`;
+  }
+
+  return {
+    base,
+    hasIntentionalError,
+    errorGuide,
+    statsDiffNote,
+  };
+}
+
 /**
  * 1. Mean (평균)
  * Sum of all values divided by count, rounded to 2 decimal places.

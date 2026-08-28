@@ -23,6 +23,7 @@ import {
   calculateCorrelationMatrix,
   calculateMinMax,
   extractValidNumericValues,
+  getFeatureDynamicGuidance,
 } from '../../utils/statistics';
 import {
   Search,
@@ -38,6 +39,8 @@ import {
   Target,
   RotateCcw,
   Sliders,
+  Info,
+  Sparkles,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 import {
@@ -195,6 +198,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
     return { missing, outlier, inconsistent, invalidType, total: missing + outlier + inconsistent + invalidType };
   }, [workingDataset]);
+
+  // Feature specific metadata & live guidance generator
+  const featureGuidance = useMemo(() => {
+    return getFeatureDynamicGuidance(outlierFeature, workingDataset);
+  }, [outlierFeature, workingDataset]);
 
   // Statistics calculation for Activity 4
   const origCleanValues = useMemo(() => extractValidNumericValues(ORIGINAL_IRIS_DATASET, outlierFeature), [outlierFeature]);
@@ -595,7 +603,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 4: 이상치를 찾아 수정해보자 (5단계 고정 순서) */}
+      {/* ACTIVITY 4: 이상치를 찾아 수정해보자 (5단계 고정 순서 + 수치형 속성별 전용 안내) */}
       {currentActivity === 4 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
@@ -607,6 +615,51 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
                 단계 {outlierStep} / 5
               </span>
+            </div>
+
+            {/* Feature selector tabs */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="font-bold text-slate-800 text-xs">
+                  🔍 탐구할 수치형 속성을 선택하세요:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => {
+                        setOutlierFeature(f);
+                        setOutlierInputValue('');
+                        setOutlierFeedback(null);
+                        setShowOutlierGroundTruth(false);
+                      }}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all min-h-[44px] cursor-pointer ${
+                        outlierFeature === f
+                          ? 'bg-emerald-600 text-white shadow-xs font-black'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {NUMERIC_FEATURE_LABELS[f].full}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Prominent Current Feature Guidance Banner */}
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950">
+                <div className="flex items-center gap-2">
+                  <Info size={16} className="text-emerald-700 shrink-0" />
+                  <span className="font-extrabold text-emerald-900 text-sm">
+                    [현재 살펴보는 속성: {featureGuidance.base.label}]
+                  </span>
+                </div>
+                <p className="font-medium text-emerald-900 leading-relaxed">
+                  {featureGuidance.base.description}
+                </p>
+                <p className="font-bold text-emerald-800 bg-white/70 p-2 rounded-lg border border-emerald-200/60">
+                  🎯 관찰 포인트: {featureGuidance.base.observationPoint}
+                </p>
+              </div>
             </div>
 
             {/* Outlier Sub-sequence Navigation Tabs */}
@@ -623,7 +676,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   onClick={() => setOutlierStep(tab.step)}
                   className={`px-3 py-2 rounded-xl transition-all cursor-pointer min-h-[44px] ${
                     outlierStep === tab.step
-                      ? 'bg-emerald-600 text-white shadow-xs font-black'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -632,38 +685,25 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               ))}
             </div>
 
-            {/* Feature selector */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-bold text-slate-700">탐구 대상 속성:</span>
-              <div className="flex gap-1">
-                {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setOutlierFeature(f)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                      outlierFeature === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {NUMERIC_FEATURE_LABELS[f].short}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* 1 / 5: 기초 통계량 (OutlierStatisticsStep) */}
             {outlierStep === 1 && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
-                <span className="font-extrabold text-slate-900 text-sm block">
-                  1 / 5 [기초 통계량] 정상 데이터 vs 현재 데이터 통계 비교
-                </span>
+                <div className="space-y-1">
+                  <span className="font-extrabold text-slate-900 text-sm block">
+                    1 / 5 [{featureGuidance.base.label}] 기초 통계량 비교
+                  </span>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    {featureGuidance.base.statsGuide}
+                  </p>
+                </div>
 
                 <div className="w-full overflow-x-auto">
                   <table className="w-full text-center border-collapse bg-white rounded-xl overflow-hidden shadow-2xs font-mono text-[11px]">
                     <thead>
                       <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <th className="p-2.5 text-left font-sans">통계 지표</th>
-                        <th className="p-2.5 text-emerald-800 font-sans">정상 데이터</th>
-                        <th className="p-2.5 text-rose-700 font-sans">현재 데이터 (오류 포함)</th>
+                        <th className="p-2.5 text-emerald-800 font-sans">정상 원본 데이터</th>
+                        <th className="p-2.5 text-rose-700 font-sans">현재 작업 데이터 (workingDataset)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -675,7 +715,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       <tr>
                         <td className="p-2.5 text-left font-bold text-slate-700">최댓값 (Max)</td>
                         <td className="p-2.5 font-bold text-emerald-800">{origStats.minMax.max} cm</td>
-                        <td className="p-2.5 font-black text-rose-600 bg-rose-50">{workingStats.minMax.max} cm ⚠️</td>
+                        <td className={`p-2.5 font-black ${workingStats.minMax.max > 20 ? 'text-rose-600 bg-rose-50' : 'text-slate-800'}`}>
+                          {workingStats.minMax.max} cm {workingStats.minMax.max > 20 ? '⚠️' : ''}
+                        </td>
                       </tr>
                       <tr>
                         <td className="p-2.5 text-left font-bold text-slate-700">평균 (Mean)</td>
@@ -691,8 +733,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </table>
                 </div>
 
-                <div className="p-3 bg-rose-50 rounded-lg text-rose-950 font-bold leading-relaxed">
-                  💡 <strong>관찰 포인트:</strong> 데이터 #103의 꽃받침 길이에 50.0cm 이상치가 포함되어 평균(Mean)과 최댓값(Max)이 비정상적으로 크게 상승했습니다!
+                {/* Feature Specific Dynamic Guidance Box */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2 text-slate-800">
+                  <div className="font-bold text-emerald-900 flex items-center gap-1.5 text-xs">
+                    <Sparkles size={16} className="text-emerald-600" />
+                    <span>[{featureGuidance.base.label}] 기초 통계 해석 & 데이터 관찰:</span>
+                  </div>
+                  <p className="font-medium leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px]">
+                    📊 {featureGuidance.statsDiffNote}
+                  </p>
+                  <p className="font-bold text-rose-900 bg-rose-50 p-2.5 rounded-lg border border-rose-200 text-[11px]">
+                    {featureGuidance.errorGuide}
+                  </p>
                 </div>
 
                 <div className="pt-2 text-right">
@@ -706,12 +758,19 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             {/* 2 / 5: 히스토그램 (OutlierHistogramStep) */}
             {outlierStep === 2 && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
-                <span className="font-extrabold text-slate-900 text-sm block">
-                  2 / 5 [히스토그램] 수치 구간별 분포 관찰 (NumericHistogram)
-                </span>
+                <div className="space-y-1">
+                  <span className="font-extrabold text-slate-900 text-sm block">
+                    2 / 5 [{featureGuidance.base.label}] 히스토그램 수치 구간별 분포 관찰
+                  </span>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    {featureGuidance.base.histogramGuide}
+                  </p>
+                </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
-                  <span className="font-bold text-slate-700 text-[11px]">구간별 데이터 개수 분포 (총 {workingStats.count}개):</span>
+                  <span className="font-bold text-slate-700 text-[11px]">
+                    [{featureGuidance.base.label}] 수치 구간별 데이터 개수 분포 (총 {workingStats.count}개):
+                  </span>
                   <div className="w-full overflow-x-auto">
                     <svg viewBox="0 0 460 160" className="w-full h-auto min-w-[300px]">
                       <line x1="40" y1="130" x2="440" y2="130" stroke="#cbd5e1" strokeWidth="2" />
@@ -745,6 +804,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </div>
                 </div>
 
+                {/* Feature Specific Histogram Question */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-950 font-bold leading-relaxed">
+                  ❓ <strong>히스토그램 관찰 질문:</strong> {featureGuidance.base.histogramQuestion}
+                </div>
+
                 <div className="pt-2 text-right">
                   <PrimaryButton size="sm" onClick={() => setOutlierStep(3)}>
                     다음: 3/5 박스플롯 보기
@@ -756,9 +820,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             {/* 3 / 5: 박스플롯 (OutlierBoxplotStep) */}
             {outlierStep === 3 && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
-                <span className="font-extrabold text-slate-900 text-sm block">
-                  3 / 5 [박스플롯] Q1, Q3, IQR, 펜스 및 이상치 후보 시각화
-                </span>
+                <div className="space-y-1">
+                  <span className="font-extrabold text-slate-900 text-sm block">
+                    3 / 5 [{featureGuidance.base.label}] 박스플롯 IQR 범위 및 이상치 후보 시각화
+                  </span>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    {featureGuidance.base.boxplotGuide}
+                  </p>
+                </div>
 
                 <div className="w-full overflow-x-auto bg-white p-3 rounded-xl border border-slate-200">
                   <svg viewBox="0 0 500 160" className="w-full h-auto min-w-[320px]">
@@ -817,10 +886,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </svg>
                 </div>
 
-                <div className="p-3 rounded-lg bg-rose-50 text-rose-950 font-medium space-y-1">
-                  <span className="font-bold block">⚠️ 이상치와 오류의 구분 원칙:</span>
-                  <p>
-                    상자에서 멀리 떨어진 50.0cm는 이상치 후보입니다. 하지만 이상치라고 해서 무조건 삭제해서는 안 되며, 입력 오타인지 실제 희귀한 자연 수치인지 원본을 확인해야 합니다.
+                {/* Feature Specific Boxplot Note */}
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 font-medium space-y-1">
+                  <span className="font-bold block text-amber-900">⚠️ [{featureGuidance.base.label}] 박스플롯 해석 주의점:</span>
+                  <p className="leading-relaxed">
+                    {featureGuidance.base.boxplotNote}
                   </p>
                 </div>
 
@@ -836,101 +906,136 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             {outlierStep === 4 && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
                 <span className="font-extrabold text-slate-900 text-sm block">
-                  4 / 5 [원본 확인 및 수정] 이상치 수치 직접 수정하기
+                  4 / 5 [{featureGuidance.base.label}] 원본 확인 및 이상치 수치 직접 수정하기
                 </span>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span className="font-bold text-slate-800">
-                    데이터 #103의 꽃받침 길이가 50.0cm로 기록되어 있습니다.
-                  </span>
-                  <SecondaryButton size="sm" onClick={() => setShowOutlierGroundTruth(true)}>
-                    원본 데이터 확인
-                  </SecondaryButton>
-                </div>
-
-                {showOutlierGroundTruth && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-2 gap-2 font-mono text-[11px]">
-                    <div className="p-2 bg-rose-50 text-rose-950 rounded">
-                      <span className="block font-sans text-[10px] text-rose-700">현재 입력된 수치</span>
-                      <span className="font-bold">50.0 cm (소수점 입력 오타)</span>
+                {outlierFeature === 'sepalLength' || outlierFeature === 'petalLength' ? (
+                  <>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="font-bold text-slate-800">
+                        {outlierFeature === 'sepalLength'
+                          ? '데이터 #103의 꽃받침 길이가 50.0cm로 기록되어 있습니다.'
+                          : '데이터 #104의 꽃잎 길이가 30.0cm로 기록되어 있습니다.'}
+                      </span>
+                      <SecondaryButton size="sm" onClick={() => setShowOutlierGroundTruth(true)}>
+                        원본 데이터 확인
+                      </SecondaryButton>
                     </div>
-                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded">
-                      <span className="block font-sans text-[10px] text-emerald-700">정답 원본 수치 (#5)</span>
-                      <span className="font-bold">5.0 cm</span>
+
+                    {showOutlierGroundTruth && (
+                      <div className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                        <div className="p-2 bg-rose-50 text-rose-950 rounded">
+                          <span className="block font-sans text-[10px] text-rose-700">현재 입력된 수치</span>
+                          <span className="font-bold">
+                            {outlierFeature === 'sepalLength' ? '50.0 cm (소수점 입력 오타)' : '30.0 cm (극단치 입력 오타)'}
+                          </span>
+                        </div>
+                        <div className="p-2 bg-emerald-50 text-emerald-950 rounded">
+                          <span className="block font-sans text-[10px] text-emerald-700">정답 원본 수치</span>
+                          <span className="font-bold">
+                            {outlierFeature === 'sepalLength' ? '5.0 cm (#5)' : '1.5 cm (#4)'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
+                      <label className="font-bold text-slate-800 block">
+                        올바른 수치를 직접 입력하여 수정하세요:
+                      </label>
+
+                      <div className="flex items-center gap-2 max-w-xs">
+                        <input
+                          type="number"
+                          step="0.1"
+                          placeholder={outlierFeature === 'sepalLength' ? '예: 5.0' : '예: 1.5'}
+                          value={outlierInputValue}
+                          onChange={e => setOutlierInputValue(e.target.value)}
+                          className="p-2.5 border border-slate-300 rounded-xl font-mono text-sm w-36 focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <span className="font-bold text-slate-600">cm</span>
+                        <PrimaryButton
+                          size="sm"
+                          onClick={() => {
+                            const val = parseFloat(outlierInputValue);
+                            const expectedVal = outlierFeature === 'sepalLength' ? 5.0 : 1.5;
+                            const targetId = outlierFeature === 'sepalLength' ? 103 : 104;
+                            const wrongVal = outlierFeature === 'sepalLength' ? 50.0 : 30.0;
+
+                            if (val === expectedVal) {
+                              handleApplyEdit({
+                                recordId: targetId,
+                                field: outlierFeature,
+                                before: wrongVal,
+                                after: expectedVal,
+                                errorType: 'outlier',
+                              });
+                              setActivityCompletion(prev => ({ ...prev, outlierComplete: true }));
+                              setOutlierFeedback({ type: 'success', msg: `🎉 ${expectedVal}cm로 올바르게 수정되었습니다!` });
+                              setOutlierStep(5);
+                            } else {
+                              setOutlierFeedback({ type: 'error', msg: `❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: ${expectedVal})` });
+                            }
+                          }}
+                        >
+                          수정하기
+                        </PrimaryButton>
+                      </div>
+
+                      {outlierFeedback && (
+                        <div className={`p-3 rounded-lg font-bold text-xs ${outlierFeedback.type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                          {outlierFeedback.msg}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-2 text-slate-700">
+                    <span className="font-extrabold text-slate-900 block text-sm">
+                      ℹ️ [{featureGuidance.base.label}] 관찰 안내:
+                    </span>
+                    <p className="leading-relaxed">
+                      현재 데이터셋에서 <strong>{featureGuidance.base.label}</strong> 속성에는 의도적인 이상치 오타가 들어있지 않습니다. 박스플롯과 히스토그램에서 이 속성의 전체적인 수치 분포 범위를 관찰하는 용도로 활용하세요.
+                    </p>
+                    <div className="pt-2">
+                      <PrimaryButton size="sm" onClick={() => setOutlierStep(5)}>
+                        다음: 5/5 결과 확인 및 생각하기
+                      </PrimaryButton>
                     </div>
                   </div>
                 )}
-
-                <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-                  <label className="font-bold text-slate-800 block">
-                    올바른 수치를 직접 입력하여 수정하세요:
-                  </label>
-
-                  <div className="flex items-center gap-2 max-w-xs">
-                    <input
-                      type="number"
-                      step="0.1"
-                      placeholder="예: 5.0"
-                      value={outlierInputValue}
-                      onChange={e => setOutlierInputValue(e.target.value)}
-                      className="p-2.5 border border-slate-300 rounded-xl font-mono text-sm w-36 focus:ring-2 focus:ring-emerald-500"
-                    />
-                    <span className="font-bold text-slate-600">cm</span>
-                    <PrimaryButton
-                      size="sm"
-                      onClick={() => {
-                        const val = parseFloat(outlierInputValue);
-                        if (val === 5.0) {
-                          handleApplyEdit({
-                            recordId: 103,
-                            field: 'sepalLength',
-                            before: 50.0,
-                            after: 5.0,
-                            errorType: 'outlier',
-                          });
-                          setActivityCompletion(prev => ({ ...prev, outlierComplete: true }));
-                          setOutlierFeedback({ type: 'success', msg: '🎉 5.0cm로 올바르게 수정되었습니다!' });
-                          setOutlierStep(5);
-                        } else {
-                          setOutlierFeedback({ type: 'error', msg: '❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: 5.0)' });
-                        }
-                      }}
-                    >
-                      수정하기
-                    </PrimaryButton>
-                  </div>
-
-                  {outlierFeedback && (
-                    <div className={`p-3 rounded-lg font-bold text-xs ${outlierFeedback.type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
-                      {outlierFeedback.msg}
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
-            {/* 5 / 5: 수정 결과 확인 (OutlierResultStep) */}
+            {/* 5 / 5: 수정 결과 확인 & 생각하기 (OutlierResultStep) */}
             {outlierStep === 5 && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
                 <span className="font-extrabold text-slate-900 text-sm block">
-                  5 / 5 [수정 결과 확인] 수정 전/후 통계량 및 분포 재계산 결과
+                  5 / 5 [{featureGuidance.base.label}] 수정 결과 및 생각해보기
                 </span>
 
                 <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                    <span className="font-sans font-bold text-rose-900 block text-xs">수정 전 (이상치 50.0cm 포함)</span>
-                    <div>최댓값: 50.0 cm</div>
-                    <div>평균값: {workingStats.mean} cm</div>
+                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-1">
+                    <span className="font-sans font-bold text-slate-800 block text-xs">원본 데이터 기준</span>
+                    <div>최댓값: {origStats.minMax.max} cm</div>
+                    <div>평균값: {origStats.mean} cm</div>
                   </div>
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-                    <span className="font-sans font-bold text-emerald-900 block text-xs">수정 후 (정상 수치 5.0cm)</span>
-                    <div>최댓값: 7.9 cm</div>
-                    <div>평균값: 5.84 cm (정상치 회복)</div>
+                    <span className="font-sans font-bold text-emerald-900 block text-xs">현재 데이터 기준 (workingDataset)</span>
+                    <div>최댓값: {workingStats.minMax.max} cm</div>
+                    <div>평균값: {workingStats.mean} cm</div>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-emerald-100 text-emerald-950 font-bold">
-                  👏 잘못 입력된 이상치(50.0cm)가 정상 수치(5.0cm)로 정제되어 데이터 전체의 평균과 분포가 올바르게 복원되었습니다!
+                {/* Feature Specific Reflection Question */}
+                <div className="p-4 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 font-bold space-y-2">
+                  <span className="text-sm block text-emerald-900 flex items-center gap-1.5">
+                    <Sparkles size={16} />
+                    <span>💡 [속성별 생각하기 질문]</span>
+                  </span>
+                  <p className="leading-relaxed text-xs font-extrabold">
+                    "{featureGuidance.base.reflectionQuestion}"
+                  </p>
                 </div>
               </div>
             )}
