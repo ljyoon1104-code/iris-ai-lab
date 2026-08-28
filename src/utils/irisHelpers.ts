@@ -221,3 +221,37 @@ export function validateIrisDataset(dataset: IrisRecord[]): {
     errors,
   };
 }
+
+export const ERROR_GROUND_TRUTH_MAP: Record<number, Record<string, any>> = {
+  101: { sepalLength: 5.1 },
+  102: { petalWidth: 0.2 },
+  103: { sepalLength: 5.0 },
+  104: { petalLength: 1.5 },
+  105: { species: 'Iris-setosa' },
+  106: { species: 'Iris-setosa' },
+  107: { sepalLength: 5.1 },
+  108: { sepalWidth: 3.4 },
+  109: { species: 'Iris-versicolor' },
+  112: { petalWidth: 1.5 },
+  114: { species: 'Iris-virginica' },
+  115: { petalLength: 5.9 },
+};
+
+export function getOriginalGroundTruth(recordId: number, field: string): any {
+  if (ERROR_GROUND_TRUTH_MAP[recordId] && ERROR_GROUND_TRUTH_MAP[recordId][field] !== undefined) {
+    return ERROR_GROUND_TRUTH_MAP[recordId][field];
+  }
+  return undefined;
+}
+
+export function applyEditsToDataset<T extends { id: number }>(dataset: T[], edits: Array<{ recordId: number; field: string; after: any }>): T[] {
+  const cloned = cloneDataset(dataset);
+  edits.forEach(edit => {
+    const target = cloned.find(r => r.id === edit.recordId);
+    if (target) {
+      (target as any)[edit.field] = edit.after;
+    }
+  });
+  return cloned;
+}
+

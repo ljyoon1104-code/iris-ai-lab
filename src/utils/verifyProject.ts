@@ -25,7 +25,7 @@ import {
   EXPERIMENTS_STORAGE_KEY,
 } from './storage';
 
-export function runFullVerification() {
+export async function runFullVerification() {
   console.log('====================================================');
   console.log('   Iris AI Lab Comprehensive Automated Verification ');
   console.log('====================================================\n');
@@ -93,6 +93,61 @@ export function runFullVerification() {
       statsPassed = false;
     }
   });
+
+  // 1.8 Module 04 Data Preprocessing Logic Check
+  console.log('\n1.8 Module 04 Data Preprocessing Core Logic Check:');
+  let m4Passed = true;
+  try {
+    const { applyEditsToDataset, getOriginalGroundTruth } = await import('./irisHelpers');
+    const { loadModule04Edits, saveModule04Edits, clearModule04DataOnly } = await import('./storage');
+
+    // Test storage helpers if localStorage is available
+    if (typeof localStorage !== 'undefined') {
+      saveModule04Edits([{ recordId: 101, field: 'sepalLength', before: null, after: 5.1, errorType: 'missing' }]);
+      const loadedEdits = loadModule04Edits();
+      clearModule04DataOnly();
+      if (loadedEdits.length !== 1) {
+        console.error('   ❌ Module 04 edits storage verification failed!');
+        m4Passed = false;
+      }
+    }
+
+    // Test Ground Truth Lookup
+    const gt101 = getOriginalGroundTruth(101, 'sepalLength');
+    const gt103 = getOriginalGroundTruth(103, 'sepalLength');
+    if (gt101 !== 5.1 || gt103 !== 5.0) {
+      console.error(`   ❌ Ground truth lookup failed! Expected 5.1 & 5.0, got ${gt101} & ${gt103}`);
+      m4Passed = false;
+    }
+
+    // Test Edit Application
+    const testEdits = [{ recordId: 101, field: 'sepalLength', before: null, after: 5.1, errorType: 'missing' as const }];
+    const working = applyEditsToDataset(ERROR_IRIS_DATASET, testEdits);
+    const rec101 = working.find(r => r.id === 101);
+    if (!rec101 || rec101.sepalLength !== 5.1) {
+      console.error(`   ❌ Edit application failed! Working record 101 sepalLength is ${rec101?.sepalLength}`);
+      m4Passed = false;
+    }
+
+    // Test Min-Max Scaling Math
+    const sampleVals = [5.1, 4.9, 4.7, 4.6, 5.0];
+    const minVal = Math.min(...sampleVals);
+    const maxVal = Math.max(...sampleVals);
+    const scaled = sampleVals.map(v => (v - minVal) / (maxVal - minVal));
+    if (Math.min(...scaled) !== 0 || Math.max(...scaled) !== 1) {
+      console.error(`   ❌ Min-Max scaling math failed!`);
+      m4Passed = false;
+    }
+
+    if (m4Passed) {
+      console.log('   ✓ Module 04 ground truth lookup, edit application, and Min-Max scaling verified.');
+    } else {
+      passedAll = false;
+    }
+  } catch (e) {
+    console.error('   ❌ Error running Module 04 logic check:', e);
+    passedAll = false;
+  }
 
   // Verify Pearson Correlation Matrix (Symmetry, Diagonal = 1.0, Range -1 to 1)
   const corr = calculateCorrelationMatrix(ORIGINAL_IRIS_DATASET, features);

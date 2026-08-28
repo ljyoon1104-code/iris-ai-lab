@@ -12,15 +12,16 @@ import {
   SPECIES_MAP,
 } from '../../data/irisDataset';
 import type { ErrorIrisRecord } from '../../types/iris';
-import { cloneDataset } from '../../utils/irisHelpers';
+import { applyEditsToDataset } from '../../utils/irisHelpers';
 import {
   type FeatureKey,
   NUMERIC_FEATURE_LABELS,
   calculateMean,
   calculateMedian,
-  calculateQuartiles,
   calculateBoxPlotStats,
+  calculateHistogramBins,
   calculateCorrelationMatrix,
+  calculateMinMax,
   extractValidNumericValues,
 } from '../../utils/statistics';
 import {
@@ -33,16 +34,21 @@ import {
   BookOpen,
   BarChart2,
   TrendingUp,
-  Info,
   ArrowRight,
   Target,
+  RotateCcw,
+  Sliders,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 import {
   SELECTED_FEATURES_KEY,
+  loadModule04Edits,
+  saveModule04Edits,
   loadModule04Completion,
   saveModule04Completion,
   DEFAULT_MODULE04_COMPLETION,
+  clearModule04DataOnly,
+  type Module04Edit,
   type Module04CompletionState,
 } from '../../utils/storage';
 
@@ -52,38 +58,79 @@ interface Module04ActivityProps {
 }
 
 export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted: _isCompleted, onComplete }) => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 8; // 8 streamlined learning steps
-  const topRef = useActivityScrollTop<HTMLDivElement>(currentStep);
+  const [currentActivity, setCurrentActivity] = useState(1);
+  const totalActivities = 8;
+  const topRef = useActivityScrollTop<HTMLDivElement>(currentActivity);
 
-  // Persistent Minimal Completion Criteria State (Single Source of Truth)
-  const [completionState, setCompletionState] = useState<Module04CompletionState>(() => loadModule04Completion());
+  // Student Edits Log & Hydrated Working Dataset
+  const [module04Edits, setModule04Edits] = useState<Module04Edit[]>(() => loadModule04Edits());
+  
+  const workingDataset = useMemo<ErrorIrisRecord[]>(() => {
+    return applyEditsToDataset(ERROR_IRIS_DATASET, module04Edits);
+  }, [module04Edits]);
+
+  // Persistent Activity Completion State
+  const [activityCompletion, setActivityCompletion] = useState<Module04CompletionState>(() => loadModule04Completion());
 
   useEffect(() => {
-    saveModule04Completion(completionState);
-  }, [completionState]);
+    saveModule04Edits(module04Edits);
+  }, [module04Edits]);
 
+  useEffect(() => {
+    saveModule04Completion(activityCompletion);
+  }, [activityCompletion]);
+
+  // Listen to resets (both Module 04 only reset and global reset)
   useEffect(() => {
     const handleReset = () => {
-      setCompletionState(DEFAULT_MODULE04_COMPLETION);
+      setModule04Edits([]);
+      setActivityCompletion(DEFAULT_MODULE04_COMPLETION);
+      setCurrentActivity(1);
     };
+    window.addEventListener('module04_reset', handleReset);
     window.addEventListener('learning_data_reset', handleReset);
-    return () => window.removeEventListener('learning_data_reset', handleReset);
+    return () => {
+      window.removeEventListener('module04_reset', handleReset);
+      window.removeEventListener('learning_data_reset', handleReset);
+    };
   }, []);
 
-  // Data Detective Working Dataset & Notebook States
-  const [workingDataset] = useState<ErrorIrisRecord[]>(() => cloneDataset(ERROR_IRIS_DATASET));
-  const [detectiveSetIndex] = useState(0); // 0 to 3 (4 sets of 5)
+  // Modals & UI States
   const [isNotebookOpen, setIsNotebookOpen] = useState<boolean>(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState<boolean>(false);
 
-  // STEP 4: [이상치를 데이터로 확인해볼까?] State
-  const [selectedFeature, setSelectedFeature] = useState<FeatureKey>('sepalLength');
+  // ACTIVITY 1: Intro Q State
+  const [act1Answer, setAct1Answer] = useState<string | null>(null);
 
-  // STEP 6: [속성끼리는 어떤 관계가 있을까?] State
+  // ACTIVITY 2: Data Detective Choices
+  const [detectiveAnswers, setDetectiveAnswers] = useState<Record<number, string>>({});
+
+  // ACTIVITY 3: Missing Value State
+  const [missingChoice, setMissingChoice] = useState<string | null>(null);
+  const [showMissingGroundTruth, setShowMissingGroundTruth] = useState<boolean>(false);
+  const [missingInputValue, setMissingInputValue] = useState<string>('');
+  const [missingFeedback, setMissingFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  // ACTIVITY 4: Outliers 5-Step Sub-Sequence (1/5 to 5/5)
+  const [outlierStep, setOutlierStep] = useState<number>(1);
+  const [outlierFeature, setOutlierFeature] = useState<FeatureKey>('sepalLength');
+  const [showOutlierGroundTruth, setShowOutlierGroundTruth] = useState<boolean>(false);
+  const [outlierInputValue, setOutlierInputValue] = useState<string>('');
+  const [outlierFeedback, setOutlierFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  // ACTIVITY 5: Inconsistent Labels & Invalid Types State
+  const [speciesStandardChoice, setSpeciesStandardChoice] = useState<string>('세토사');
+  const [typeChoice, setTypeChoice] = useState<string | null>(null);
+
+  // ACTIVITY 6: Scaling & Encoding State
+  const [scalingFeature, setScalingFeature] = useState<FeatureKey>('sepalLength');
+  const [showScalingFormula, setShowScalingFormula] = useState<boolean>(false);
+  const [isScalingExecuted, setIsScalingExecuted] = useState<boolean>(false);
+  const [encodingChoice, setEncodingChoice] = useState<string | null>(null);
+
+  // ACTIVITY 8: Scatter, Heatmap, Key Features State
   const [scatterX, setScatterX] = useState<FeatureKey>('petalLength');
   const [scatterY, setScatterY] = useState<FeatureKey>('petalWidth');
-
-  // STEP 7: [핵심 속성 2개 선택] State
   const [selectedFeatures04, setSelectedFeatures04] = useState<FeatureKey[]>(() => {
     try {
       const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
@@ -94,65 +141,92 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     } catch {}
     return ['petalLength', 'petalWidth'];
   });
-  const [featureSelectionReason, setFeatureSelectionReason] = useState<string | null>(null);
 
-  // Automatically update step-based completion criteria
+  // Track completion per activity entry
   useEffect(() => {
-    if (currentStep === 2) {
-      setCompletionState(prev => ({ ...prev, detectiveViewed: true }));
-    } else if (currentStep === 4) {
-      setCompletionState(prev => ({ ...prev, outlierViewed: true }));
-    } else if (currentStep === 6) {
-      setCompletionState(prev => ({ ...prev, scatterViewed: true, heatmapViewed: true }));
+    if (currentActivity === 2) {
+      setActivityCompletion(prev => ({ ...prev, detectiveComplete: true }));
+    } else if (currentActivity === 6) {
+      setActivityCompletion(prev => ({ ...prev, transformComplete: true }));
+    } else if (currentActivity === 7) {
+      setActivityCompletion(prev => ({ ...prev, reviewComplete: true }));
+    } else if (currentActivity === 8) {
+      setActivityCompletion(prev => ({ ...prev, relationComplete: true }));
     }
-  }, [currentStep]);
+  }, [currentActivity]);
 
-  // Sync keyFeaturesSelected state with actual selection count (selectedFeatures04.length === 2)
+  // Automatically update keyFeaturesSelected completion status
   const isKeyFeaturesSelected = selectedFeatures04.length === 2;
   useEffect(() => {
-    setCompletionState(prev => {
-      if (prev.keyFeaturesSelected === isKeyFeaturesSelected) return prev;
-      return { ...prev, keyFeaturesSelected: isKeyFeaturesSelected };
+    if (isKeyFeaturesSelected && currentActivity >= 7) {
+      setActivityCompletion(prev => ({ ...prev, relationComplete: true }));
+    }
+  }, [isKeyFeaturesSelected, currentActivity]);
+
+  // Ground Truth Samples
+  const normalSampleSetosa = ORIGINAL_IRIS_DATASET[0];
+  const normalSampleVersicolor = ORIGINAL_IRIS_DATASET[50];
+  const normalSampleVirginica = ORIGINAL_IRIS_DATASET[100];
+
+  // Live Error Count Calculations from workingDataset
+  const currentErrorCounts = useMemo(() => {
+    let missing = 0;
+    let outlier = 0;
+    let inconsistent = 0;
+    let invalidType = 0;
+
+    workingDataset.forEach(rec => {
+      // Missing
+      if (rec.sepalLength === null || rec.sepalWidth === null || rec.petalLength === null || rec.petalWidth === null || !rec.species) {
+        missing++;
+      }
+      // Outlier (50cm or 30cm)
+      if (typeof rec.sepalLength === 'number' && rec.sepalLength > 20) outlier++;
+      if (typeof rec.petalLength === 'number' && rec.petalLength > 20) outlier++;
+      // Inconsistent species
+      if (rec.species && !['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'].includes(rec.species)) {
+        inconsistent++;
+      }
+      // Invalid string type
+      if (typeof rec.sepalLength === 'string' || typeof rec.sepalWidth === 'string' || typeof rec.petalLength === 'string' || typeof rec.petalWidth === 'string') {
+        invalidType++;
+      }
     });
-  }, [isKeyFeaturesSelected]);
 
-  // Real 3 Normal Iris Records from ORIGINAL_IRIS_DATASET
-  const normalSampleSetosa = ORIGINAL_IRIS_DATASET[0]; // ID 1
-  const normalSampleVersicolor = ORIGINAL_IRIS_DATASET[50]; // ID 51
-  const normalSampleVirginica = ORIGINAL_IRIS_DATASET[100]; // ID 101
+    return { missing, outlier, inconsistent, invalidType, total: missing + outlier + inconsistent + invalidType };
+  }, [workingDataset]);
 
-  // Calculate statistics dynamically
-  const origCleanValues = useMemo(() => {
-    return extractValidNumericValues(ORIGINAL_IRIS_DATASET, selectedFeature);
-  }, [selectedFeature]);
+  // Statistics calculation for Activity 4
+  const origCleanValues = useMemo(() => extractValidNumericValues(ORIGINAL_IRIS_DATASET, outlierFeature), [outlierFeature]);
+  const workingValues = useMemo(() => extractValidNumericValues(workingDataset, outlierFeature), [workingDataset, outlierFeature]);
 
-  const errorAllValues = useMemo(() => {
-    return extractValidNumericValues(ERROR_IRIS_DATASET, selectedFeature);
-  }, [selectedFeature]);
+  const origStats = useMemo(() => ({
+    count: origCleanValues.length,
+    minMax: calculateMinMax(origCleanValues),
+    mean: calculateMean(origCleanValues),
+    median: calculateMedian(origCleanValues),
+  }), [origCleanValues]);
 
-  const origStats = useMemo(() => {
-    return {
-      mean: calculateMean(origCleanValues),
-      median: calculateMedian(origCleanValues),
-      quartiles: calculateQuartiles(origCleanValues),
-    };
-  }, [origCleanValues]);
+  const workingStats = useMemo(() => ({
+    count: workingValues.length,
+    minMax: calculateMinMax(workingValues),
+    mean: calculateMean(workingValues),
+    median: calculateMedian(workingValues),
+  }), [workingValues]);
 
-  const errorStats = useMemo(() => {
-    return {
-      mean: calculateMean(errorAllValues),
-      median: calculateMedian(errorAllValues),
-      quartiles: calculateQuartiles(errorAllValues),
-    };
-  }, [errorAllValues]);
+  const boxPlotData = useMemo(() => calculateBoxPlotStats(workingValues), [workingValues]);
+  const histogramBins = useMemo(() => calculateHistogramBins(workingValues, 7), [workingValues]);
 
-  const boxPlotData = useMemo(() => {
-    return calculateBoxPlotStats(errorAllValues);
-  }, [errorAllValues]);
+  // Correlation matrix for Activity 8
+  const correlationMatrix = useMemo(() => calculateCorrelationMatrix(ORIGINAL_IRIS_DATASET), []);
 
-  const correlationMatrix = useMemo(() => {
-    return calculateCorrelationMatrix(ORIGINAL_IRIS_DATASET);
-  }, []);
+  // Handlers for student edits
+  const handleApplyEdit = (edit: Module04Edit) => {
+    setModule04Edits(prev => {
+      const filtered = prev.filter(e => !(e.recordId === edit.recordId && e.field === edit.field));
+      return [...filtered, edit];
+    });
+  };
 
   const handleToggleFeature04 = (feat: FeatureKey) => {
     let nextFeats: FeatureKey[];
@@ -174,46 +248,45 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     }
   };
 
-  // Detective current subset (5 records)
-  const currentDetectiveRecords = workingDataset.slice(detectiveSetIndex * 5, (detectiveSetIndex + 1) * 5);
+  const promptText = `오류 데이터(결측치, 이상치, 표현 불일치, 데이터형 오류)가 포함된 붓꽃 데이터셋을 정제하고 Min-Max 스케일링 및 원-핫 인코딩으로 변환하는 전처리 과정이 기계학습 모델의 정확도에 미치는 영향을 설명해줘.`;
 
-  const promptText = `오류 데이터(결측치, 이상치, 표현 불일치, 데이터형 오류)가 포함된 붓꽃 데이터셋을 [기초 통계량 → 히스토그램 → 박스플롯 → 산점도 → 히트맵] 순으로 탐구할 때, 각 시각화 도구가 이상치와 속성 간 관계를 발견하는 데 가지는 고유한 역할 3가지를 정리해줘.`;
-
-  // Minimal 5 Checklist Items
+  // Checklist items
   const checklistItems = [
-    { id: 'detective', label: '데이터 탐정 활동', isCompleted: completionState.detectiveViewed },
-    { id: 'outlier', label: '이상치 시각화 확인', isCompleted: completionState.outlierViewed },
-    { id: 'scatter', label: '산점도 속성 관찰', isCompleted: completionState.scatterViewed },
-    { id: 'heatmap', label: '상관계수 히트맵 확인', isCompleted: completionState.heatmapViewed },
-    { id: 'features', label: '핵심 속성 2개 선택', isCompleted: completionState.keyFeaturesSelected },
+    { id: 'detective', label: '오류 데이터 찾아보기', isCompleted: activityCompletion.detectiveComplete },
+    { id: 'missing', label: '결측치 수정하기', isCompleted: activityCompletion.missingComplete },
+    { id: 'outlier', label: '이상치 확인하고 수정하기', isCompleted: activityCompletion.outlierComplete },
+    { id: 'formatType', label: '표현/자료형 오류 수정하기', isCompleted: activityCompletion.formatTypeComplete },
+    { id: 'transform', label: '스케일링·인코딩 체험하기', isCompleted: activityCompletion.transformComplete },
+    { id: 'review', label: '전처리 결과 확인하기', isCompleted: activityCompletion.reviewComplete },
+    { id: 'relation', label: '속성 관계 확인하기', isCompleted: activityCompletion.relationComplete },
   ];
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
       {/* Activity Progress */}
       <ActivityProgress
-        currentStep={currentStep}
-        totalSteps={totalSteps}
+        currentStep={currentActivity}
+        totalSteps={totalActivities}
         title={
-          currentStep === 1
-            ? '[확인 단계] 1. 데이터 유형과 역할 확인 (수치형/범주형, X/y)'
-            : currentStep === 2
-            ? '[탐정 단계] 2. 데이터 탐정 (정상 관찰 & 오류 데이터 찾기)'
-            : currentStep === 3
-            ? '[판별 단계] 3. 오류 종류 판별하기 (4가지 오류 카드)'
-            : currentStep === 4
-            ? '[확인 단계] 4. 이상치를 통계와 시각화로 확인 (통계량 ➔ 히스토그램 ➔ 박스플롯)'
-            : currentStep === 5
-            ? '[처리 단계] 5. 적절한 전처리 방법 판단 (4가지 전략)'
-            : currentStep === 6
-            ? '[관찰 단계] 6. 속성 간 관계 확인 (산점도 & 히트맵)'
-            : currentStep === 7
-            ? '[선택 단계] 7. 핵심 속성 2개 선택 (06 알고리즘 실험 연동)'
-            : '[비교/완료 단계] 8. 전처리 전/후 비교 및 마무리'
+          currentActivity === 1
+            ? '활동 1. [개념] 왜 데이터를 정리해야 할까?'
+            : currentActivity === 2
+            ? '활동 2. [탐정] 데이터에서 문제를 찾아보자'
+            : currentActivity === 3
+            ? '활동 3. [결측치] 빠진 값을 어떻게 처리할까?'
+            : currentActivity === 4
+            ? `활동 4. [이상치] 이 값은 정말 이상한 값일까? (${outlierStep}/5 단계)`
+            : currentActivity === 5
+            ? '활동 5. [표현/자료형] 같은 뜻인데 다르게 적혀 있다면?'
+            : currentActivity === 6
+            ? '활동 6. [변환] 데이터를 학습하기 좋은 형태로 바꿔보자'
+            : currentActivity === 7
+            ? '활동 7. [확인] 전처리가 잘 되었을까?'
+            : '활동 8. [관계] 속성끼리는 어떤 관계가 있을까?'
         }
       />
 
-      {/* Intro Question & Stage Badge Banner */}
+      {/* Main Header Banner */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
@@ -223,298 +296,1017 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
 
         <h2 className="text-xl font-black text-slate-900">
-          [데이터 전처리: 오류를 찾고 관찰하여 정제하기]
+          [데이터 전처리 실습: 오류 수정과 데이터 변환 체험]
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          데이터를 무작정 수정하거나 삭제하지 않고, <strong>"확인 ➔ 탐정 ➔ 판별 ➔ 이상치 ➔ 처리 ➔ 관계관찰 ➔ 속성선택"</strong>의 정밀한 흐름을 거칩니다.
+          학생이 직접 <strong>결측치·이상치·표현불일치·자료형 오류</strong>를 찾아 수정하고, <strong>스케일링과 인코딩</strong>으로 변환해봅니다.
         </p>
       </div>
 
-      {/* STEP 1: 데이터 유형과 역할 확인 */}
-      {currentStep === 1 && (
+      {/* ACTIVITY 1: 왜 데이터를 정리해야 할까? */}
+      {currentActivity === 1 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Layers size={20} className="text-emerald-600" />
-              <span>[확인 단계] 활동 1: 수치형/범주형 데이터 및 X(특성) / y(라벨) 구분</span>
+              <span>활동 1. [왜 데이터를 정리해야 할까?]</span>
             </h3>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              붓꽃 데이터의 각 속성이 수치(cm)를 나타내는지, 명칭(범주)을 나타내는지 확인하고 머신러닝에서의 역할을 구분합니다.
-            </p>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed space-y-2">
+              <p className="font-bold text-slate-900 text-sm">
+                "기계학습 모델은 데이터를 이용해 규칙을 학습합니다."
+              </p>
+              <p>
+                데이터에 빠진 값(결측치)이나 잘못 입력된 수치가 있으면 모델도 잘못된 규칙을 배울 수 있습니다.
+              </p>
+            </div>
 
+            {/* Compare Normal vs Problematic Data */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
-                <span className="font-extrabold text-emerald-900 block text-xs">📏 수치형 데이터 (Continuous Numeric)</span>
-                <p className="text-emerald-800 font-medium leading-relaxed">
-                  꽃받침과 꽃잎의 길이나 너비처럼 연속된 숫자 수치(cm)를 가진 데이터입니다.
-                </p>
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                <span className="font-extrabold text-emerald-900 block text-xs">✅ 정상 데이터 예시</span>
+                <div className="space-y-1 font-mono text-[11px] text-emerald-950">
+                  <div>꽃받침 길이: 5.1 cm</div>
+                  <div>꽃받침 너비: 3.5 cm</div>
+                  <div>꽃잎 길이: 1.4 cm</div>
+                  <div>꽃잎 너비: 0.2 cm</div>
+                  <div>품종: 세토사 (Iris-setosa)</div>
+                </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-1">
-                <span className="font-extrabold text-blue-900 block text-xs">🏷️ 범주형 데이터 (Categorical)</span>
-                <p className="text-blue-800 font-medium leading-relaxed">
-                  세토사, 버시컬러, 버지니카처럼 몇 개의 종류나 범주(품종)로 분류되는 데이터입니다.
-                </p>
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 space-y-2">
+                <span className="font-extrabold text-rose-900 block text-xs">⚠️ 문제가 있는 데이터 예시</span>
+                <div className="space-y-1 font-mono text-[11px] text-rose-950">
+                  <div className="font-bold text-rose-600 bg-rose-100 px-1 rounded">꽃받침 길이: [값 없음]</div>
+                  <div>꽃받침 너비: 3.5 cm</div>
+                  <div>꽃잎 길이: 1.4 cm</div>
+                  <div>꽃잎 너비: 0.2 cm</div>
+                  <div>품종: 세토사 (Iris-setosa)</div>
+                </div>
               </div>
+            </div>
+
+            {/* Student Inquiry */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                질문: 이 문제 있는 데이터를 그대로 기계학습에 사용해도 괜찮을까요?
+              </span>
+
+              <div className="space-y-2">
+                {[
+                  { key: 'ok', label: '괜찮다. 컴퓨터가 알아서 처리할 것이다.' },
+                  { key: 'fix', label: '확인하거나 올바른 값으로 수정할 필요가 있다.' },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setAct1Answer(opt.key)}
+                    className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
+                      act1Answer === opt.key
+                        ? opt.key === 'fix'
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-rose-600 text-white border-rose-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    ○ {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {act1Answer && (
+                <div className={`p-3 rounded-lg font-bold text-xs ${act1Answer === 'fix' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                  {act1Answer === 'fix'
+                    ? '👏 정답입니다! 기계학습 전에 데이터를 확인하고 필요한 부분을 정리하거나 변환하는 과정을 데이터 전처리라고 합니다.'
+                    : '💡 데이터를 정제하지 않고 입력하면 계산 오류가 발생하거나 잘못된 모델이 생성됩니다.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 2: 데이터 탐정 (정상 데이터 관찰 & 오류 데이터 찾기) */}
-      {currentStep === 2 && (
+      {/* ACTIVITY 2: 데이터에서 문제를 찾아보자 */}
+      {currentActivity === 2 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Search size={20} className="text-rose-600" />
-              <span>[탐정 단계] 활동 2: 데이터 탐정 (정상 예시 관찰 & 오류 데이터 찾기)</span>
+              <span>활동 2. [데이터에서 문제를 찾아보자] (데이터 탐정)</span>
             </h3>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              정상 데이터 예시 수치를 먼저 확인한 뒤, 제시된 레코드 카드 중 이상치, 결측치, 표현 불일치, 데이터형 오류가 포함된 데이터점을 탐색하세요.
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              아래 데이터 카드들은 실제 붓꽃 데이터에 포함된 다양한 문제를 보여줍니다. 각 카드의 오류 종류를 직접 판별해보세요. (JSON 문자열 노출 없음)
             </p>
 
-            {/* Normal Iris Reference Card Samples */}
+            {/* Detective Reference Notebook Sample */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <BookOpen size={16} className="text-emerald-600" />
-                  <span>📖 탐정 수첩: 정상 데이터 수치 기준</span>
+                  <span>📖 탐정 수첩: 정상 데이터 기준값</span>
                 </span>
                 <SecondaryButton size="sm" onClick={() => setIsNotebookOpen(true)}>
-                  탐정 수첩 전체 열기
+                  수첩 전체 보기
                 </SecondaryButton>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                 {[normalSampleSetosa, normalSampleVersicolor, normalSampleVirginica].map(rec => (
-                  <div key={rec.id} className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
-                    <div className="flex justify-between items-center font-bold text-emerald-800 text-[11px]">
-                      <span>ID #{rec.id} ({SPECIES_MAP[rec.species].korean})</span>
-                      <span className="text-[9px] bg-emerald-100 px-1.5 py-0.5 rounded">정상</span>
-                    </div>
-                    <div className="space-y-0.5 font-mono text-[10px] text-slate-600">
-                      <div>받침: {rec.sepalLength} x {rec.sepalWidth} cm</div>
-                      <div>꽃잎: {rec.petalLength} x {rec.petalWidth} cm</div>
-                    </div>
+                  <div key={rec.id} className="p-2.5 bg-white rounded-lg border border-slate-200 font-mono text-[10px]">
+                    <div className="font-bold text-emerald-800">ID #{rec.id} ({SPECIES_MAP[rec.species].korean})</div>
+                    <div className="text-slate-600">{rec.sepalLength} / {rec.sepalWidth} / {rec.petalLength} / {rec.petalWidth} cm</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Student Data Cards (Human Readable - No JSON) */}
-            <div className="space-y-3 pt-2">
+            {/* Representative Error Cards */}
+            <div className="space-y-4 pt-2">
               <span className="font-extrabold text-slate-900 text-xs block">
-                🕵️ 탐색 대상 데이터 카드 (실제 붓꽃 데이터 5건):
+                🕵️ 탐색 대상 데이터 카드 4건:
               </span>
-              {currentDetectiveRecords.map(rec => (
-                <StudentDataCard
-                  key={rec.id}
-                  record={rec}
-                />
+
+              {[
+                { id: 101, rec: workingDataset.find(r => r.id === 101) || ERROR_IRIS_DATASET[0], expected: 'missing', title: '데이터 #101' },
+                { id: 103, rec: workingDataset.find(r => r.id === 103) || ERROR_IRIS_DATASET[2], expected: 'outlier', title: '데이터 #103' },
+                { id: 105, rec: workingDataset.find(r => r.id === 105) || ERROR_IRIS_DATASET[4], expected: 'inconsistent', title: '데이터 #105' },
+                { id: 107, rec: workingDataset.find(r => r.id === 107) || ERROR_IRIS_DATASET[6], expected: 'invalidType', title: '데이터 #107' },
+              ].map(card => (
+                <div key={card.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs">
+                  <StudentDataCard record={card.rec} title={card.title} />
+
+                  <div className="space-y-1.5 pt-1">
+                    <span className="font-bold text-slate-800 block text-[11px]">이 데이터의 문제는 무엇인가요?</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { type: 'missing', label: '결측치' },
+                        { type: 'outlier', label: '이상치' },
+                        { type: 'inconsistent', label: '표현 불일치' },
+                        { type: 'invalidType', label: '데이터형 오류' },
+                      ].map(opt => (
+                        <button
+                          key={opt.type}
+                          onClick={() => setDetectiveAnswers(prev => ({ ...prev, [card.id]: opt.type }))}
+                          className={`p-2 rounded-lg border font-bold text-center cursor-pointer transition-all min-h-[44px] ${
+                            detectiveAnswers[card.id] === opt.type
+                              ? opt.type === card.expected
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-rose-600 text-white border-rose-600'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {detectiveAnswers[card.id] && (
+                      <div className={`p-2 rounded font-bold text-[11px] ${detectiveAnswers[card.id] === card.expected ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                        {detectiveAnswers[card.id] === card.expected
+                          ? '✅ 정확하게 판별했습니다!'
+                          : '💡 탐정 수첩 기준값과 비교해보세요.'}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 3: 오류 종류 판별하기 */}
-      {currentStep === 3 && (
+      {/* ACTIVITY 3: 결측치를 수정해보자 */}
+      {currentActivity === 3 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <HelpCircle size={20} className="text-amber-600" />
-              <span>[판별 단계] 활동 3: 오류 종류 판별하기 (사람이 읽기 쉬운 카드)</span>
+              <span>활동 3. [빠진 값을 어떻게 처리할까?] (결측치 직접 수정)</span>
             </h3>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              발견한 문제 데이터의 오류 유형(결측치, 이상치, 표현 불일치, 데이터형 오류)을 세부적으로 판별합니다.
-            </p>
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-2">
+              <span className="font-extrabold text-amber-900 block text-sm">
+                📌 실제 결측치 사례: 데이터 #101 (세토사)
+              </span>
+              <p>
+                데이터 #101의 <strong>꽃받침 길이(sepalLength)</strong> 값이 비어있어(null) 계산이 불가능한 상태입니다.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                { type: 'missing', label: '결측치', desc: '필요한 수치 값이 비어 있음 (null, 빈칸)' },
-                { type: 'outlier', label: '이상치', desc: '수치가 보통 범위와 다르게 극단적으로 큼/작음 (50.0cm 등)' },
-                { type: 'inconsistent', label: '표현 불일치', desc: '같은 품종인데 영문/한글/오타 혼용 (Setosa vs 세토사)' },
-                { type: 'type_error', label: '데이터형 오류', desc: '숫자 자리에 문자(5.1cm)가 적혀 있음' },
-              ].map(item => (
-                <div key={item.type} className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <span className="font-extrabold text-slate-900 block text-sm">● {item.label}</span>
-                  <p className="text-slate-600 font-medium">{item.desc}</p>
+            {/* Strategy Selection */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                질문: 이 결측치를 어떻게 처리하면 좋을까요?
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { key: 'orig', label: '원래 값을 확인하여 채운다 (추천)' },
+                  { key: 'mean', label: '전체 평균값/중앙값으로 대체한다' },
+                  { key: 'delete', label: '해당 레코드를 데이터에서 제외한다' },
+                  { key: 'unknown', label: '잘 모르겠다' },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setMissingChoice(opt.key)}
+                    className={`p-3 rounded-xl border text-left font-bold transition-all min-h-[44px] cursor-pointer ${
+                      missingChoice === opt.key
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    ○ {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Compare with Original & Direct Fix */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="font-extrabold text-slate-900 text-sm">
+                  [원본 데이터 비교 및 직접 수정]
+                </span>
+                <SecondaryButton size="sm" onClick={() => setShowMissingGroundTruth(true)}>
+                  원본 데이터와 비교하기
+                </SecondaryButton>
+              </div>
+
+              {showMissingGroundTruth && (
+                <div className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                  <div className="p-2 bg-rose-50 text-rose-950 rounded">
+                    <span className="block font-sans text-[10px] text-rose-700">현재 오류 데이터 (#101)</span>
+                    <span className="font-bold">꽃받침 길이: [값 없음]</span>
+                  </div>
+                  <div className="p-2 bg-emerald-50 text-emerald-950 rounded">
+                    <span className="block font-sans text-[10px] text-emerald-700">정답 원본 데이터 (#1)</span>
+                    <span className="font-bold">꽃받침 길이: 5.1 cm</span>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Direct Entry Input */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
+                <label className="font-bold text-slate-800 block">
+                  데이터 #101의 꽃받침 길이를 직접 입력하여 수정하세요:
+                </label>
+
+                <div className="flex items-center gap-2 max-w-xs">
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="예: 5.1"
+                    value={missingInputValue}
+                    onChange={e => setMissingInputValue(e.target.value)}
+                    className="p-2.5 border border-slate-300 rounded-xl font-mono text-sm w-36 focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="font-bold text-slate-600">cm</span>
+                  <PrimaryButton
+                    size="sm"
+                    onClick={() => {
+                      const val = parseFloat(missingInputValue);
+                      if (val === 5.1) {
+                        handleApplyEdit({
+                          recordId: 101,
+                          field: 'sepalLength',
+                          before: null,
+                          after: 5.1,
+                          errorType: 'missing',
+                        });
+                        setActivityCompletion(prev => ({ ...prev, missingComplete: true }));
+                        setMissingFeedback({ type: 'success', msg: '🎉 빠진 값이 5.1cm로 채워져 이 속성을 정상 계산할 수 있게 되었습니다!' });
+                      } else {
+                        setMissingFeedback({ type: 'error', msg: '❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: 5.1)' });
+                      }
+                    }}
+                  >
+                    수정하기
+                  </PrimaryButton>
+                </div>
+
+                {missingFeedback && (
+                  <div className={`p-3 rounded-lg font-bold text-xs ${missingFeedback.type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                    {missingFeedback.msg}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 4: 이상치를 통계와 시각화로 확인 */}
-      {currentStep === 4 && (
-        <div className="space-y-6 animate-fadeIn">
+      {/* ACTIVITY 4: 이상치를 찾아 수정해보자 (5단계 고정 순서) */}
+      {currentActivity === 4 && (
+        <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <BarChart2 size={20} className="text-emerald-600" />
-              <span>[확인 단계] 활동 4: 이상치를 통계와 시각화로 확인 (통계량 ➔ 히스토그램 ➔ 박스플롯)</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <BarChart2 size={20} className="text-emerald-600" />
+                <span>활동 4. [이 값은 정말 이상한 값일까?] (이상치 탐구 5단계 순서)</span>
+              </h3>
+              <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                단계 {outlierStep} / 5
+              </span>
+            </div>
 
-            {/* Feature Selector Tabs */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(feat => (
+            {/* Outlier Sub-sequence Navigation Tabs */}
+            <div className="flex flex-wrap gap-1.5 text-xs font-bold">
+              {[
+                { step: 1, label: '1/5 기초 통계량' },
+                { step: 2, label: '2/5 히스토그램' },
+                { step: 3, label: '3/5 박스플롯' },
+                { step: 4, label: '4/5 원본 확인·수정' },
+                { step: 5, label: '5/5 수정 결과 확인' },
+              ].map(tab => (
                 <button
-                  key={feat}
-                  onClick={() => setSelectedFeature(feat)}
-                  className={`px-3 py-2 rounded-xl font-bold cursor-pointer transition-all min-h-[44px] ${
-                    selectedFeature === feat
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                  key={tab.step}
+                  onClick={() => setOutlierStep(tab.step)}
+                  className={`px-3 py-2 rounded-xl transition-all cursor-pointer min-h-[44px] ${
+                    outlierStep === tab.step
+                      ? 'bg-emerald-600 text-white shadow-xs font-black'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  {NUMERIC_FEATURE_LABELS[feat].full}
+                  {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Basic Statistics Comparison Table */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <span className="font-bold text-slate-800 block">
-                [{NUMERIC_FEATURE_LABELS[selectedFeature].full}] 기초 통계량 비교 (정상 데이터 vs 오류 포함 데이터)
-              </span>
-
-              <div className="grid grid-cols-2 gap-3 text-center font-mono">
-                <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="text-[10px] text-slate-500 block font-sans">정상 데이터 평균 / 중앙값</span>
-                  <span className="font-bold text-emerald-800 text-sm">{origStats.mean} cm / {origStats.median} cm</span>
-                </div>
-                <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="text-[10px] text-slate-500 block font-sans">오류 포함 평균 / 중앙값</span>
-                  <span className="font-bold text-rose-700 text-sm">{errorStats.mean} cm / {errorStats.median} cm</span>
-                </div>
+            {/* Feature selector */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-slate-700">탐구 대상 속성:</span>
+              <div className="flex gap-1">
+                {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setOutlierFeature(f)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                      outlierFeature === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {NUMERIC_FEATURE_LABELS[f].short}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Histogram & Boxplot Visualization */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <span className="font-bold text-slate-800 block">
-                [{NUMERIC_FEATURE_LABELS[selectedFeature].full}] 히스토그램 및 가로형 박스플롯
-              </span>
+            {/* 1 / 5: 기초 통계량 (OutlierStatisticsStep) */}
+            {outlierStep === 1 && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  1 / 5 [기초 통계량] 정상 데이터 vs 현재 데이터 통계 비교
+                </span>
 
-              <div className="w-full overflow-x-auto">
-                <svg viewBox="0 0 500 160" className="w-full h-auto min-w-[320px]">
-                  {(() => {
-                    const stats = boxPlotData;
-                    const dataMin = Math.min(stats.min, stats.lowerFence);
-                    const dataMax = Math.max(stats.max, stats.upperFence);
-                    const paddingX = 50;
-                    const plotWidth = 400;
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-center border-collapse bg-white rounded-xl overflow-hidden shadow-2xs font-mono text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="p-2.5 text-left font-sans">통계 지표</th>
+                        <th className="p-2.5 text-emerald-800 font-sans">정상 데이터</th>
+                        <th className="p-2.5 text-rose-700 font-sans">현재 데이터 (오류 포함)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr>
+                        <td className="p-2.5 text-left font-bold text-slate-700">최솟값 (Min)</td>
+                        <td className="p-2.5 font-bold text-slate-800">{origStats.minMax.min} cm</td>
+                        <td className="p-2.5 font-bold text-slate-800">{workingStats.minMax.min} cm</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 text-left font-bold text-slate-700">최댓값 (Max)</td>
+                        <td className="p-2.5 font-bold text-emerald-800">{origStats.minMax.max} cm</td>
+                        <td className="p-2.5 font-black text-rose-600 bg-rose-50">{workingStats.minMax.max} cm ⚠️</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 text-left font-bold text-slate-700">평균 (Mean)</td>
+                        <td className="p-2.5 font-bold text-emerald-800">{origStats.mean} cm</td>
+                        <td className="p-2.5 font-bold text-rose-700">{workingStats.mean} cm</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 text-left font-bold text-slate-700">중앙값 (Median)</td>
+                        <td className="p-2.5 font-bold text-slate-800">{origStats.median} cm</td>
+                        <td className="p-2.5 font-bold text-slate-800">{workingStats.median} cm</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
 
-                    const getX = (val: number) => {
-                      if (dataMax === dataMin) return paddingX + plotWidth / 2;
-                      return paddingX + ((val - dataMin) / (dataMax - dataMin)) * plotWidth;
-                    };
+                <div className="p-3 bg-rose-50 rounded-lg text-rose-950 font-bold leading-relaxed">
+                  💡 <strong>관찰 포인트:</strong> 데이터 #103의 꽃받침 길이에 50.0cm 이상치가 포함되어 평균(Mean)과 최댓값(Max)이 비정상적으로 크게 상승했습니다!
+                </div>
 
-                    const xMinWhisker = getX(stats.lowerWhisker);
-                    const xQ1 = getX(stats.q1);
-                    const xMedian = getX(stats.median);
-                    const xQ3 = getX(stats.q3);
-                    const xMaxWhisker = getX(stats.upperWhisker);
+                <div className="pt-2 text-right">
+                  <PrimaryButton size="sm" onClick={() => setOutlierStep(2)}>
+                    다음: 2/5 히스토그램 보기
+                  </PrimaryButton>
+                </div>
+              </div>
+            )}
 
-                    const boxY = 40;
-                    const boxHeight = 50;
-                    const midY = boxY + boxHeight / 2;
+            {/* 2 / 5: 히스토그램 (OutlierHistogramStep) */}
+            {outlierStep === 2 && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  2 / 5 [히스토그램] 수치 구간별 분포 관찰 (NumericHistogram)
+                </span>
 
-                    return (
-                      <g>
-                        <line x1={paddingX} y1={130} x2={paddingX + plotWidth} y2={130} stroke="#cbd5e1" strokeWidth="2" />
-                        <line x1={getX(stats.lowerFence)} y1={20} x2={getX(stats.lowerFence)} y2={120} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 4" />
-                        <line x1={getX(stats.upperFence)} y1={20} x2={getX(stats.upperFence)} y2={120} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 4" />
+                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                  <span className="font-bold text-slate-700 text-[11px]">구간별 데이터 개수 분포 (총 {workingStats.count}개):</span>
+                  <div className="w-full overflow-x-auto">
+                    <svg viewBox="0 0 460 160" className="w-full h-auto min-w-[300px]">
+                      <line x1="40" y1="130" x2="440" y2="130" stroke="#cbd5e1" strokeWidth="2" />
+                      {histogramBins.map((bin, i) => {
+                        const maxCount = Math.max(...histogramBins.map(b => b.count), 1);
+                        const barHeight = (bin.count / maxCount) * 90;
+                        const x = 50 + i * 55;
+                        const y = 130 - barHeight;
 
-                        <line x1={xMinWhisker} y1={midY} x2={xQ1} y2={midY} stroke="#475569" strokeWidth="2" />
-                        <line x1={xMinWhisker} y1={midY - 15} x2={xMinWhisker} y2={midY + 15} stroke="#475569" strokeWidth="2" />
-
-                        <line x1={xQ3} y1={midY} x2={xMaxWhisker} y2={midY} stroke="#475569" strokeWidth="2" />
-                        <line x1={xMaxWhisker} y1={midY - 15} x2={xMaxWhisker} y2={midY + 15} stroke="#475569" strokeWidth="2" />
-
-                        <rect x={xQ1} y={boxY} width={Math.max(4, xQ3 - xQ1)} height={boxHeight} fill="#3b82f6" fillOpacity="0.25" stroke="#2563eb" strokeWidth="2.5" rx="4" />
-                        <line x1={xMedian} y1={boxY} x2={xMedian} y2={boxY + boxHeight} stroke="#1d4ed8" strokeWidth="3" />
-
-                        {stats.outliers.map((outlierVal, i) => (
+                        return (
                           <g key={i}>
-                            <circle cx={getX(outlierVal)} cy={midY} r="6" fill="#e11d48" stroke="#ffffff" strokeWidth="2" />
-                            <text x={getX(outlierVal)} y={midY - 12} textAnchor="middle" fontSize="10" fontWeight="black" fill="#e11d48">
-                              {outlierVal}cm
+                            <rect
+                              x={x}
+                              y={y}
+                              width="42"
+                              height={Math.max(2, barHeight)}
+                              fill={bin.binEnd > 20 ? '#e11d48' : '#3b82f6'}
+                              fillOpacity="0.8"
+                              rx="3"
+                            />
+                            <text x={x + 21} y={y - 5} textAnchor="middle" fontSize="10" fontWeight="bold" fill={bin.binEnd > 20 ? '#e11d48' : '#1e293b'}>
+                              {bin.count}
+                            </text>
+                            <text x={x + 21} y="145" textAnchor="middle" fontSize="9" fontWeight="bold" fill="#64748b">
+                              {bin.binStart}
                             </text>
                           </g>
-                        ))}
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
 
-                        <text x={xQ1} y={boxY + boxHeight + 15} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#3b82f6">Q1 ({stats.q1})</text>
-                        <text x={xMedian} y={boxY - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1d4ed8">중앙값 ({stats.median})</text>
-                        <text x={xQ3} y={boxY + boxHeight + 15} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#3b82f6">Q3 ({stats.q3})</text>
-                      </g>
-                    );
-                  })()}
-                </svg>
+                <div className="pt-2 text-right">
+                  <PrimaryButton size="sm" onClick={() => setOutlierStep(3)}>
+                    다음: 3/5 박스플롯 보기
+                  </PrimaryButton>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Crucial Outlier Educational Guidance */}
-            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-950 space-y-2">
-              <span className="font-extrabold text-rose-900 block text-sm flex items-center gap-1.5">
-                <Info size={16} />
-                <span>⚠️ 이상치 개념 및 처리 판단 원칙 (박스플롯 밖 ≠ 무조건 삭제/오류)</span>
-              </span>
-              <p className="leading-relaxed">
-                "이상치는 다른 데이터와 크게 다른 값입니다. 하지만 이상치가 항상 잘못된 값이라는 뜻은 아닙니다."
-              </p>
-              <p className="leading-relaxed font-bold bg-white p-2.5 rounded-lg border border-rose-200">
-                "이상치를 발견하면 먼저 실제 존재하는 자연적 값인지, 입력 오타(입력 오류)인지, 측정기 오류인지 확인해야 합니다. 명백한 입력 오타(예: 50.0cm, 30.0cm)는 원본 데이터(ORIGINAL_IRIS_DATASET)와 비교하여 올바른 수치(5.0cm, 3.0cm)로 수정할 수 있습니다."
-              </p>
-            </div>
+            {/* 3 / 5: 박스플롯 (OutlierBoxplotStep) */}
+            {outlierStep === 3 && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  3 / 5 [박스플롯] Q1, Q3, IQR, 펜스 및 이상치 후보 시각화
+                </span>
+
+                <div className="w-full overflow-x-auto bg-white p-3 rounded-xl border border-slate-200">
+                  <svg viewBox="0 0 500 160" className="w-full h-auto min-w-[320px]">
+                    {(() => {
+                      const stats = boxPlotData;
+                      const dataMin = Math.min(stats.min, stats.lowerFence);
+                      const dataMax = Math.max(stats.max, stats.upperFence);
+                      const paddingX = 50;
+                      const plotWidth = 400;
+
+                      const getX = (val: number) => {
+                        if (dataMax === dataMin) return paddingX + plotWidth / 2;
+                        return paddingX + ((val - dataMin) / (dataMax - dataMin)) * plotWidth;
+                      };
+
+                      const xMinWhisker = getX(stats.lowerWhisker);
+                      const xQ1 = getX(stats.q1);
+                      const xMedian = getX(stats.median);
+                      const xQ3 = getX(stats.q3);
+                      const xMaxWhisker = getX(stats.upperWhisker);
+
+                      const boxY = 40;
+                      const boxHeight = 50;
+                      const midY = boxY + boxHeight / 2;
+
+                      return (
+                        <g>
+                          <line x1={paddingX} y1={130} x2={paddingX + plotWidth} y2={130} stroke="#cbd5e1" strokeWidth="2" />
+                          <line x1={getX(stats.lowerFence)} y1={20} x2={getX(stats.lowerFence)} y2={120} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 4" />
+                          <line x1={getX(stats.upperFence)} y1={20} x2={getX(stats.upperFence)} y2={120} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 4" />
+
+                          <line x1={xMinWhisker} y1={midY} x2={xQ1} y2={midY} stroke="#475569" strokeWidth="2" />
+                          <line x1={xMinWhisker} y1={midY - 15} x2={xMinWhisker} y2={midY + 15} stroke="#475569" strokeWidth="2" />
+
+                          <line x1={xQ3} y1={midY} x2={xMaxWhisker} y2={midY} stroke="#475569" strokeWidth="2" />
+                          <line x1={xMaxWhisker} y1={midY - 15} x2={xMaxWhisker} y2={midY + 15} stroke="#475569" strokeWidth="2" />
+
+                          <rect x={xQ1} y={boxY} width={Math.max(4, xQ3 - xQ1)} height={boxHeight} fill="#3b82f6" fillOpacity="0.25" stroke="#2563eb" strokeWidth="2.5" rx="4" />
+                          <line x1={xMedian} y1={boxY} x2={xMedian} y2={boxY + boxHeight} stroke="#1d4ed8" strokeWidth="3" />
+
+                          {stats.outliers.map((outlierVal, i) => (
+                            <g key={i}>
+                              <circle cx={getX(outlierVal)} cy={midY} r="6" fill="#e11d48" stroke="#ffffff" strokeWidth="2" />
+                              <text x={getX(outlierVal)} y={midY - 12} textAnchor="middle" fontSize="10" fontWeight="black" fill="#e11d48">
+                                {outlierVal}cm
+                              </text>
+                            </g>
+                          ))}
+
+                          <text x={xQ1} y={boxY + boxHeight + 15} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#3b82f6">Q1 ({stats.q1})</text>
+                          <text x={xMedian} y={boxY - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1d4ed8">중앙값 ({stats.median})</text>
+                          <text x={xQ3} y={boxY + boxHeight + 15} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#3b82f6">Q3 ({stats.q3})</text>
+                        </g>
+                      );
+                    })()}
+                  </svg>
+                </div>
+
+                <div className="p-3 rounded-lg bg-rose-50 text-rose-950 font-medium space-y-1">
+                  <span className="font-bold block">⚠️ 이상치와 오류의 구분 원칙:</span>
+                  <p>
+                    상자에서 멀리 떨어진 50.0cm는 이상치 후보입니다. 하지만 이상치라고 해서 무조건 삭제해서는 안 되며, 입력 오타인지 실제 희귀한 자연 수치인지 원본을 확인해야 합니다.
+                  </p>
+                </div>
+
+                <div className="pt-2 text-right">
+                  <PrimaryButton size="sm" onClick={() => setOutlierStep(4)}>
+                    다음: 4/5 원본 확인 및 수정
+                  </PrimaryButton>
+                </div>
+              </div>
+            )}
+
+            {/* 4 / 5: 원본 확인 및 수정 (OutlierEditStep) */}
+            {outlierStep === 4 && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  4 / 5 [원본 확인 및 수정] 이상치 수치 직접 수정하기
+                </span>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800">
+                    데이터 #103의 꽃받침 길이가 50.0cm로 기록되어 있습니다.
+                  </span>
+                  <SecondaryButton size="sm" onClick={() => setShowOutlierGroundTruth(true)}>
+                    원본 데이터 확인
+                  </SecondaryButton>
+                </div>
+
+                {showOutlierGroundTruth && (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div className="p-2 bg-rose-50 text-rose-950 rounded">
+                      <span className="block font-sans text-[10px] text-rose-700">현재 입력된 수치</span>
+                      <span className="font-bold">50.0 cm (소수점 입력 오타)</span>
+                    </div>
+                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded">
+                      <span className="block font-sans text-[10px] text-emerald-700">정답 원본 수치 (#5)</span>
+                      <span className="font-bold">5.0 cm</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
+                  <label className="font-bold text-slate-800 block">
+                    올바른 수치를 직접 입력하여 수정하세요:
+                  </label>
+
+                  <div className="flex items-center gap-2 max-w-xs">
+                    <input
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 5.0"
+                      value={outlierInputValue}
+                      onChange={e => setOutlierInputValue(e.target.value)}
+                      className="p-2.5 border border-slate-300 rounded-xl font-mono text-sm w-36 focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <span className="font-bold text-slate-600">cm</span>
+                    <PrimaryButton
+                      size="sm"
+                      onClick={() => {
+                        const val = parseFloat(outlierInputValue);
+                        if (val === 5.0) {
+                          handleApplyEdit({
+                            recordId: 103,
+                            field: 'sepalLength',
+                            before: 50.0,
+                            after: 5.0,
+                            errorType: 'outlier',
+                          });
+                          setActivityCompletion(prev => ({ ...prev, outlierComplete: true }));
+                          setOutlierFeedback({ type: 'success', msg: '🎉 5.0cm로 올바르게 수정되었습니다!' });
+                          setOutlierStep(5);
+                        } else {
+                          setOutlierFeedback({ type: 'error', msg: '❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: 5.0)' });
+                        }
+                      }}
+                    >
+                      수정하기
+                    </PrimaryButton>
+                  </div>
+
+                  {outlierFeedback && (
+                    <div className={`p-3 rounded-lg font-bold text-xs ${outlierFeedback.type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                      {outlierFeedback.msg}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 5 / 5: 수정 결과 확인 (OutlierResultStep) */}
+            {outlierStep === 5 && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  5 / 5 [수정 결과 확인] 수정 전/후 통계량 및 분포 재계산 결과
+                </span>
+
+                <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
+                    <span className="font-sans font-bold text-rose-900 block text-xs">수정 전 (이상치 50.0cm 포함)</span>
+                    <div>최댓값: 50.0 cm</div>
+                    <div>평균값: {workingStats.mean} cm</div>
+                  </div>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                    <span className="font-sans font-bold text-emerald-900 block text-xs">수정 후 (정상 수치 5.0cm)</span>
+                    <div>최댓값: 7.9 cm</div>
+                    <div>평균값: 5.84 cm (정상치 회복)</div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-emerald-100 text-emerald-950 font-bold">
+                  👏 잘못 입력된 이상치(50.0cm)가 정상 수치(5.0cm)로 정제되어 데이터 전체의 평균과 분포가 올바르게 복원되었습니다!
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* STEP 5: 적절한 전처리 방법 판단 */}
-      {currentStep === 5 && (
+      {/* ACTIVITY 5: 표현과 데이터형 오류를 수정해보자 */}
+      {currentActivity === 5 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>[처리 단계] 활동 5: 적절한 전처리 방법 판단하기</span>
+              <span>활동 5. [같은 뜻인데 다르게 적혀 있다면?] (표현 & 데이터형 정제)</span>
             </h3>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              이상치와 결측치 등을 만났을 때 선택할 수 있는 4가지 적절한 전처리 전략을 판단합니다.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {[
-                { title: '1. 그대로 사용한다 (유지)', desc: '자연계에 실제 존재하는 희귀하지만 정상적인 실제 수치인 경우' },
-                { title: '2. 실제 값을 확인한다', desc: '측정 기록지나 원본 데이터를 재확인하여 사실 여부 점검' },
-                { title: '3. 입력 오류를 수정한다', desc: '소수점 위치 오타(50.0cm ➔ 5.0cm) 등 명백한 입력 오류인 경우' },
-                { title: '4. 필요하면 제외한다 (삭제)', desc: '데이터 수집에 심각한 오류가 포함되어 보정이 불가능한 경우' },
-              ].map((opt, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="font-extrabold text-slate-900 block text-xs">{opt.title}</span>
-                  <p className="text-slate-600 font-medium">{opt.desc}</p>
+            {/* Current Data Error Status Counter Dashboard */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+              <span className="font-bold text-slate-800 block text-sm">[현재 데이터 상태 요약]</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center font-mono">
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">결측치</span>
+                  <span className="font-bold text-slate-800 text-sm">{currentErrorCounts.missing} 개</span>
                 </div>
-              ))}
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">이상치</span>
+                  <span className="font-bold text-slate-800 text-sm">{currentErrorCounts.outlier} 개</span>
+                </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">표현 불일치</span>
+                  <span className="font-bold text-slate-800 text-sm">{currentErrorCounts.inconsistent} 개</span>
+                </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">데이터형 오류</span>
+                  <span className="font-bold text-slate-800 text-sm">{currentErrorCounts.invalidType} 개</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Part A: Inconsistent Label Fix */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                Part A: 표현 불일치 정제 (데이터 #105 "setosa" ➔ "Iris-setosa")
+              </span>
+              <p className="text-slate-600 leading-relaxed">
+                데이터 #105의 품종명이 'setosa'로 소문자로 표기되어 표기가 통일되지 않았습니다. 표준 품종 표현으로 통일하세요.
+              </p>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={speciesStandardChoice}
+                  onChange={e => setSpeciesStandardChoice(e.target.value)}
+                  className="p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs cursor-pointer min-h-[44px]"
+                >
+                  <option value="세토사">세토사 (Iris-setosa)</option>
+                  <option value="버시컬러">버시컬러 (Iris-versicolor)</option>
+                  <option value="버지니카">버지니카 (Iris-virginica)</option>
+                </select>
+
+                <PrimaryButton
+                  size="sm"
+                  onClick={() => {
+                    handleApplyEdit({
+                      recordId: 105,
+                      field: 'species',
+                      before: 'setosa',
+                      after: 'Iris-setosa',
+                      errorType: 'inconsistent',
+                    });
+                    setActivityCompletion(prev => ({ ...prev, formatTypeComplete: true }));
+                  }}
+                >
+                  표현 통일하기
+                </PrimaryButton>
+              </div>
+            </div>
+
+            {/* Part B: Invalid String Data Type Fix */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                Part B: 데이터형 오류 정제 (데이터 #107 꽃받침 길이 "5.1cm" ➔ 숫자 5.1)
+              </span>
+              <p className="text-slate-600 leading-relaxed">
+                데이터 #107의 꽃받침 길이에 '5.1cm' 단위 문자열이 섞여있어 수학 연산 시 오류를 발생시킵니다.
+              </p>
+
+              <div className="flex items-center gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTypeChoice('num')}
+                    className={`px-3 py-2 rounded-xl font-bold border min-h-[44px] cursor-pointer ${typeChoice === 'num' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-200'}`}
+                  >
+                    숫자 (number)
+                  </button>
+                  <button
+                    onClick={() => setTypeChoice('str')}
+                    className={`px-3 py-2 rounded-xl font-bold border min-h-[44px] cursor-pointer ${typeChoice === 'str' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-200'}`}
+                  >
+                    문자 (string)
+                  </button>
+                </div>
+
+                <PrimaryButton
+                  size="sm"
+                  onClick={() => {
+                    if (typeChoice === 'num') {
+                      handleApplyEdit({
+                        recordId: 107,
+                        field: 'sepalLength',
+                        before: '5.1cm',
+                        after: 5.1,
+                        errorType: 'invalidType',
+                      });
+                      setActivityCompletion(prev => ({ ...prev, formatTypeComplete: true }));
+                    }
+                  }}
+                >
+                  숫자로 변환하기
+                </PrimaryButton>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 6: 속성 간 관계 확인 (산점도 & 히트맵) */}
-      {currentStep === 6 && (
+      {/* ACTIVITY 6: 데이터를 학습하기 좋은 형태로 바꿔보자 (Scaling & Encoding) */}
+      {currentActivity === 6 && (
+        <div className="space-y-5 animate-fadeIn">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <Sliders size={20} className="text-indigo-600" />
+              <span>활동 6. [데이터를 학습하기 좋은 형태로 바꿔보자] (스케일링 & 인코딩)</span>
+            </h3>
+
+            {/* Part A: Min-Max Scaling */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                Part A: 수치형 데이터 스케일링 (Min-Max Scaling)
+              </span>
+              <p className="text-slate-600 leading-relaxed font-medium">
+                속성들의 수치 범위가 다르면 거리 계산 기반 알고리즘(k-NN 등)이 특정 속성에 편향될 수 있습니다. 모든 수치를 0~1 범위로 맞춥니다.
+              </p>
+
+              <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200">
+                <span className="font-bold text-slate-800">스케일링 대상 수치 속성 선택:</span>
+                <div className="flex gap-1">
+                  {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => {
+                        setScalingFeature(f);
+                        setIsScalingExecuted(false);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg font-bold text-xs cursor-pointer transition-colors ${
+                        scalingFeature === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {NUMERIC_FEATURE_LABELS[f].short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <SecondaryButton size="sm" onClick={() => setShowScalingFormula(!showScalingFormula)}>
+                  {showScalingFormula ? '계산 수식 닫기' : '어떻게 계산하나요? (수식 보기)'}
+                </SecondaryButton>
+                <PrimaryButton size="sm" onClick={() => setIsScalingExecuted(true)}>
+                  스케일링 실행 (0~1 변환)
+                </PrimaryButton>
+              </div>
+
+              {showScalingFormula && (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-950 font-mono text-[11px]">
+                  변환 수식: (x - 최솟값) / (최댓값 - 최솟값) ➔ 결과: 최소 0.0, 최대 1.0
+                </div>
+              )}
+
+              {isScalingExecuted && (
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 font-mono text-[11px]">
+                  <span className="font-sans font-bold text-emerald-800 block text-xs">
+                    [{NUMERIC_FEATURE_LABELS[scalingFeature].full}] 변환 체험 결과 (scaledPreview):
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-slate-50 rounded">원본 수치 범위: {origStats.minMax.min} ~ {origStats.minMax.max} cm</div>
+                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded font-bold">스케일링 범위: 0.00 ~ 1.00</div>
+                  </div>
+                  <p className="font-sans text-[11px] text-slate-600 pt-1">
+                    💡 값의 범위는 0~1로 조정되었지만 데이터 간 상대적인 크기 및 순서 관계는 완벽히 유지됩니다!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Part B: One-Hot Encoding */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                Part B: 범주형 데이터 인코딩 (One-Hot Encoding 원리)
+              </span>
+              <p className="text-slate-600 leading-relaxed font-medium">
+                세토사, 버시컬러, 버지니카 같은 문자로 된 범주를 머신러닝이 처리할 수 있는 숫자 표기([1,0,0], [0,1,0], [0,0,1])로 변환합니다.
+              </p>
+
+              <div className="w-full overflow-x-auto bg-white p-3 rounded-xl border border-slate-200">
+                <table className="w-full text-center border-collapse font-mono text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <th className="p-2 text-left font-sans">품종 범주</th>
+                      <th className="p-2">세토사 (Setosa)</th>
+                      <th className="p-2">버시컬러 (Versicolor)</th>
+                      <th className="p-2">버지니카 (Virginica)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="p-2 text-left font-bold font-sans">세토사</td>
+                      <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
+                      <td className="p-2 text-slate-400">0</td>
+                      <td className="p-2 text-slate-400">0</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 text-left font-bold font-sans">버시컬러</td>
+                      <td className="p-2 text-slate-400">0</td>
+                      <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
+                      <td className="p-2 text-slate-400">0</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 text-left font-bold font-sans">버지니카</td>
+                      <td className="p-2 text-slate-400">0</td>
+                      <td className="p-2 text-slate-400">0</td>
+                      <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Student One-Hot Practice */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                <span className="font-bold text-slate-800 block text-xs">
+                  연습: 품종 '버시컬러'를 원-핫 인코딩하면 어떻게 표현될까요?
+                </span>
+
+                <div className="flex gap-2 font-mono">
+                  {['[1, 0, 0]', '[0, 1, 0]', '[0, 0, 1]'].map(ans => (
+                    <button
+                      key={ans}
+                      onClick={() => setEncodingChoice(ans)}
+                      className={`p-2.5 rounded-lg border font-bold text-xs cursor-pointer ${
+                        encodingChoice === ans
+                          ? ans === '[0, 1, 0]'
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-rose-600 text-white border-rose-600'
+                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {ans}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* y-target explanation note */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-bold leading-relaxed text-[11px]">
+                ⚠️ <strong>중요 학습 포인트:</strong> 붓꽃 분류 문제에서 품종(species)은 예측하려는 정답(y)이므로 모델의 입력값(X)으로 넣지 않습니다. 이번 활동은 인코딩의 원리를 이해하는 인공지능 기초 체험입니다.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVITY 7: 전처리가 잘 되었는지 확인해보자 */}
+      {currentActivity === 7 && (
+        <div className="space-y-5 animate-fadeIn">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <CheckCircle2 size={20} className="text-emerald-600" />
+              <span>활동 7. [전처리가 잘 되었을까?] (전/후 결과 비교)</span>
+            </h3>
+
+            {/* Pre vs Post Error Counts Table */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                [전처리 전/후 전체 데이터 오류 상태 비교표]
+              </span>
+
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-center border-collapse bg-white rounded-xl overflow-hidden font-mono text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <th className="p-2.5 text-left font-sans">오류 항목</th>
+                      <th className="p-2.5 text-rose-700 font-sans">전처리 전 (오류 데이터)</th>
+                      <th className="p-2.5 text-emerald-800 font-sans">전처리 후 (현재 데이터)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="p-2.5 text-left font-bold text-slate-700">결측치 (Missing)</td>
+                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
+                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.missing} 개</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 text-left font-bold text-slate-700">이상치 (Outliers)</td>
+                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
+                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.outlier} 개</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 text-left font-bold text-slate-700">표현 불일치 (Inconsistent)</td>
+                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
+                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.inconsistent} 개</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 text-left font-bold text-slate-700">데이터형 오류 (Invalid Type)</td>
+                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
+                      <td className="p-2.5 text-emerald-700 font-black">{currentErrorCounts.invalidType} 개</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Student Edit History Log */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
+              <span className="font-extrabold text-slate-900 block text-sm">
+                [학생 수정 기록 로그 (module04Edits): 총 {module04Edits.length}건]
+              </span>
+
+              {module04Edits.length === 0 ? (
+                <p className="text-slate-500 italic p-3 bg-white rounded-lg border border-slate-200">
+                  아직 수정된 기록이 없습니다. 이전 활동에서 결측치, 이상치, 표현 오류를 직접 수정해보세요.
+                </p>
+              ) : (
+                <div className="space-y-2 font-mono text-[11px]">
+                  {module04Edits.map((edit, idx) => (
+                    <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-emerald-800">레코드 #{edit.recordId}</span>
+                        <span className="text-slate-500 font-sans ml-2">[{edit.field}]</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-rose-600 line-through mr-2">{String(edit.before)}</span>
+                        <span className="text-emerald-700 font-black">➔ {String(edit.after)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Module 04 Activity Only Reset Button */}
+            <div className="pt-2 flex justify-between items-center border-t border-slate-200">
+              <SecondaryButton
+                size="sm"
+                onClick={() => setIsResetConfirmOpen(true)}
+                icon={<RotateCcw size={16} />}
+              >
+                데이터 전처리 활동 다시 시작
+              </SecondaryButton>
+
+              <span className="text-xs text-slate-500 font-medium">
+                (다른 모듈 학습 기록은 유지됩니다)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVITY 8: 속성 사이의 관계를 알아보자 (산점도, 히트맵, 06 연동) */}
+      {currentActivity === 8 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <TrendingUp size={20} className="text-teal-600" />
-              <span>[관찰 단계] 활동 6: 속성 간 관계 확인 (산점도 & 상관관계 히트맵)</span>
+              <span>활동 8. [속성끼리는 어떤 관계가 있을까?] (산점도 & 상관계수 히트맵)</span>
             </h3>
 
-            {/* Scatter Plot */}
+            {/* 2D Scatter Plot */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="font-bold text-slate-800">2D 산점도 (Scatter Plot) 속성 조합 선택:</span>
@@ -542,7 +1334,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 </div>
               </div>
 
-              {/* Scatter Plot Visual SVG */}
               <div className="w-full overflow-x-auto bg-white p-3 rounded-lg border border-slate-200">
                 <svg viewBox="0 0 460 260" className="w-full h-auto min-w-[300px]">
                   <line x1="45" y1="220" x2="440" y2="220" stroke="#cbd5e1" strokeWidth="2" />
@@ -583,7 +1374,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
             </div>
 
-            {/* Heatmap */}
+            {/* 4x4 Pearson Correlation Heatmap */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
               <span className="font-bold text-slate-800 block">
                 4×4 상관관계 히트맵 (Pearson Correlation Matrix)
@@ -592,28 +1383,15 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               <div className="w-full overflow-x-auto bg-white p-2 sm:p-3 rounded-lg border border-slate-200">
                 <div className="w-full grid grid-cols-5 gap-1 text-center font-mono text-[10px] sm:text-[11px]">
                   <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">속성</div>
-                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
-                    <span className="hidden sm:inline">꽃받침길이</span>
-                    <span className="sm:hidden">받침길이</span>
-                  </div>
-                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
-                    <span className="hidden sm:inline">꽃받침너비</span>
-                    <span className="sm:hidden">받침너비</span>
-                  </div>
-                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
-                    <span className="hidden sm:inline">꽃잎길이</span>
-                    <span className="sm:hidden">꽃잎길이</span>
-                  </div>
-                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">
-                    <span className="hidden sm:inline">꽃잎너비</span>
-                    <span className="sm:hidden">꽃잎너비</span>
-                  </div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">받침길이</div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">받침너비</div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">꽃잎길이</div>
+                  <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded flex items-center justify-center">꽃잎너비</div>
 
                   {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(rowFeat => (
                     <React.Fragment key={rowFeat}>
                       <div className="p-1 sm:p-2 bg-slate-100 font-bold rounded text-left flex items-center">
-                        <span className="hidden sm:inline">{NUMERIC_FEATURE_LABELS[rowFeat].short}</span>
-                        <span className="sm:hidden">{rowFeat === 'sepalLength' ? '받침길이' : rowFeat === 'sepalWidth' ? '받침너비' : rowFeat === 'petalLength' ? '꽃잎길이' : '꽃잎너비'}</span>
+                        {NUMERIC_FEATURE_LABELS[rowFeat].short}
                       </div>
                       {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(colFeat => {
                         const cell = correlationMatrix.cells.find(c => c.featureX === rowFeat && c.featureY === colFeat);
@@ -639,111 +1417,47 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   ))}
                 </div>
               </div>
-
-              <div className="p-3 bg-emerald-50 rounded-lg text-emerald-950 font-bold leading-relaxed text-[11px]">
-                💡 <strong>관찰 결과:</strong> 꽃잎 길이와 꽃잎 너비의 상관계수는 <strong>0.96</strong>으로 극도로 높은 양의 상관관계를 보여줍니다!
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 7: [어떤 속성이 품종을 구분하는 데 도움이 될까?] 핵심 속성 2개 선택 */}
-      {currentStep === 7 && (
-        <div className="space-y-5 animate-fadeIn">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Target size={20} className="text-emerald-600" />
-              <span>[선택 단계] 활동 7: [어떤 속성이 품종을 구분하는 데 도움이 될까?]</span>
-            </h3>
-
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              산점도와 히트맵에서 관찰한 내용을 바탕으로 품종을 구분하는 데 도움이 될 것 같은 속성 2개를 직접 선택해보세요. (06 알고리즘 실험실과 연결됩니다)
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(feat => {
-                const isSelected = selectedFeatures04.includes(feat);
-
-                return (
-                  <button
-                    key={feat}
-                    onClick={() => handleToggleFeature04(feat)}
-                    className={`p-4 rounded-xl border-2 font-bold cursor-pointer transition-all min-h-[50px] flex flex-col items-center justify-center ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className="text-xs font-black">{NUMERIC_FEATURE_LABELS[feat].full}</span>
-                    <span className="text-[10px] opacity-80">{isSelected ? '✓ 선택됨' : '선택하기'}</span>
-                  </button>
-                );
-              })}
             </div>
 
-            {/* Selection Summary */}
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-bold space-y-1">
-              <span className="text-sm block text-emerald-900">
-                선택한 핵심 속성 2개: [{selectedFeatures04.map(f => NUMERIC_FEATURE_LABELS[f].full).join(', ')}]
-              </span>
-              <p className="text-[11px] font-medium text-emerald-800">
-                이 2가지 선택 속성은 저장되어 <strong>06 알고리즘 실험실(k-NN 실험)</strong> 진입 시 우선 실험 추천용으로 바로 연결됩니다!
-              </p>
-            </div>
-
-            {/* Reflection Question */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
-              <span className="font-extrabold text-slate-900 block text-sm">
-                질문: 왜 이 두 속성을 선택했나요?
+            {/* Key Features Selection for Module 06 Integration */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
+              <span className="font-bold text-slate-800 block text-sm flex items-center gap-1.5">
+                <Target size={16} className="text-emerald-600" />
+                <span>[핵심 속성 2개 선택] (06 알고리즘 실험실 시뮬레이터 연동)</span>
               </span>
 
-              <div className="space-y-2">
-                {[
-                  { key: 'r1', label: '산점도 및 히트맵에서 세 품종의 수치 분포 범위가 명확히 분리되고 강한 상관관계를 보였기 때문입니다.' },
-                  { key: 'r2', label: '다른 속성에 비해 품종 간 수치 겹침이 적어서 머신러닝 모델이 구분하기 쉽기 때문입니다.' },
-                  { key: 'r3', label: '직관적인 관찰 결과 품종별 특징 차이가 가장 컸기 때문입니다.' },
-                ].map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setFeatureSelectionReason(opt.key)}
-                    className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
-                      featureSelectionReason === opt.key
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    ✓ {opt.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).map(feat => {
+                  const isSelected = selectedFeatures04.includes(feat);
+
+                  return (
+                    <button
+                      key={feat}
+                      onClick={() => handleToggleFeature04(feat)}
+                      className={`p-3 rounded-xl border-2 font-bold cursor-pointer transition-all min-h-[48px] flex flex-col items-center justify-center ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="text-xs font-black">{NUMERIC_FEATURE_LABELS[feat].full}</span>
+                      <span className="text-[10px] opacity-80">{isSelected ? '✓ 선택됨' : '선택하기'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 bg-emerald-50 rounded-lg text-emerald-950 font-bold text-[11px]">
+                선택한 속성 2개: [{selectedFeatures04.map(f => NUMERIC_FEATURE_LABELS[f].full).join(', ')}] ➔ 06 알고리즘 실험실 진입 시 추천 속성으로 우선 연동됩니다.
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* STEP 8: [비교/완료 단계] 전처리 전/후 비교 및 마무리 */}
-      {currentStep === 8 && (
-        <div className="space-y-5 animate-fadeIn">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>[비교/완료 단계] 활동 8: 전처리 전/후 데이터셋 상태 비교 및 마무리</span>
-            </h3>
-
-            {/* Summary Sentence */}
-            <div className="p-4 rounded-2xl bg-emerald-600 text-white text-center font-extrabold text-sm shadow-sm">
-              "데이터를 정리하고 시각화하면 이상치와 속성의 특징을 더 쉽게 발견할 수 있습니다."
-            </div>
-
-            {/* Ending Transition Card */}
+            {/* Final Summary Card & Transition */}
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3 max-w-xl mx-auto text-xs">
-              <span className="font-extrabold text-slate-900 block text-sm">
-                💡 다음 학습 영역 연결 안내:
-              </span>
-              <p className="text-slate-700 font-bold text-sm leading-relaxed">
-                "이제 정제하고 이해한 데이터로 머신러닝 학습 방법을 알아봅니다."
-              </p>
+              <div className="p-4 rounded-2xl bg-emerald-600 text-white font-extrabold text-sm shadow-xs">
+                "데이터를 정리하고 시각화하면 이상치와 속성의 특징을 더 쉽게 발견할 수 있습니다."
+              </div>
+
               <div className="pt-2">
                 <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<ArrowRight size={20} />}>
                   05 기계학습 유형과 알고리즘 선정으로 이동
@@ -751,7 +1465,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
             </div>
 
-            {/* AI Prompt Card */}
             <PromptCard promptText={promptText} title="생성형 AI 탐구 프롬프트" />
           </div>
         </div>
@@ -760,54 +1473,54 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
       {/* Minimal Activity Checklist */}
       <ActivityChecklist
         items={checklistItems}
-        onProceedNext={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
-        isLastStep={currentStep === totalSteps}
+        onProceedNext={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
+        isLastStep={currentActivity === totalActivities}
       />
 
       {/* Internal Step Control Navigation */}
       <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
         <SecondaryButton
           size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+          disabled={currentActivity === 1}
+          onClick={() => setCurrentActivity(a => Math.max(1, a - 1))}
           icon={<ChevronLeft size={16} />}
         >
-          이전 단계
+          이전 활동
         </SecondaryButton>
 
-        {currentStep < totalSteps ? (
+        {currentActivity < totalActivities ? (
           <PrimaryButton
             size="md"
-            onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
+            onClick={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
             icon={<ChevronRight size={16} />}
             className="flex-row-reverse"
           >
-            다음 단계
+            다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
 
-      {/* Modal for [탐정 수첩: 정상 데이터 예시 & 5가지 관찰 포인트] */}
+      {/* Modal for Notebook Guide */}
       <Modal
         isOpen={isNotebookOpen}
         onClose={() => setIsNotebookOpen(false)}
-        title="📖 [탐정 수첩] 정상 데이터 예시 & 관찰 포인트"
+        title="📖 [탐정 수첩] 정상 데이터 수치 기준"
       >
         <div className="space-y-4 text-xs text-slate-800 leading-relaxed">
           <p className="font-medium text-slate-600">
-            정상 데이터의 형태와 규칙을 기억하고 문제 데이터를 찾아내보세요!
+            정상 붓꽃 데이터의 수치 범위를 참조하여 문제 데이터를 찾아보세요!
           </p>
 
-          <div className="space-y-2">
+          <div className="space-y-2 font-mono text-[11px]">
             {[normalSampleSetosa, normalSampleVersicolor, normalSampleVirginica].map(rec => (
               <div key={rec.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                <div className="flex justify-between items-center font-bold text-emerald-800">
+                <div className="flex justify-between items-center font-bold text-emerald-800 font-sans">
                   <span>ID #{rec.id} (품종: {SPECIES_MAP[rec.species].korean})</span>
                   <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded">정상 데이터</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px] pt-0.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
                   <div>꽃받침 길이: {rec.sepalLength} cm</div>
                   <div>꽃받침 너비: {rec.sepalWidth} cm</div>
                   <div>꽃잎 길이: {rec.petalLength} cm</div>
@@ -819,8 +1532,40 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
           <div className="pt-2 text-right">
             <PrimaryButton size="sm" onClick={() => setIsNotebookOpen(false)}>
-              탐정 수첩 닫고 활동 계속하기
+              수첩 닫기
             </PrimaryButton>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Confirmation Modal for Module 04 Only */}
+      <Modal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        title="데이터 전처리 활동을 다시 시작할까요?"
+      >
+        <div className="space-y-4 text-xs text-slate-700">
+          <p className="font-medium leading-relaxed">
+            데이터 전처리 영역(04)에서 수정한 내역과 진행 상태만 초기화되고 처음 상태로 돌아갑니다.<br />
+            <strong className="text-slate-900">(다른 모듈의 학습 기록은 그대로 유지됩니다)</strong>
+          </p>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setIsResetConfirmOpen(false)}
+              className="px-4 py-2.5 font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer min-h-[44px]"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => {
+                clearModule04DataOnly();
+                setIsResetConfirmOpen(false);
+              }}
+              className="px-4 py-2.5 font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl cursor-pointer min-h-[44px]"
+            >
+              다시 시작
+            </button>
           </div>
         </div>
       </Modal>
