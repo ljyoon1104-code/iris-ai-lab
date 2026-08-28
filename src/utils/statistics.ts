@@ -313,6 +313,98 @@ export function calculateHistogramBins(values: number[], targetBins: number = 8)
   return bins;
 }
 
+export interface RangeHistogramBin {
+  binStart: number;
+  binEnd: number;
+  binLabel: string;
+  count: number;
+}
+
+export interface RangeHistogramData {
+  normalBins: RangeHistogramBin[];
+  extremeOutliers: number[];
+  totalCount: number;
+}
+
+export function calculateRangeHistogramBins(
+  values: number[],
+  maxNormalThreshold: number = 20.0,
+  targetBins: number = 7
+): RangeHistogramData {
+  if (!values || values.length === 0) {
+    return { normalBins: [], extremeOutliers: [], totalCount: 0 };
+  }
+
+  const normalValues = values.filter(v => typeof v === 'number' && !isNaN(v) && v <= maxNormalThreshold);
+  const extremeOutliers = values.filter(v => typeof v === 'number' && !isNaN(v) && v > maxNormalThreshold);
+
+  if (normalValues.length === 0) {
+    return { normalBins: [], extremeOutliers, totalCount: values.length };
+  }
+
+  const minVal = Math.min(...normalValues);
+  const maxVal = Math.max(...normalValues);
+
+  if (minVal === maxVal) {
+    return {
+      normalBins: [{
+        binStart: minVal,
+        binEnd: maxVal,
+        binLabel: `${minVal.toFixed(1)}cm`,
+        count: normalValues.length,
+      }],
+      extremeOutliers,
+      totalCount: values.length,
+    };
+  }
+
+  const step = (maxVal - minVal) / targetBins;
+  const normalBins: RangeHistogramBin[] = [];
+
+  for (let i = 0; i < targetBins; i++) {
+    const binStart = Math.round((minVal + i * step) * 10) / 10;
+    const binEnd = i === targetBins - 1 ? maxVal : Math.round((minVal + (i + 1) * step) * 10) / 10;
+    const count = normalValues.filter(v => (
+      i === targetBins - 1 ? v >= binStart && v <= binEnd : v >= binStart && v < binEnd
+    )).length;
+
+    normalBins.push({
+      binStart,
+      binEnd,
+      binLabel: `${binStart.toFixed(1)}~${binEnd.toFixed(1)}cm`,
+      count,
+    });
+  }
+
+  return {
+    normalBins,
+    extremeOutliers,
+    totalCount: values.length,
+  };
+}
+
+export interface IsolatedBoxPlotStats extends BoxPlotStats {
+  normalValues: number[];
+  extremeOutliers: number[];
+}
+
+export function calculateIsolatedBoxPlotStats(
+  values: number[],
+  maxNormalThreshold: number = 20.0
+): IsolatedBoxPlotStats {
+  const extremeOutliers = values.filter(v => typeof v === 'number' && !isNaN(v) && v > maxNormalThreshold);
+  const normalValues = values.filter(v => typeof v === 'number' && !isNaN(v) && v <= maxNormalThreshold);
+
+  const statsTarget = normalValues.length > 0 ? normalValues : values;
+  const baseStats = calculateBoxPlotStats(statsTarget);
+
+  return {
+    ...baseStats,
+    normalValues,
+    extremeOutliers,
+  };
+}
+
 /**
  * 7. Pearson Correlation Coefficient
  * r = sum((x_i - mean_x) * (y_i - mean_y)) / sqrt(sum((x_i - mean_x)^2) * sum((y_i - mean_y)^2))
