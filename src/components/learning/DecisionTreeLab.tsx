@@ -6,7 +6,7 @@ import {
   type DecisionTreeNode,
   type FeatureKey,
 } from '../../algorithms/decisionTree';
-import { GitBranch, Sliders, Eye, HelpCircle, CheckCircle2, HelpCircle as QuestionIcon, ArrowDown, Sparkles } from 'lucide-react';
+import { GitBranch, Sliders, Eye, HelpCircle, Sparkles } from 'lucide-react';
 
 const FEATURE_LABELS: Record<FeatureKey, string> = {
   sepalLength: '꽃받침 길이',
@@ -22,6 +22,135 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
   petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
 };
 
+interface LayoutNode {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  depth: number;
+  isLeaf: boolean;
+  node: DecisionTreeNode;
+  left?: LayoutNode;
+  right?: LayoutNode;
+}
+
+interface LayoutEdge {
+  parent: LayoutNode;
+  child: LayoutNode;
+  isLeft: boolean;
+  threshold: number;
+  onPath: boolean;
+}
+
+function computeTreeLayout(tree: DecisionTreeNode, newPoint: Record<FeatureKey, number>) {
+  const levelHeight = 150;
+  const topPadding = 35;
+  const leafSpacing = 175;
+  const paddingLeft = 35;
+
+  let leafIndex = 0;
+  const allNodes: LayoutNode[] = [];
+  const allEdges: LayoutEdge[] = [];
+
+  const isNodeOnPath = (node: DecisionTreeNode): boolean => {
+    let curr: DecisionTreeNode | null | undefined = tree;
+    while (curr) {
+      if (curr === node) return true;
+      if (curr.isLeaf) break;
+      const val = newPoint[curr.feature!];
+      if (val <= curr.threshold!) {
+        curr = curr.left;
+      } else {
+        curr = curr.right;
+      }
+    }
+    return false;
+  };
+
+  function buildLayout(node: DecisionTreeNode): LayoutNode {
+    const width = node.isLeaf ? 150 : 180;
+    const height = node.isLeaf ? 76 : 86;
+    const y = topPadding + node.depth * levelHeight;
+
+    if (node.isLeaf) {
+      const x = leafIndex * leafSpacing + paddingLeft + width / 2;
+      leafIndex++;
+      const layoutNode: LayoutNode = {
+        id: node.id,
+        x,
+        y,
+        width,
+        height,
+        depth: node.depth,
+        isLeaf: true,
+        node,
+      };
+      allNodes.push(layoutNode);
+      return layoutNode;
+    }
+
+    const leftLayout = node.left ? buildLayout(node.left) : undefined;
+    const rightLayout = node.right ? buildLayout(node.right) : undefined;
+
+    let x = 0;
+    if (leftLayout && rightLayout) {
+      x = (leftLayout.x + rightLayout.x) / 2;
+    } else if (leftLayout) {
+      x = leftLayout.x;
+    } else if (rightLayout) {
+      x = rightLayout.x;
+    }
+
+    const layoutNode: LayoutNode = {
+      id: node.id,
+      x,
+      y,
+      width,
+      height,
+      depth: node.depth,
+      isLeaf: false,
+      node,
+      left: leftLayout,
+      right: rightLayout,
+    };
+    allNodes.push(layoutNode);
+
+    const parentOnPath = isNodeOnPath(node);
+    const val = newPoint[node.feature!];
+    const goesLeft = val <= node.threshold!;
+
+    if (leftLayout) {
+      allEdges.push({
+        parent: layoutNode,
+        child: leftLayout,
+        isLeft: true,
+        threshold: node.threshold!,
+        onPath: parentOnPath && goesLeft,
+      });
+    }
+
+    if (rightLayout) {
+      allEdges.push({
+        parent: layoutNode,
+        child: rightLayout,
+        isLeft: false,
+        threshold: node.threshold!,
+        onPath: parentOnPath && !goesLeft,
+      });
+    }
+
+    return layoutNode;
+  }
+
+  const root = buildLayout(tree);
+  const totalWidth = Math.max(520, leafIndex * leafSpacing + paddingLeft * 2);
+  const maxDepthInTree = Math.max(...allNodes.map(n => n.depth));
+  const totalHeight = topPadding + (maxDepthInTree + 1) * levelHeight + 35;
+
+  return { root, allNodes, allEdges, totalWidth, totalHeight };
+}
+
 export const DecisionTreeLab: React.FC = () => {
   const [maxDepth, setMaxDepth] = useState<number>(3);
   const [newPoint, setNewPoint] = useState<Record<FeatureKey, number>>({
@@ -36,6 +165,7 @@ export const DecisionTreeLab: React.FC = () => {
   const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
   const tree = trainDecisionTree(ORIGINAL_IRIS_DATASET, features, maxDepth);
   const trace = traceDecisionPath(tree, newPoint);
+  const layout = computeTreeLayout(tree, newPoint);
 
   const handleAdjustValue = (feat: FeatureKey, delta: number) => {
     const spec = FEATURE_MIN_MAX[feat];
@@ -65,12 +195,12 @@ export const DecisionTreeLab: React.FC = () => {
     }
   };
 
-  const isNodeOnPath = (node: DecisionTreeNode, currentPoint: Record<FeatureKey, number>): boolean => {
+  const isNodeOnPath = (node: DecisionTreeNode): boolean => {
     let curr: DecisionTreeNode | null | undefined = tree;
     while (curr) {
       if (curr === node) return true;
       if (curr.isLeaf) break;
-      const val = currentPoint[curr.feature!];
+      const val = newPoint[curr.feature!];
       if (val <= curr.threshold!) {
         curr = curr.left;
       } else {
@@ -80,114 +210,9 @@ export const DecisionTreeLab: React.FC = () => {
     return false;
   };
 
-  const renderTreeNode = (node: DecisionTreeNode, isRoot: boolean = false) => {
-    const onPath = isNodeOnPath(node, newPoint);
-
-    if (node.isLeaf) {
-      const spInfo = SPECIES_MAP[node.predictedSpecies!];
-      const isSetosa = node.predictedSpecies === 'Iris-setosa';
-      const isVersicolor = node.predictedSpecies === 'Iris-versicolor';
-
-      const leafBg = isSetosa ? 'bg-emerald-50 border-emerald-400 text-emerald-950' : isVersicolor ? 'bg-blue-50 border-blue-400 text-blue-950' : 'bg-purple-50 border-purple-400 text-purple-950';
-
-      return (
-        <div className={`p-3.5 rounded-2xl border-2 text-center transition-all ${leafBg} ${
-          onPath ? 'ring-4 ring-teal-500 shadow-md scale-105 font-black' : 'opacity-85 shadow-xs'
-        }`}>
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <CheckCircle2 size={14} className={isSetosa ? 'text-emerald-600' : isVersicolor ? 'text-blue-600' : 'text-purple-600'} />
-            <span className="text-[10px] uppercase font-bold tracking-wider">C. 최종 예측 노드</span>
-          </div>
-          <span className="text-base font-black block">{spInfo.korean}</span>
-          <span className="text-[10px] opacity-75 font-mono">({spInfo.english})</span>
-          {onPath && (
-            <div className="mt-1.5 px-2 py-0.5 bg-teal-600 text-white rounded-md text-[10px] font-bold">
-              ✓ 현재 데이터의 최종 결론
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    const featLabel = FEATURE_LABELS[node.feature!];
-    const threshold = node.threshold!;
-    const val = newPoint[node.feature!];
-    const goesLeft = val <= threshold;
-
-    return (
-      <div className="flex flex-col items-center space-y-3">
-        <div
-          className={`p-3.5 rounded-2xl border-2 text-center transition-all min-w-[210px] max-w-[260px] ${
-            isRoot
-              ? 'bg-teal-700 text-white border-teal-800'
-              : 'bg-teal-50 text-teal-950 border-teal-300'
-          } ${
-            onPath
-              ? isRoot
-                ? 'ring-4 ring-teal-300 shadow-md'
-                : 'ring-4 ring-teal-500 shadow-md bg-teal-100 font-extrabold'
-              : 'opacity-90 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-1.5 mb-1 text-[10px] font-bold opacity-90">
-            <QuestionIcon size={13} />
-            <span>{isRoot ? 'A. 시작 질문 노드' : `B. 중간 판단 노드 (깊이 ${node.depth})`}</span>
-          </div>
-
-          <span className="text-xs font-black block leading-snug">
-            "{featLabel}가 {threshold}cm 이하인가요?"
-          </span>
-
-          <div className={`mt-1 inline-block px-2 py-0.5 rounded text-[10px] font-mono ${
-            isRoot ? 'bg-teal-800 text-teal-100' : 'bg-teal-200 text-teal-900'
-          }`}>
-            {node.feature} ≤ {threshold}cm
-          </div>
-
-          {onPath && (
-            <div className={`mt-1.5 text-[10px] font-bold rounded px-1.5 py-0.5 ${
-              isRoot ? 'bg-amber-400 text-slate-950' : 'bg-teal-700 text-white'
-            }`}>
-              👉 현재 값: {val}cm ({goesLeft ? 'YES 가지로 이동' : 'NO 가지로 이동'})
-            </div>
-          )}
-        </div>
-
-        <div className="w-full grid grid-cols-2 gap-3 sm:gap-6 pt-1">
-          <div className="flex flex-col items-center space-y-2">
-            <div className="flex flex-col items-center">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border transition-all ${
-                onPath && goesLeft
-                  ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300 shadow-xs'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 opacity-70'
-              }`}>
-                예 (≤ {threshold}cm)
-              </span>
-              <ArrowDown size={14} className={onPath && goesLeft ? 'text-emerald-600 stroke-[3]' : 'text-slate-400'} />
-            </div>
-            {node.left && renderTreeNode(node.left, false)}
-          </div>
-
-          <div className="flex flex-col items-center space-y-2">
-            <div className="flex flex-col items-center">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border transition-all ${
-                onPath && !goesLeft
-                  ? 'bg-rose-600 text-white border-rose-600 ring-2 ring-rose-300 shadow-xs'
-                  : 'bg-rose-50 text-rose-800 border-rose-200 opacity-70'
-              }`}>
-                아니오 (&gt; {threshold}cm)
-              </span>
-              <ArrowDown size={14} className={onPath && !goesLeft ? 'text-rose-600 stroke-[3]' : 'text-slate-400'} />
-            </div>
-            {node.right && renderTreeNode(node.right, false)}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
           <span className="font-extrabold text-slate-900 block flex items-center gap-1.5">
@@ -195,7 +220,7 @@ export const DecisionTreeLab: React.FC = () => {
             <span>[무엇을 바꿀 수 있나요?]</span>
           </span>
           <p className="text-slate-600 leading-relaxed font-medium">
-            트리의 <strong>최대 깊이 (maxDepth 2, 3, 4)</strong>와 붓꽃 측정 수치를 직접 조정하거나 예시 샘플을 즉시 불러올 수 있습니다.
+            트리의 <strong>최대 깊이 (maxDepth 2, 3, 4)</strong>와 붓꽃 측정 수치를 직접 조정하거나 대표 예시 샘플을 원클릭으로 적용할 수 있습니다.
           </p>
         </div>
 
@@ -211,6 +236,7 @@ export const DecisionTreeLab: React.FC = () => {
       </div>
 
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+        {/* Header & Quick Samples */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <GitBranch size={20} className="text-teal-600" />
@@ -242,6 +268,7 @@ export const DecisionTreeLab: React.FC = () => {
           </div>
         </div>
 
+        {/* Max Depth Controls */}
         <div className="space-y-2 text-xs">
           <span className="font-bold text-slate-700 block">트리 최대 깊이 (maxDepth) 설정:</span>
           <div className="grid grid-cols-3 gap-2">
@@ -261,6 +288,7 @@ export const DecisionTreeLab: React.FC = () => {
           </div>
         </div>
 
+        {/* Feature Value Inputs */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="font-extrabold text-slate-900 block">
@@ -288,7 +316,7 @@ export const DecisionTreeLab: React.FC = () => {
                         max={spec.max}
                         value={val}
                         onChange={e => handleDirectNumberInput(feat, e.target.value)}
-                        className="w-20 p-1.5 text-right font-mono font-black text-teal-700 border border-slate-300 rounded-lg bg-teal-50/50 text-xs"
+                        className="w-20 p-1.5 text-right font-mono font-black text-teal-700 border border-slate-300 rounded-lg bg-teal-50/50 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <span className="text-slate-600 font-mono">cm</span>
                     </div>
@@ -326,6 +354,7 @@ export const DecisionTreeLab: React.FC = () => {
           </div>
         </div>
 
+        {/* Step-by-step Trace Explanation Banner */}
         <div className="p-4 bg-teal-700 text-white rounded-2xl space-y-3 text-xs shadow-xs">
           <div className="flex items-center justify-between border-b border-teal-600 pb-2 font-bold">
             <span className="text-sm font-black flex items-center gap-1.5">
@@ -364,6 +393,7 @@ export const DecisionTreeLab: React.FC = () => {
           </div>
         </div>
 
+        {/* Tree Visualizer SVG (Subtree-based Layout with Zero Overlap) */}
         <div className="space-y-2 text-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="font-bold text-slate-800 block">
@@ -374,13 +404,282 @@ export const DecisionTreeLab: React.FC = () => {
             </span>
           </div>
 
-          <div className="p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-2xl overflow-x-auto min-h-[300px]">
-            <div className="min-w-[480px] flex justify-center py-2">
-              {renderTreeNode(tree, true)}
+          <div className="p-3 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl overflow-x-auto min-h-[360px] touch-pan-x select-none">
+            <div className="min-w-fit flex justify-center py-2">
+              <svg
+                width={layout.totalWidth}
+                height={layout.totalHeight}
+                viewBox={`0 0 ${layout.totalWidth} ${layout.totalHeight}`}
+                className="max-w-none"
+              >
+                <defs>
+                  <filter id="nodeShadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08" />
+                  </filter>
+                  <filter id="activeShadow" x="-15%" y="-15%" width="130%" height="130%">
+                    <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#0d9488" floodOpacity="0.3" />
+                  </filter>
+                </defs>
+
+                {/* 1. Connection Lines (Edges) */}
+                {layout.allEdges.map((e, idx) => {
+                  const p = e.parent;
+                  const c = e.child;
+                  const pBottom = p.y + p.height;
+                  const cTop = c.y;
+                  const midY = (pBottom + cTop) / 2;
+
+                  const pathD = `M ${p.x} ${pBottom} C ${p.x} ${midY}, ${c.x} ${midY}, ${c.x} ${cTop}`;
+
+                  return (
+                    <g key={`edge-${idx}`}>
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={e.onPath ? (e.isLeft ? '#059669' : '#e11d48') : '#cbd5e1'}
+                        strokeWidth={e.onPath ? '3.5' : '2'}
+                        strokeDasharray={e.onPath ? undefined : '4 3'}
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* 2. Branch Badges at Midpoint */}
+                {layout.allEdges.map((e, idx) => {
+                  const p = e.parent;
+                  const c = e.child;
+                  const pBottom = p.y + p.height;
+                  const cTop = c.y;
+                  const midX = (p.x + c.x) / 2;
+                  const midY = (pBottom + cTop) / 2;
+
+                  const badgeW = 94;
+                  const badgeH = 20;
+
+                  const isLeft = e.isLeft;
+                  const badgeText = isLeft ? `예 (≤ ${e.threshold}cm)` : `아니오 (> ${e.threshold}cm)`;
+
+                  return (
+                    <g key={`branch-badge-${idx}`} transform={`translate(${midX - badgeW / 2}, ${midY - badgeH / 2})`}>
+                      <rect
+                        width={badgeW}
+                        height={badgeH}
+                        rx="10"
+                        fill={e.onPath ? (isLeft ? '#059669' : '#e11d48') : '#ffffff'}
+                        stroke={e.onPath ? (isLeft ? '#047857' : '#be123c') : isLeft ? '#10b981' : '#f43f5e'}
+                        strokeWidth="1.5"
+                        filter="url(#nodeShadow)"
+                      />
+                      <text
+                        x={badgeW / 2}
+                        y={badgeH / 2 + 3.5}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="bold"
+                        fill={e.onPath ? '#ffffff' : isLeft ? '#065f46' : '#9f1239'}
+                        fontFamily="sans-serif"
+                      >
+                        {badgeText}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* 3. Tree Nodes */}
+                {layout.allNodes.map(n => {
+                  const node = n.node;
+                  const onPath = isNodeOnPath(node);
+                  const isRoot = n.depth === 0;
+
+                  if (n.isLeaf) {
+                    const sp = node.predictedSpecies!;
+                    const spInfo = SPECIES_MAP[sp];
+                    const isSetosa = sp === 'Iris-setosa';
+                    const isVersicolor = sp === 'Iris-versicolor';
+
+                    const fill = isSetosa ? '#ecfdf5' : isVersicolor ? '#eff6ff' : '#faf5ff';
+                    const stroke = isSetosa ? '#10b981' : isVersicolor ? '#3b82f6' : '#a855f7';
+                    const textColor = isSetosa ? '#065f46' : isVersicolor ? '#1e40af' : '#6b21a8';
+
+                    return (
+                      <g
+                        key={n.id}
+                        transform={`translate(${n.x - n.width / 2}, ${n.y})`}
+                        filter={onPath ? 'url(#activeShadow)' : 'url(#nodeShadow)'}
+                      >
+                        <rect
+                          width={n.width}
+                          height={n.height}
+                          rx="14"
+                          fill={fill}
+                          stroke={onPath ? '#0d9488' : stroke}
+                          strokeWidth={onPath ? '3' : '2'}
+                        />
+
+                        {/* Node Role Header */}
+                        <text
+                          x={n.width / 2}
+                          y="18"
+                          textAnchor="middle"
+                          fontSize="9"
+                          fontWeight="bold"
+                          fill={textColor}
+                          letterSpacing="0.05em"
+                        >
+                          C. 최종 예측 노드
+                        </text>
+
+                        {/* Species Korean Name */}
+                        <text
+                          x={n.width / 2}
+                          y="38"
+                          textAnchor="middle"
+                          fontSize="15"
+                          fontWeight="900"
+                          fill={textColor}
+                        >
+                          {spInfo.korean}
+                        </text>
+
+                        {/* Species English Subtitle */}
+                        <text
+                          x={n.width / 2}
+                          y="50"
+                          textAnchor="middle"
+                          fontSize="9"
+                          fill={textColor}
+                          opacity="0.8"
+                          fontFamily="monospace"
+                        >
+                          ({spInfo.english})
+                        </text>
+
+                        {/* Active Decision Conclusion Tag */}
+                        {onPath && (
+                          <g transform={`translate(${(n.width - 92) / 2}, 56)`}>
+                            <rect width="92" height="15" rx="4" fill="#0d9488" />
+                            <text x="46" y="11" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#ffffff">
+                              ✓ 최종 예측 결론
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  }
+
+                  // Question Node (Root or Mid)
+                  const featLabel = FEATURE_LABELS[node.feature!];
+                  const val = newPoint[node.feature!];
+                  const goesLeft = val <= node.threshold!;
+
+                  const rootFill = '#0f766e';
+                  const midFill = '#f0fdfa';
+                  const midStroke = '#5eead4';
+
+                  return (
+                    <g
+                      key={n.id}
+                      transform={`translate(${n.x - n.width / 2}, ${n.y})`}
+                      filter={onPath ? 'url(#activeShadow)' : 'url(#nodeShadow)'}
+                    >
+                      <rect
+                        width={n.width}
+                        height={n.height}
+                        rx="14"
+                        fill={isRoot ? rootFill : midFill}
+                        stroke={onPath ? (isRoot ? '#38bdf8' : '#0d9488') : isRoot ? '#115e59' : midStroke}
+                        strokeWidth={onPath ? '3' : '2'}
+                      />
+
+                      {/* Node Role Header */}
+                      <text
+                        x={n.width / 2}
+                        y="18"
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="bold"
+                        fill={isRoot ? '#ccfbf1' : '#0f766e'}
+                        letterSpacing="0.03em"
+                      >
+                        {isRoot ? 'A. 시작 질문 노드' : `B. 중간 판단 (깊이 ${node.depth})`}
+                      </text>
+
+                      {/* Question Line 1 */}
+                      <text
+                        x={n.width / 2}
+                        y="34"
+                        textAnchor="middle"
+                        fontSize="11"
+                        fontWeight="900"
+                        fill={isRoot ? '#ffffff' : '#134e4a'}
+                      >
+                        "{featLabel}가"
+                      </text>
+
+                      {/* Question Line 2 */}
+                      <text
+                        x={n.width / 2}
+                        y="48"
+                        textAnchor="middle"
+                        fontSize="11"
+                        fontWeight="900"
+                        fill={isRoot ? '#ffffff' : '#134e4a'}
+                      >
+                        "{node.threshold}cm 이하인가요?"
+                      </text>
+
+                      {/* Threshold Rule Chip */}
+                      <g transform={`translate(${(n.width - 100) / 2}, 54)`}>
+                        <rect
+                          width="100"
+                          height="14"
+                          rx="4"
+                          fill={isRoot ? '#115e59' : '#ccfbf1'}
+                        />
+                        <text
+                          x="50"
+                          y="10.5"
+                          textAnchor="middle"
+                          fontSize="8.5"
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                          fill={isRoot ? '#99f6e4' : '#0f766e'}
+                        >
+                          {node.feature} ≤ {node.threshold}
+                        </text>
+                      </g>
+
+                      {/* Real-time Value & Direction Tag */}
+                      {onPath && (
+                        <g transform={`translate(${(n.width - 130) / 2}, 69)`}>
+                          <rect
+                            width="130"
+                            height="13"
+                            rx="3"
+                            fill={goesLeft ? '#059669' : '#e11d48'}
+                          />
+                          <text
+                            x="65"
+                            y="9.5"
+                            textAnchor="middle"
+                            fontSize="7.5"
+                            fontWeight="bold"
+                            fill="#ffffff"
+                          >
+                            값: {val}cm ➔ {goesLeft ? 'YES 가지' : 'NO 가지'}
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
             </div>
           </div>
         </div>
 
+        {/* Observation Question Card (Section 5) */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
           <span className="font-extrabold text-slate-900 block text-sm flex items-center gap-1.5">
             <HelpCircle size={16} className="text-teal-600" />

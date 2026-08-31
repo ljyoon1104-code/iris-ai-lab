@@ -44,8 +44,7 @@ export const ReinforcementLearningLab: React.FC = () => {
   // Initialize traces on load or reset
   const generateTraces = () => {
     agent.initQTable();
-    agent.epsilon = 0.3;
-    const generated = agent.trainBatchWithTrace(TOTAL_EPISODES);
+    const generated = agent.trainBatchWithTrace(TOTAL_EPISODES, 0.6, 0.05);
     setTraces(generated);
     setCurrentEpIdx(0);
     setCurrentStepIdx(0);
@@ -413,11 +412,15 @@ export const ReinforcementLearningLab: React.FC = () => {
                       </span>
                     )}
 
-                    {/* Step order badges if visited */}
+                    {/* Step order badge or repeat count if visited */}
                     {isVisitedInThisEp && !isGoal && !isObstacle && !isRobotHere && (
-                      <span className="text-[8px] font-mono text-amber-800 block font-black mt-0.5">
-                        {visitIndices.slice(-2).join(', ')}
-                      </span>
+                      visitIndices.length > 1 ? (
+                        <span className="text-[8px] font-mono bg-amber-300 text-amber-950 px-1 py-0.2 rounded font-black mt-0.5 shadow-2xs">
+                          ×{visitIndices.length}회 방문
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1" />
+                      )
                     )}
 
                     {/* Active Robot position indicator */}
@@ -431,6 +434,20 @@ export const ReinforcementLearningLab: React.FC = () => {
                 );
               })
             )}
+          </div>
+
+          {/* Student Guidance Notes on Exploration and Revisiting */}
+          <div className="p-3.5 bg-amber-50/80 rounded-xl border border-amber-200 text-xs space-y-1.5">
+            <div className="flex items-center gap-1.5 font-extrabold text-amber-900">
+              <Sparkles size={14} className="text-amber-600" />
+              <span>[AI 탐험과 반복 방문 안내]</span>
+            </div>
+            <p className="text-amber-950 font-medium leading-relaxed">
+              • AI는 아직 어떤 행동이 좋은지 확실히 모르기 때문에 이미 지나간 곳을 다시 방문할 수도 있습니다.
+            </p>
+            <p className="text-amber-950 font-medium leading-relaxed">
+              • 여러 번의 경험(시행착오)을 통해 보상이 높은 행동을 점차 더 자주 선택하게 됩니다.
+            </p>
           </div>
         </div>
 

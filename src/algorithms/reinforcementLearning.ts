@@ -246,18 +246,34 @@ export class QLearningAgent {
   }
 
   // Run multiple episodes
-  public trainBatch(numEpisodes: number): RLEpisodeResult {
+  public trainBatch(
+    numEpisodes: number,
+    epsilonStart: number = 0.6,
+    epsilonMin: number = 0.05
+  ): RLEpisodeResult {
     let lastResult!: RLEpisodeResult;
     for (let i = 0; i < numEpisodes; i++) {
+      this.epsilon = Math.max(
+        epsilonMin,
+        epsilonStart - (i / Math.max(1, numEpisodes - 1)) * (epsilonStart - epsilonMin)
+      );
       lastResult = this.runEpisode();
     }
     return lastResult;
   }
 
-  // Run multiple episodes and preserve all episode traces
-  public trainBatchWithTrace(numEpisodes: number): RLEpisodeResult[] {
+  // Run multiple episodes and preserve all episode traces with linear epsilon decay
+  public trainBatchWithTrace(
+    numEpisodes: number,
+    epsilonStart: number = 0.6,
+    epsilonMin: number = 0.05
+  ): RLEpisodeResult[] {
     const traces: RLEpisodeResult[] = [];
     for (let i = 0; i < numEpisodes; i++) {
+      this.epsilon = Math.max(
+        epsilonMin,
+        epsilonStart - (i / Math.max(1, numEpisodes - 1)) * (epsilonStart - epsilonMin)
+      );
       traces.push(this.runEpisode());
     }
     return traces;

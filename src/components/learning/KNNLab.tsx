@@ -489,15 +489,41 @@ export const KNNLab: React.FC = () => {
               })}
 
               {/* New Query Point */}
-              <g>
-                <circle cx={newX} cy={newY} r="16" fill="#f43f5e" fillOpacity="0.2" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="3 3" className="animate-pulse" />
-                <circle cx={newX} cy={newY} r="7" fill="#f43f5e" stroke="#ffffff" strokeWidth="2.5" />
-                <rect x={newX - 28} y={newY - 24} width="56" height="15" rx="4" fill="#f43f5e" />
-                <text x={newX} y={newY - 13} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
-                  새 붓꽃 ({newPoint[xAxis]}, {newPoint[yAxis]})
-                </text>
-              </g>
+              {(() => {
+                const badgeW = 54;
+                const badgeX = Math.max(plotLeft + badgeW / 2 + 2, Math.min(plotRight - badgeW / 2 - 2, newX));
+                const badgeY = newY < plotTop + 28 ? newY + 20 : newY - 14;
+                return (
+                  <g>
+                    <circle cx={newX} cy={newY} r="15" fill="#f43f5e" fillOpacity="0.2" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="3 3" className="animate-pulse" />
+                    <circle cx={newX} cy={newY} r="7" fill="#f43f5e" stroke="#ffffff" strokeWidth="2.5" />
+                    <rect x={badgeX - badgeW / 2} y={badgeY - 10} width={badgeW} height="15" rx="4" fill="#f43f5e" />
+                    <text x={badgeX} y={badgeY + 1} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
+                      ★ 새 입력
+                    </text>
+                  </g>
+                );
+              })()}
             </svg>
+          </div>
+
+          {/* Current Query Point Summary Card */}
+          <div className="p-3.5 bg-rose-50/80 rounded-xl border border-rose-200 text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-rose-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                ★
+              </span>
+              <div>
+                <span className="font-extrabold text-slate-900 block">현재 새 붓꽃 관측점 좌표</span>
+                <span className="text-[11px] text-rose-900 font-medium">
+                  {FEATURE_NAMES[xAxis].split(' ')[0]}: <strong className="font-mono">{newPoint[xAxis]}cm</strong> &nbsp;|&nbsp; {FEATURE_NAMES[yAxis].split(' ')[0]}: <strong className="font-mono">{newPoint[yAxis]}cm</strong>
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-500 block font-semibold">k={k} 다수결 예측 결과</span>
+              <span className="font-black text-rose-700 text-sm">{SPECIES_MAP[knnResult.predictedSpecies].korean}</span>
+            </div>
           </div>
 
           {/* Nearest Neighbors Ranked Distance Cards */}

@@ -402,14 +402,17 @@ export const KMeansLab: React.FC = () => {
                   const cx = getSvgX(c.x);
                   const cy = getSvgY(c.y);
                   const color = CLUSTER_COLORS[idx % CLUSTER_COLORS.length];
+                  const badgeW = 44;
+                  const badgeX = Math.max(paddingLeft + badgeW / 2 + 2, Math.min(svgWidth - paddingRight - badgeW / 2 - 2, cx));
+                  const badgeY = cy < paddingTop + 28 ? cy + 20 : cy - 14;
 
                   return (
                     <g key={`manual-centroid-${idx}`}>
                       <circle cx={cx} cy={cy} r="16" fill={color} fillOpacity="0.25" stroke={color} strokeWidth="2" strokeDasharray="3 3" className="animate-pulse" />
                       <circle cx={cx} cy={cy} r="8" fill={color} stroke="#ffffff" strokeWidth="2.5" />
-                      <rect x={cx - 24} y={cy - 24} width="48" height="15" rx="4" fill="#0f172a" />
-                      <text x={cx} y={cy - 13} textAnchor="middle" fontSize="8" fontWeight="black" fill="#ffffff">
-                        중심 {idx + 1}
+                      <rect x={badgeX - badgeW / 2} y={badgeY - 10} width={badgeW} height="15" rx="4" fill="#0f172a" />
+                      <text x={badgeX} y={badgeY + 1} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
+                        ★ C{idx + 1}
                       </text>
                     </g>
                   );
@@ -421,6 +424,9 @@ export const KMeansLab: React.FC = () => {
                   const cx = getSvgX(c.x);
                   const cy = getSvgY(c.y);
                   const color = CLUSTER_COLORS[idx % CLUSTER_COLORS.length];
+                  const badgeW = 44;
+                  const badgeX = Math.max(paddingLeft + badgeW / 2 + 2, Math.min(svgWidth - paddingRight - badgeW / 2 - 2, cx));
+                  const badgeY = cy < paddingTop + 28 ? cy + 20 : cy - 14;
 
                   return (
                     <g key={`exec-centroid-${idx}`}>
@@ -431,9 +437,9 @@ export const KMeansLab: React.FC = () => {
                         stroke={color}
                         strokeWidth="2"
                       />
-                      <rect x={cx - 24} y={cy - 25} width="48" height="15" rx="4" fill="#0f172a" />
-                      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="8" fontWeight="black" fill="#ffffff">
-                        중심 {idx + 1}
+                      <rect x={badgeX - badgeW / 2} y={badgeY - 10} width={badgeW} height="15" rx="4" fill="#0f172a" />
+                      <text x={badgeX} y={badgeY + 1} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
+                        ★ C{idx + 1}
                       </text>
                     </g>
                   );

@@ -348,32 +348,60 @@ export const LinearRegressionLab: React.FC = () => {
               />
 
               {/* Prediction Point on Regression Line */}
-              <g>
-                <circle
-                  cx={predSvgX}
-                  cy={predSvgY}
-                  r="14"
-                  fill="#f43f5e"
-                  fillOpacity="0.2"
-                  stroke="#f43f5e"
-                  strokeWidth="1.5"
-                  strokeDasharray="3 3"
-                  className="animate-pulse"
-                />
-                <circle
-                  cx={predSvgX}
-                  cy={predSvgY}
-                  r="7"
-                  fill="#f43f5e"
-                  stroke="#ffffff"
-                  strokeWidth="2.5"
-                />
-                <rect x={predSvgX - 40} y={predSvgY - 24} width="80" height="16" rx="4" fill="#0f172a" />
-                <text x={predSvgX} y={predSvgY - 12} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff" fontFamily="monospace">
-                  x: {inputX} ➔ y: {activePredY.toFixed(2)}
-                </text>
-              </g>
+              {(() => {
+                const badgeW = 54;
+                const badgeX = Math.max(paddingLeft + badgeW / 2 + 2, Math.min(svgWidth - paddingRight - badgeW / 2 - 2, predSvgX));
+                const badgeY = predSvgY < paddingTop + 28 ? predSvgY + 20 : predSvgY - 14;
+                return (
+                  <g>
+                    <circle
+                      cx={predSvgX}
+                      cy={predSvgY}
+                      r="14"
+                      fill="#f43f5e"
+                      fillOpacity="0.2"
+                      stroke="#f43f5e"
+                      strokeWidth="1.5"
+                      strokeDasharray="3 3"
+                      className="animate-pulse"
+                    />
+                    <circle
+                      cx={predSvgX}
+                      cy={predSvgY}
+                      r="7"
+                      fill="#f43f5e"
+                      stroke="#ffffff"
+                      strokeWidth="2.5"
+                    />
+                    <rect x={badgeX - badgeW / 2} y={badgeY - 10} width={badgeW} height="15" rx="4" fill="#0f172a" />
+                    <text x={badgeX} y={badgeY + 1} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
+                      ● 예측점
+                    </text>
+                  </g>
+                );
+              })()}
             </svg>
+          </div>
+
+          {/* Current Inference Summary Card Below Graph */}
+          <div className="p-3.5 bg-slate-100 rounded-xl border border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                ●
+              </span>
+              <div>
+                <span className="font-extrabold text-slate-900 block">현재 실시간 회귀 추론 좌표</span>
+                <span className="text-[11px] text-slate-600 font-medium">
+                  {FEATURE_NAMES[xAxis].split(' ')[0]}: <strong className="font-mono text-emerald-700">{inputX}cm</strong> &nbsp;➔&nbsp; {FEATURE_NAMES[yAxis].split(' ')[0]} 예측: <strong className="font-mono text-rose-600">{activePredY.toFixed(2)}cm</strong>
+                </span>
+              </div>
+            </div>
+            <div className="text-right font-mono text-[11px]">
+              <span className="text-slate-500 block">직선 모델 방정식</span>
+              <span className="font-extrabold text-slate-900">
+                y = {activeSlope.toFixed(2)}x {activeIntercept >= 0 ? `+ ${activeIntercept.toFixed(2)}` : `- ${Math.abs(activeIntercept).toFixed(2)}`}
+              </span>
+            </div>
           </div>
         </div>
       </div>
