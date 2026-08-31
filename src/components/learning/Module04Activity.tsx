@@ -533,6 +533,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   const answerObj = ERROR_IRIS_ANSWERS.find(a => a.recordId === rec.id);
                   const isNormal = !answerObj;
                   const currentAnswer = detectiveAnswers[rec.id];
+                  const isCorrect = isNormal
+                    ? currentAnswer === 'none'
+                    : currentAnswer === answerObj?.issueType;
 
                   return (
                     <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-2xs">
@@ -540,41 +543,47 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
                       <div className="space-y-1.5 pt-1 border-t border-slate-100">
                         <span className="font-bold text-slate-800 block text-[11px]">이 데이터의 문제는 무엇인가요?</span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
                           {[
                             { type: 'missing', label: '결측치' },
                             { type: 'outlier', label: '이상치' },
                             { type: 'inconsistent', label: '표현 불일치' },
                             { type: 'invalidType', label: '데이터형 오류' },
-                          ].map(opt => (
-                            <button
-                              key={opt.type}
-                              onClick={() => setDetectiveAnswers(prev => ({ ...prev, [rec.id]: opt.type }))}
-                              className={`p-2 rounded-lg border font-bold text-center cursor-pointer transition-all min-h-[44px] text-[11px] ${
-                                currentAnswer === opt.type
-                                  ? isNormal
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : opt.type === answerObj?.issueType
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-rose-600 text-white border-rose-600'
-                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
+                            { type: 'none', label: '오류 없음' },
+                          ].map((opt, optIdx) => {
+                            const isSelected = currentAnswer === opt.type;
+                            return (
+                              <button
+                                key={opt.type}
+                                onClick={() => setDetectiveAnswers(prev => ({ ...prev, [rec.id]: opt.type }))}
+                                className={`p-2 rounded-lg border font-bold text-center cursor-pointer transition-all min-h-[44px] text-[11px] ${
+                                  optIdx === 4 ? 'col-span-2 sm:col-span-1' : ''
+                                } ${
+                                  isSelected
+                                    ? isCorrect
+                                      ? 'bg-emerald-600 text-white border-emerald-600'
+                                      : 'bg-rose-600 text-white border-rose-600'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
                         </div>
 
                         {currentAnswer && (
-                          <div className={`p-2 rounded font-bold text-[11px] ${
-                            isNormal
-                              ? 'bg-blue-50 text-blue-950 border border-blue-200'
-                              : currentAnswer === answerObj?.issueType
-                              ? 'bg-emerald-100 text-emerald-950'
-                              : 'bg-rose-100 text-rose-950'
+                          <div className={`p-2.5 rounded-lg font-bold text-[11px] leading-relaxed ${
+                            isCorrect
+                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-200'
+                              : 'bg-rose-100 text-rose-950 border border-rose-200'
                           }`}>
                             {isNormal
-                              ? 'ℹ️ 이 데이터는 정상 데이터이므로 현재 수정할 필요가 없습니다.'
+                              ? currentAnswer === 'none'
+                                ? '👏 맞습니다. 이 데이터에서는 수정할 오류가 발견되지 않습니다.'
+                                : '💡 이 데이터는 정상 데이터입니다. 값을 다시 살펴보세요.'
+                              : currentAnswer === 'none'
+                              ? '⚠️ 이 데이터에는 확인해야 할 부분이 있습니다. 다시 살펴보세요.'
                               : currentAnswer === answerObj?.issueType
                               ? '✅ 정확하게 판별했습니다!'
                               : '💡 탐정 수첩 기준값과 비교해보세요.'}
@@ -852,8 +861,8 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                     <thead>
                       <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <th className="p-2.5 text-left font-sans">통계 지표</th>
-                        <th className="p-2.5 text-emerald-800 font-sans">정상 원본 데이터</th>
-                        <th className="p-2.5 text-rose-700 font-sans">현재 작업 데이터 (workingDataset)</th>
+                        <th className="p-2.5 text-slate-800 font-sans">정상 원본 데이터</th>
+                        <th className="p-2.5 text-slate-800 font-sans">현재 작업 데이터 (workingDataset)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -864,15 +873,24 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       </tr>
                       <tr>
                         <td className="p-2.5 text-left font-bold text-slate-700">최댓값 (Max)</td>
-                        <td className="p-2.5 font-bold text-emerald-800">{origStats.minMax.max} cm</td>
-                        <td className={`p-2.5 font-black ${workingStats.minMax.max > 20 ? 'text-rose-600 bg-rose-50' : 'text-slate-800'}`}>
-                          {workingStats.minMax.max} cm {workingStats.minMax.max > 20 ? '⚠️' : ''}
+                        <td className="p-2.5 font-bold text-slate-800">{origStats.minMax.max} cm</td>
+                        <td className="p-2.5 font-bold text-slate-800">
+                          {workingStats.minMax.max > 20 ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="font-bold text-slate-900">{workingStats.minMax.max} cm</span>
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                ⚠️ 극단값 포함
+                              </span>
+                            </span>
+                          ) : (
+                            <span>{workingStats.minMax.max} cm</span>
+                          )}
                         </td>
                       </tr>
                       <tr>
                         <td className="p-2.5 text-left font-bold text-slate-700">평균 (Mean)</td>
-                        <td className="p-2.5 font-bold text-emerald-800">{origStats.mean} cm</td>
-                        <td className="p-2.5 font-bold text-rose-700">{workingStats.mean} cm</td>
+                        <td className="p-2.5 font-bold text-slate-800">{origStats.mean} cm</td>
+                        <td className="p-2.5 font-bold text-slate-800">{workingStats.mean} cm</td>
                       </tr>
                       <tr>
                         <td className="p-2.5 text-left font-bold text-slate-700">중앙값 (Median)</td>
@@ -884,13 +902,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 </div>
 
                 <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2 text-slate-800">
-                  <div className="font-bold text-emerald-900 flex items-center gap-1.5 text-xs">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                    <BarChart2 size={16} className="text-emerald-600 shrink-0" />
                     <span>[{featureGuidance.base.label}] 기초 통계 해석 & 데이터 관찰:</span>
                   </div>
-                  <p className="font-medium leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px]">
+                  <p className="font-medium leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-700">
                     📊 {featureGuidance.statsDiffNote}
                   </p>
-                  <p className="font-bold text-rose-900 bg-rose-50 p-2.5 rounded-lg border border-rose-200 text-[11px]">
+                  <p className={`font-bold p-2.5 rounded-lg border text-[11px] leading-relaxed ${
+                    featureGuidance.hasIntentionalError
+                      ? 'bg-amber-50 text-amber-950 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-950 border-emerald-200'
+                  }`}>
                     {featureGuidance.errorGuide}
                   </p>
                 </div>

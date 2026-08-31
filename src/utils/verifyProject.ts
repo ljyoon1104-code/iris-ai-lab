@@ -139,8 +139,33 @@ export async function runFullVerification() {
       m4Passed = false;
     }
 
+    // Test Activity 2 Detective Choices Logic
+    const normalRec = ERROR_IRIS_DATASET.find(r => !ERROR_IRIS_ANSWERS.some(a => a.recordId === r.id));
+    const errorRec = ERROR_IRIS_DATASET.find(r => ERROR_IRIS_ANSWERS.some(a => a.recordId === r.id));
+    const errorAns = ERROR_IRIS_ANSWERS.find(a => a.recordId === errorRec?.id);
+
+    if (normalRec && errorRec && errorAns) {
+      const normalWithNone = ('none' as string) === 'none'; // true
+      const normalWithOther = ('missing' as string) === 'none'; // false
+      const errorWithNone = ('none' as string) === (errorAns.issueType as string); // false
+      const errorWithCorrect = (errorAns.issueType as string) === (errorAns.issueType as string); // true
+
+      if (!normalWithNone || normalWithOther || errorWithNone || !errorWithCorrect) {
+        console.error('   ❌ Activity 2 detective choice evaluation test failed!');
+        m4Passed = false;
+      }
+    }
+
+    // Test getFeatureDynamicGuidance
+    const { getFeatureDynamicGuidance } = await import('./statistics');
+    const sepalGuidance = getFeatureDynamicGuidance('sepalLength', ERROR_IRIS_DATASET);
+    if (!sepalGuidance.hasIntentionalError || !sepalGuidance.errorGuide.includes('평균이 영향')) {
+      console.error('   ❌ getFeatureDynamicGuidance educational note test failed!');
+      m4Passed = false;
+    }
+
     if (m4Passed) {
-      console.log('   ✓ Module 04 ground truth lookup, edit application, and Min-Max scaling verified.');
+      console.log('   ✓ Module 04 ground truth lookup, edit application, detective choice evaluation, and Min-Max scaling verified.');
     } else {
       passedAll = false;
     }

@@ -91,13 +91,13 @@ export function getFeatureDynamicGuidance(
     const has50 = workingDataset.some(r => typeof r.sepalLength === 'number' && r.sepalLength > 20);
     if (has50) {
       hasIntentionalError = true;
-      errorGuide = '⚠️ 현재 데이터에는 50.0cm라는 매우 큰 꽃받침 길이 오타 이상치가 포함되어 있습니다. 통계량과 그래프를 이용해 확인해보세요.';
+      errorGuide = '💡 매우 큰 값 하나 때문에 평균이 영향을 받았는지 살펴보세요. (이상치는 평균과 같은 통계량에도 영향을 줄 수 있습니다)';
     }
   } else if (feature === 'petalLength') {
     const has30 = workingDataset.some(r => typeof r.petalLength === 'number' && r.petalLength > 20);
     if (has30) {
       hasIntentionalError = true;
-      errorGuide = '⚠️ 현재 데이터에는 30.0cm라는 극단적인 꽃잎 길이 이상치가 포함되어 있습니다. 히스토그램과 박스플롯에서 확인해보세요.';
+      errorGuide = '💡 매우 큰 값 하나 때문에 평균이 영향을 받았는지 살펴보세요. (이상치는 평균과 같은 통계량에도 영향을 줄 수 있습니다)';
     }
   }
 
@@ -106,9 +106,9 @@ export function getFeatureDynamicGuidance(
   const median = calculateMedian(validVals);
   const diff = Math.abs(mean - median);
 
-  let statsDiffNote = `평균(${mean}cm)과 중앙값(${median}cm)이 비교적 비슷하여 대칭적인 분포 형태를 보여줍니다.`;
-  if (diff >= 0.2) {
-    statsDiffNote = `평균(${mean}cm)과 중앙값(${median}cm)에 ${diff.toFixed(2)}cm의 차이가 발생했습니다. 극단적으로 크거나 작은 값(이상치)의 영향을 확인해보세요.`;
+  let statsDiffNote = `평균(${mean}cm)과 중앙값(${median}cm)이 서로 비슷하여 데이터의 중심을 고르게 나타내고 있습니다.`;
+  if (hasIntentionalError || diff >= 0.2) {
+    statsDiffNote = `극단적으로 큰 값은 평균에 영향을 줄 수 있습니다. 중앙값과 비교해보면 그 영향을 확인하는 데 도움이 됩니다. (현재 평균: ${mean}cm, 중앙값: ${median}cm)`;
   }
 
   return {
