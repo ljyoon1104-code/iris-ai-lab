@@ -140,16 +140,7 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
       {activeTab === 'lr' && <LinearRegressionLab />}
       {activeTab === 'kmeans' && <KMeansLab />}
       {activeTab === 'rl' && <ReinforcementLearningLab />}
-      {activeTab === 'compare' && (
-        <div className="space-y-6">
-          <MasterAlgorithmComparison />
-          <KNNLab />
-          <DecisionTreeLab />
-          <LinearRegressionLab />
-          <KMeansLab />
-          <ReinforcementLearningLab />
-        </div>
-      )}
+      {activeTab === 'compare' && <MasterAlgorithmComparison />}
 
       {/* Module Completion Button */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs text-center space-y-3">
