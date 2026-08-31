@@ -1,6 +1,6 @@
 import { ORIGINAL_IRIS_DATASET, ERROR_IRIS_DATASET, BIASED_IRIS_DATASET, ERROR_IRIS_ANSWERS } from '../data/irisDataset';
 import type { IrisSpecies } from '../types/iris';
-import { calculateDistance } from '../algorithms/knn';
+import { calculateDistance, predictKNN } from '../algorithms/knn';
 import { trainDecisionTree, traceDecisionPath } from '../algorithms/decisionTree';
 import { trainLinearRegression, predictLinearRegression } from '../algorithms/linearRegression';
 import { runKMeansWithHistory } from '../algorithms/kmeans';
@@ -219,6 +219,21 @@ export async function runFullVerification() {
     passedAll = false;
   } else {
     console.log('   ✓ Euclidean distance formula verified.');
+    // Check k-NN neighbor count and sorting for various k
+    [1, 3, 5, 7].forEach(testK => {
+      const kRes = predictKNN(ORIGINAL_IRIS_DATASET, { sepalLength: 5.0, sepalWidth: 3.0, petalLength: 4.0, petalWidth: 1.2 } as any, ['petalLength', 'petalWidth'], testK);
+      if (kRes.neighbors.length !== testK) {
+        console.error(`   ❌ k-NN neighbor count mismatch for k=${testK}: got ${kRes.neighbors.length}`);
+        passedAll = false;
+      }
+      for (let i = 1; i < kRes.neighbors.length; i++) {
+        if (kRes.neighbors[i].distance < kRes.neighbors[i - 1].distance) {
+          console.error(`   ❌ k-NN neighbor distance sorting failed at index ${i}`);
+          passedAll = false;
+        }
+      }
+    });
+    console.log('   ✓ k-NN k-neighbor count (1,3,5,7) and ascending distance sorting verified.');
   }
 
   // 3. Decision Tree Training Accuracy Check
@@ -252,12 +267,28 @@ export async function runFullVerification() {
   console.log(`   - OLS Equation: ${linReg.equationString} (R² = ${linReg.rSquared})`);
   const predY = predictLinearRegression(linReg.slope, linReg.intercept, 4.5);
   console.log(`   - Prediction for X=4.5cm: y = ${predY}cm`);
+  const mathCheck = Math.round((linReg.slope * 4.5 + linReg.intercept) * 100) / 100;
+  if (Math.abs(predY - mathCheck) > 0.01) {
+    console.error(`   ❌ Linear Regression prediction formula mismatch: ${predY} vs ${mathCheck}`);
+    passedAll = false;
+  }
 
   // 6. k-means Unsupervised Clustering & Label Isolation Check
   console.log('\n6. k-means Unsupervised Clustering Check:');
   const kmHistory = runKMeansWithHistory(ORIGINAL_IRIS_DATASET, 'petalLength', 'petalWidth', 3, 42);
   const finalKm = kmHistory[kmHistory.length - 1];
   console.log(`   - Converged in ${finalKm.stepNumber} steps. Cluster counts: ${finalKm.clusters.map(c => c.records.length).join(', ')}`);
+
+  // Test Custom Centroids execution
+  const { runKMeansWithCustomCentroids } = await import('../algorithms/kmeans');
+  const customCentroids = [{ x: 1.5, y: 0.3 }, { x: 4.0, y: 1.2 }, { x: 5.5, y: 2.0 }];
+  const kmCustomHistory = runKMeansWithCustomCentroids(ORIGINAL_IRIS_DATASET, 'petalLength', 'petalWidth', customCentroids);
+  if (kmCustomHistory.length === 0 || kmCustomHistory[0].centroids.length !== 3) {
+    console.error('   ❌ k-means custom centroid execution failed!');
+    passedAll = false;
+  } else {
+    console.log('   ✓ k-means custom initial centroid simulation verified.');
+  }
 
   // 7. Q-Learning Reinforcement Learning Check
   console.log('\n7. Q-Learning Reinforcement Learning Check:');
@@ -299,8 +330,15 @@ export async function runFullVerification() {
     console.log('   ✓ Loop detection correctly evaluated reachedGoal = false.');
   }
 
-  // 100 Episodes Trained Test
-  rlAgent.trainBatch(100);
+  // 100 Episodes Trained Test & Trace Generation
+  const rlTraces = rlAgent.trainBatchWithTrace(100);
+  if (rlTraces.length !== 100 || !rlTraces[0].steps[0].mode) {
+    console.error('   ❌ Q-Learning trainBatchWithTrace verification failed!');
+    passedAll = false;
+  } else {
+    console.log('   ✓ Q-Learning step-by-step trace generation with exploration/exploitation mode verified.');
+  }
+
   const pathTrained = rlAgent.getBestPolicyPath();
   const lastTrained = pathTrained.path[pathTrained.path.length - 1];
   console.log(`   - 100 Episodes Trained: reachedGoal = ${pathTrained.reachedGoal}, Reason: ${pathTrained.terminatedReason}, Steps: ${pathTrained.totalSteps}, LastPos: (${lastTrained.r},${lastTrained.c})`);

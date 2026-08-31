@@ -200,3 +200,82 @@ export function runKMeansWithHistory(
 
   return history;
 }
+
+// 6. Generate full step-by-step history using student-selected custom initial centroids
+export function runKMeansWithCustomCentroids(
+  dataset: IrisRecord[],
+  xFeature: FeatureKey,
+  yFeature: FeatureKey,
+  initialCentroids: Point2D[],
+  maxIterations: number = 20
+): KMeansStepState[] {
+  const history: KMeansStepState[] = [];
+  const k = initialCentroids.length;
+
+  let centroids = initialCentroids.map(c => ({ ...c }));
+  let assignments = assignPointsToCentroids(dataset, centroids, xFeature, yFeature);
+
+  let currentStep = 0;
+  let isConverged = false;
+
+  const buildClusters = (currCentroids: Point2D[], currAssign: number[]): KMeansCluster[] => {
+    return currCentroids.map((c, cIdx) => {
+      const recs = dataset.filter((_, idx) => currAssign[idx] === cIdx);
+      const speciesCounts: Record<IrisSpecies, number> = {
+        'Iris-setosa': 0,
+        'Iris-versicolor': 0,
+        'Iris-virginica': 0,
+      };
+      recs.forEach(r => {
+        speciesCounts[r.species] = (speciesCounts[r.species] || 0) + 1;
+      });
+
+      return {
+        clusterIndex: cIdx,
+        centroid: c,
+        recordIds: recs.map(r => r.id),
+        records: recs,
+        speciesCounts,
+      };
+    });
+  };
+
+  history.push({
+    stepNumber: 0,
+    centroids,
+    clusters: buildClusters(centroids, assignments),
+    isConverged: false,
+    actionDescription: `학생이 지정한 초기 중심점 ${k}개 설정 완료. 가장 가까운 중심점으로 데이터를 배정합니다.`,
+  });
+
+  while (currentStep < maxIterations && !isConverged) {
+    currentStep++;
+    const prevCentroids = centroids;
+    const prevAssignments = assignments;
+
+    // Move centroids
+    centroids = updateCentroids(dataset, prevAssignments, prevCentroids, xFeature, yFeature);
+
+    // Re-assign points
+    assignments = assignPointsToCentroids(dataset, centroids, xFeature, yFeature);
+
+    // Check convergence: centroids did not move
+    isConverged = prevCentroids.every((oldC, idx) => {
+      const newC = centroids[idx];
+      return oldC.x === newC.x && oldC.y === newC.y;
+    });
+
+    history.push({
+      stepNumber: currentStep,
+      centroids,
+      previousCentroids: prevCentroids,
+      clusters: buildClusters(centroids, assignments),
+      isConverged,
+      actionDescription: isConverged
+        ? `단계 ${currentStep}: 중심점이 더 이상 이동하지 않아 군집 수렴(완료) 되었습니다.`
+        : `단계 ${currentStep}: 군집 평균 위치로 중심점 이동 및 이웃 데이터 재배정`,
+    });
+  }
+
+  return history;
+}

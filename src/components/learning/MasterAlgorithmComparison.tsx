@@ -91,7 +91,7 @@ export const MasterAlgorithmComparison: React.FC = () => {
             </span>
           </div>
           <p className="text-slate-700 leading-relaxed">
-            <strong>핵심 원리:</strong> 정답 데이터 없이 격자판 환경에서 이동 행동을 수행하고 보상(+10점)과 벌점(-5점) 경험을 쌓아 최적 경로 정책을 스스로 학습합니다.
+            <strong>핵심 원리:</strong> 정답 데이터 없이 격자판 환경에서 이동 행동을 수행하고 보상(+10점)과 벌점(-5점) 경험을 쌓아 목적지로 가는 행동 정책을 스스로 학습합니다.
           </p>
         </div>
       </div>

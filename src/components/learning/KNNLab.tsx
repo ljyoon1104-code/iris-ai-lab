@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
 import type { IrisRecord, IrisSpecies } from '../../types/iris';
 import { predictKNN, findBoundaryCase } from '../../algorithms/knn';
 import { SecondaryButton } from '../common/SecondaryButton';
-import { Target, Sparkles, HelpCircle, Eye, Sliders } from 'lucide-react';
+import { Target, Sparkles, HelpCircle, Eye, Sliders, MousePointerClick } from 'lucide-react';
 import { SELECTED_FEATURES_KEY } from '../../utils/storage';
 
 type FeatureKey = keyof Omit<IrisRecord, 'id' | 'species'>;
@@ -39,6 +39,8 @@ export const KNNLab: React.FC = () => {
   const [isBoundaryLoaded, setIsBoundaryLoaded] = useState(false);
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
   // Load selected features from Module 04 if present
   useEffect(() => {
     try {
@@ -65,6 +67,16 @@ export const KNNLab: React.FC = () => {
     setIsBoundaryLoaded(false);
   };
 
+  const handleDirectNumberInput = (feat: FeatureKey, rawVal: string) => {
+    const spec = FEATURE_MIN_MAX[feat];
+    const parsed = parseFloat(rawVal);
+    if (!isNaN(parsed)) {
+      const clamped = Math.min(spec.max, Math.max(spec.min, parsed));
+      setNewPoint(prev => ({ ...prev, [feat]: Math.round(clamped * 10) / 10 }));
+      setIsBoundaryLoaded(false);
+    }
+  };
+
   const handleLoadBoundaryCase = () => {
     const bCase = findBoundaryCase(ORIGINAL_IRIS_DATASET, [xAxis, yAxis]);
     if (bCase) {
@@ -82,6 +94,53 @@ export const KNNLab: React.FC = () => {
       setYAxis(saved04Features[1]);
     }
   };
+
+  // SVG coordinate transformation logic
+  const svgWidth = 460;
+  const svgHeight = 300;
+  const plotLeft = 50;
+  const plotRight = 430;
+  const plotTop = 30;
+  const plotBottom = 250;
+  const plotW = plotRight - plotLeft;
+  const plotH = plotBottom - plotTop;
+
+  const xSpec = FEATURE_MIN_MAX[xAxis];
+  const ySpec = FEATURE_MIN_MAX[yAxis];
+
+  const mapX = (v: number) => plotLeft + ((v - xSpec.min) / (xSpec.max - xSpec.min)) * plotW;
+  const mapY = (v: number) => plotBottom - ((v - ySpec.min) / (ySpec.max - ySpec.min)) * plotH;
+
+  // Pointer Event to convert screen touch/click -> exact dataset domain coordinates
+  const handlePlotPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
+
+    const svgX = (clientX / rect.width) * svgWidth;
+    const svgY = (clientY / rect.height) * svgHeight;
+
+    // Constrain to plot area
+    const clampedSvgX = Math.max(plotLeft, Math.min(plotRight, svgX));
+    const clampedSvgY = Math.max(plotTop, Math.min(plotBottom, svgY));
+
+    const domainX = xSpec.min + ((clampedSvgX - plotLeft) / plotW) * (xSpec.max - xSpec.min);
+    const domainY = ySpec.min + ((plotBottom - clampedSvgY) / plotH) * (ySpec.max - ySpec.min);
+
+    const roundedX = Math.round(domainX * 10) / 10;
+    const roundedY = Math.round(domainY * 10) / 10;
+
+    setNewPoint(prev => ({
+      ...prev,
+      [xAxis]: Math.min(xSpec.max, Math.max(xSpec.min, roundedX)),
+      [yAxis]: Math.min(ySpec.max, Math.max(ySpec.min, roundedY)),
+    }));
+    setIsBoundaryLoaded(false);
+  };
+
+  const newX = mapX(newPoint[xAxis]);
+  const newY = mapY(newPoint[yAxis]);
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -114,7 +173,7 @@ export const KNNLab: React.FC = () => {
             <span>[무엇을 바꿀 수 있나요?]</span>
           </span>
           <p className="text-slate-600 leading-relaxed font-medium">
-            이웃 수 <strong>k값(1, 3, 5, 7)</strong>과 축 속성, 그리고 새로운 붓꽃 데이터 수치를 직접 조절할 수 있습니다.
+            이웃 수 <strong>k값(1, 3, 5, 7)</strong>과 축 속성을 바꾸고, <strong>산점도 그래프를 직접 터치/클릭</strong>하거나 숫자 입력으로 새로운 붓꽃 위치를 자유롭게 이동시킬 수 있습니다.
           </p>
         </div>
 
@@ -124,7 +183,7 @@ export const KNNLab: React.FC = () => {
             <span>[무엇을 관찰하면 되나요?]</span>
           </span>
           <p className="text-slate-600 leading-relaxed font-medium">
-            k값을 바꿀 때 가장 가까운 k개 이웃 데이터점의 분포와 최종 분류 결과(품종)가 어떻게 달라지는지 관찰하세요.
+            k값을 바꿀 때 가장 가까운 <strong>정확히 k개의 이웃 연결선</strong>과 거리 순위, 그리고 최종 예측 품종 다수결 결과가 어떻게 달라지는지 관찰하세요.
           </p>
         </div>
       </div>
@@ -134,7 +193,7 @@ export const KNNLab: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <Target size={20} className="text-emerald-600" />
-            <span>k-NN (최근접 이웃) 조건 설정</span>
+            <span>k-NN (최근접 이웃) 조건 설정 & 인터랙티브 탐색</span>
           </h3>
 
           <SecondaryButton size="sm" onClick={handleLoadBoundaryCase} icon={<Sparkles size={14} className="text-amber-500" />}>
@@ -145,7 +204,7 @@ export const KNNLab: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           {/* k Value Selection */}
           <div>
-            <span className="font-bold text-slate-700 block mb-1.5">이웃 개수 k 설정:</span>
+            <span className="font-bold text-slate-700 block mb-1.5">이웃 개수 k 설정 (연결선 개수):</span>
             <div className="grid grid-cols-4 gap-1.5">
               {[1, 3, 5, 7].map(kVal => (
                 <button
@@ -174,10 +233,10 @@ export const KNNLab: React.FC = () => {
               onChange={e => setXAxis(e.target.value as FeatureKey)}
               className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
             >
-              <option value="sepalLength">꽃받침 길이 (sepalLength)</option>
-              <option value="sepalWidth">꽃받침 너비 (sepalWidth)</option>
               <option value="petalLength">꽃잎 길이 (petalLength)</option>
               <option value="petalWidth">꽃잎 너비 (petalWidth)</option>
+              <option value="sepalLength">꽃받침 길이 (sepalLength)</option>
+              <option value="sepalWidth">꽃받침 너비 (sepalWidth)</option>
             </select>
           </div>
 
@@ -189,19 +248,24 @@ export const KNNLab: React.FC = () => {
               onChange={e => setYAxis(e.target.value as FeatureKey)}
               className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
             >
+              <option value="petalWidth">꽃잎 너비 (petalWidth)</option>
+              <option value="petalLength">꽃잎 길이 (petalLength)</option>
               <option value="sepalLength">꽃받침 길이 (sepalLength)</option>
               <option value="sepalWidth">꽃받침 너비 (sepalWidth)</option>
-              <option value="petalLength">꽃잎 길이 (petalLength)</option>
-              <option value="petalWidth">꽃잎 너비 (petalWidth)</option>
             </select>
           </div>
         </div>
 
-        {/* Input sliders for New Data Point */}
+        {/* Input sliders & text inputs for New Data Point */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-          <span className="font-extrabold text-slate-900 block">
-            새로운 붓꽃 측정치 조정 ({FEATURE_NAMES[xAxis]} vs {FEATURE_NAMES[yAxis]}):
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <span className="font-extrabold text-slate-900 block">
+              새로운 붓꽃 측정치 조정 ({FEATURE_NAMES[xAxis]} vs {FEATURE_NAMES[yAxis]}):
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              💡 숫자 박스에 직접 타이핑하거나 슬라이더, 산점도 터치로 변경할 수 있습니다.
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[xAxis, yAxis].map(feat => {
@@ -209,11 +273,24 @@ export const KNNLab: React.FC = () => {
               const val = newPoint[feat];
 
               return (
-                <div key={feat} className="p-3 bg-white rounded-lg border border-slate-200 space-y-1.5">
-                  <div className="flex justify-between font-bold text-slate-800">
+                <div key={feat} className="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
+                  <div className="flex justify-between items-center font-bold text-slate-800">
                     <span>{FEATURE_NAMES[feat]}</span>
-                    <span className="font-mono text-emerald-700 font-black">{val} cm</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        step={spec.step}
+                        min={spec.min}
+                        max={spec.max}
+                        inputMode="decimal"
+                        value={val}
+                        onChange={e => handleDirectNumberInput(feat, e.target.value)}
+                        className="w-20 p-1.5 text-right font-mono font-black text-emerald-700 border border-slate-300 rounded-lg bg-emerald-50/50 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-slate-600 font-mono">cm</span>
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleAdjustValue(feat, -0.2)}
@@ -250,7 +327,7 @@ export const KNNLab: React.FC = () => {
         {/* Prediction Output Metric Card */}
         <div className="p-4 bg-emerald-600 text-white rounded-xl space-y-2 text-xs shadow-xs">
           <div className="flex items-center justify-between border-b border-emerald-500 pb-2">
-            <span className="font-black text-sm uppercase tracking-wider">k-NN 분류 결과 (k={k})</span>
+            <span className="font-black text-sm uppercase tracking-wider">k-NN 다수결 분류 결과 (k={k})</span>
             {isBoundaryLoaded && (
               <span className="bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded text-[10px]">
                 경계 사례 테스트 중
@@ -258,16 +335,16 @@ export const KNNLab: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-emerald-100 text-[11px] block">예측된 품종</span>
-              <span className="text-xl font-black">{SPECIES_MAP[knnResult.predictedSpecies].korean}</span>
+              <span className="text-2xl font-black">{SPECIES_MAP[knnResult.predictedSpecies].korean}</span>
               <span className="text-[11px] text-emerald-200 block font-mono">({knnResult.predictedSpecies})</span>
             </div>
 
-            <div className="text-right">
+            <div className="sm:text-right">
               <span className="text-emerald-100 text-[11px] block">가장 가까운 k={k}개 이웃 득표율</span>
-              <div className="font-mono text-sm font-bold">
+              <div className="font-mono text-sm font-bold bg-emerald-700/60 px-3 py-1.5 rounded-lg border border-emerald-500 inline-block">
                 {Object.entries(knnResult.votes)
                   .map(([sp, cnt]) => `${SPECIES_MAP[sp as IrisSpecies].korean}: ${cnt}표`)
                   .join(' / ')}
@@ -278,83 +355,177 @@ export const KNNLab: React.FC = () => {
 
         {/* Interactive SVG 2D Scatter Plot */}
         <div className="space-y-2 text-xs">
-          <span className="font-bold text-slate-800 block">
-            2D 산점도 및 최근접 {k}개 이웃 이음선 시각화
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <span className="font-bold text-slate-800 flex items-center gap-1.5">
+              <MousePointerClick size={16} className="text-emerald-600" />
+              <span>2D 산점도 (터치/클릭하여 새 붓꽃 위치 이동 & 최근접 {k}개 연결선)</span>
+            </span>
+            <span className="text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-[11px]">
+              👉 그래프의 원하는 위치를 터치하거나 클릭해보세요!
+            </span>
+          </div>
 
-          <div className="w-full overflow-x-auto bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <svg viewBox="0 0 460 300" className="w-full h-auto min-w-[320px]">
-              {(() => {
-                const xMin = FEATURE_MIN_MAX[xAxis].min;
-                const xMax = FEATURE_MIN_MAX[xAxis].max;
-                const yMin = FEATURE_MIN_MAX[yAxis].min;
-                const yMax = FEATURE_MIN_MAX[yAxis].max;
+          <div className="w-full overflow-hidden bg-slate-50 p-2 sm:p-3 rounded-2xl border border-slate-200 touch-none select-none">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              onPointerDown={handlePlotPointerDown}
+              className="w-full h-auto cursor-crosshair rounded-xl bg-white shadow-2xs border border-slate-100"
+            >
+              {/* Axes */}
+              <line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke="#cbd5e1" strokeWidth="2" />
+              <line x1={plotLeft} y1={plotTop} x2={plotLeft} y2={plotBottom} stroke="#cbd5e1" strokeWidth="2" />
 
-                const mapX = (v: number) => 50 + ((v - xMin) / (xMax - xMin)) * 380;
-                const mapY = (v: number) => 260 - ((v - yMin) / (yMax - yMin)) * 220;
+              {/* Grid Lines */}
+              <line x1={plotLeft} y1={plotTop} x2={plotRight} y2={plotTop} stroke="#f1f5f9" strokeDasharray="3 3" />
+              <line x1={plotRight} y1={plotTop} x2={plotRight} y2={plotBottom} stroke="#f1f5f9" strokeDasharray="3 3" />
+              <line x1={plotLeft} y1={(plotTop + plotBottom) / 2} x2={plotRight} y2={(plotTop + plotBottom) / 2} stroke="#f1f5f9" strokeDasharray="3 3" />
+              <line x1={(plotLeft + plotRight) / 2} y1={plotTop} x2={(plotLeft + plotRight) / 2} y2={plotBottom} stroke="#f1f5f9" strokeDasharray="3 3" />
 
-                const newX = mapX(newPoint[xAxis]);
-                const newY = mapY(newPoint[yAxis]);
+              {/* Axis Ticks & Labels */}
+              <text x={plotLeft} y={plotBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
+                {xSpec.min}
+              </text>
+              <text x={plotRight} y={plotBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
+                {xSpec.max}
+              </text>
+              <text x={(plotLeft + plotRight) / 2} y={plotBottom + 18} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">
+                {FEATURE_NAMES[xAxis]}
+              </text>
 
+              <text x={plotLeft - 10} y={plotBottom} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
+                {ySpec.min}
+              </text>
+              <text x={plotLeft - 10} y={plotTop + 6} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
+                {ySpec.max}
+              </text>
+              <text x="15" y={(plotTop + plotBottom) / 2} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155" transform={`rotate(-90 15 ${(plotTop + plotBottom) / 2})`}>
+                {FEATURE_NAMES[yAxis]}
+              </text>
+
+              {/* Exact k Neighbor connecting lines */}
+              {knnResult.neighbors.map((n, i) => {
+                const nX = mapX(n.record[xAxis]);
+                const nY = mapY(n.record[yAxis]);
                 return (
-                  <g>
-                    {/* Axes */}
-                    <line x1="45" y1="260" x2="445" y2="260" stroke="#cbd5e1" strokeWidth="2" />
-                    <line x1="45" y1="20" x2="45" y2="260" stroke="#cbd5e1" strokeWidth="2" />
-
-                    {/* Labels */}
-                    <text x="245" y="290" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569">
-                      {FEATURE_NAMES[xAxis]}
+                  <g key={`neighbor-line-${n.record.id}-${i}`}>
+                    <line
+                      x1={newX}
+                      y1={newY}
+                      x2={nX}
+                      y2={nY}
+                      stroke="#f43f5e"
+                      strokeWidth="2"
+                      strokeDasharray="4 3"
+                    />
+                    {/* Number Badge at Midpoint */}
+                    <circle
+                      cx={(newX + nX) / 2}
+                      cy={(newY + nY) / 2}
+                      r="7"
+                      fill="#f43f5e"
+                    />
+                    <text
+                      x={(newX + nX) / 2}
+                      y={(newY + nY) / 2 + 3}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                    >
+                      {i + 1}
                     </text>
-                    <text x="15" y="140" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569" transform="rotate(-90 15 140)">
-                      {FEATURE_NAMES[yAxis]}
-                    </text>
-
-                    {/* Neighbor connecting lines */}
-                    {knnResult.neighbors.map((n, i) => {
-                      const nX = mapX(n.record[xAxis]);
-                      const nY = mapY(n.record[yAxis]);
-                      return (
-                        <line
-                          key={i}
-                          x1={newX}
-                          y1={newY}
-                          x2={nX}
-                          y2={nY}
-                          stroke="#e11d48"
-                          strokeWidth="1.5"
-                          strokeDasharray="3 3"
-                        />
-                      );
-                    })}
-
-                    {/* Dataset Points */}
-                    {ORIGINAL_IRIS_DATASET.map(r => {
-                      const cx = mapX(r[xAxis]);
-                      const cy = mapY(r[yAxis]);
-                      const isNeighbor = knnResult.neighbors.some(n => n.record.id === r.id);
-
-                      if (r.species === 'Iris-setosa') {
-                        return <circle key={r.id} cx={cx} cy={cy} r={isNeighbor ? '5' : '3'} fill="#10b981" stroke={isNeighbor ? '#000' : 'none'} strokeWidth="1.5" />;
-                      } else if (r.species === 'Iris-versicolor') {
-                        return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#3b82f6" stroke={isNeighbor ? '#000' : 'none'} strokeWidth="1.5" rx="1" />;
-                      } else {
-                        return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#8b5cf6" stroke={isNeighbor ? '#000' : 'none'} strokeWidth="1.5" />;
-                      }
-                    })}
-
-                    {/* New Query Point */}
-                    <g>
-                      <circle cx={newX} cy={newY} r="12" fill="#e11d48" fillOpacity="0.3" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
-                      <circle cx={newX} cy={newY} r="6" fill="#e11d48" stroke="#ffffff" strokeWidth="2" />
-                      <text x={newX} y={newY - 14} textAnchor="middle" fontSize="10" fontWeight="black" fill="#e11d48">
-                        새 입력값
-                      </text>
-                    </g>
                   </g>
                 );
-              })()}
+              })}
+
+              {/* Dataset Points */}
+              {ORIGINAL_IRIS_DATASET.map(r => {
+                const cx = mapX(r[xAxis]);
+                const cy = mapY(r[yAxis]);
+                const isNeighbor = knnResult.neighbors.some(n => n.record.id === r.id);
+
+                if (r.species === 'Iris-setosa') {
+                  return (
+                    <circle
+                      key={r.id}
+                      cx={cx}
+                      cy={cy}
+                      r={isNeighbor ? '6' : '3.5'}
+                      fill="#10b981"
+                      stroke={isNeighbor ? '#064e3b' : 'none'}
+                      strokeWidth={isNeighbor ? '2' : '0'}
+                      opacity={isNeighbor ? '1' : '0.6'}
+                    />
+                  );
+                } else if (r.species === 'Iris-versicolor') {
+                  return (
+                    <rect
+                      key={r.id}
+                      x={cx - (isNeighbor ? 4.5 : 3)}
+                      y={cy - (isNeighbor ? 4.5 : 3)}
+                      width={isNeighbor ? '9' : '6'}
+                      height={isNeighbor ? '9' : '6'}
+                      fill="#3b82f6"
+                      stroke={isNeighbor ? '#1e3a8a' : 'none'}
+                      strokeWidth={isNeighbor ? '2' : '0'}
+                      opacity={isNeighbor ? '1' : '0.6'}
+                      rx="1.5"
+                    />
+                  );
+                } else {
+                  const size = isNeighbor ? 5.5 : 4;
+                  return (
+                    <polygon
+                      key={r.id}
+                      points={`${cx},${cy - size} ${cx + size},${cy + size * 0.8} ${cx - size},${cy + size * 0.8}`}
+                      fill="#8b5cf6"
+                      stroke={isNeighbor ? '#4c1d95' : 'none'}
+                      strokeWidth={isNeighbor ? '2' : '0'}
+                      opacity={isNeighbor ? '1' : '0.6'}
+                    />
+                  );
+                }
+              })}
+
+              {/* New Query Point */}
+              <g>
+                <circle cx={newX} cy={newY} r="16" fill="#f43f5e" fillOpacity="0.2" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="3 3" className="animate-pulse" />
+                <circle cx={newX} cy={newY} r="7" fill="#f43f5e" stroke="#ffffff" strokeWidth="2.5" />
+                <rect x={newX - 28} y={newY - 24} width="56" height="15" rx="4" fill="#f43f5e" />
+                <text x={newX} y={newY - 13} textAnchor="middle" fontSize="9" fontWeight="black" fill="#ffffff">
+                  새 붓꽃 ({newPoint[xAxis]}, {newPoint[yAxis]})
+                </text>
+              </g>
             </svg>
+          </div>
+
+          {/* Nearest Neighbors Ranked Distance Cards */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <span className="font-extrabold text-slate-800 block text-xs flex items-center justify-between">
+              <span>🎯 가장 가까운 k={k}개 이웃 거리 순위:</span>
+              <span className="text-[11px] text-slate-500 font-mono">유클리드 거리 기준 오름차순</span>
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {knnResult.neighbors.map((n, i) => (
+                <div key={n.record.id} className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-xs shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <span className="font-bold text-slate-900 block">{SPECIES_MAP[n.record.species].korean}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">#{n.record.id}</span>
+                    </div>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="text-emerald-700 font-bold text-xs">{n.distance.toFixed(2)} cm</span>
+                    <span className="text-[10px] text-slate-500 block">거리</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

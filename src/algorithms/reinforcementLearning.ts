@@ -13,6 +13,7 @@ export interface RLEpisodeStep {
   reward: number;
   isGoal: boolean;
   isObstacle: boolean;
+  mode?: 'explore' | 'exploit';
 }
 
 export interface RLEpisodeResult {
@@ -107,15 +108,18 @@ export class QLearningAgent {
     return this.config.goal.r === r && this.config.goal.c === c;
   }
 
+  // Choose action and return whether it was exploration or exploitation
+  public chooseActionWithMode(state: GridPosition): { action: ActionType; mode: 'explore' | 'exploit' } {
+    if (this.prng() < this.epsilon) {
+      const idx = Math.floor(this.prng() * ACTIONS.length);
+      return { action: ACTIONS[idx], mode: 'explore' };
+    }
+    return { action: this.getGreedyAction(state), mode: 'exploit' };
+  }
+
   // Choose action using epsilon-greedy strategy during training episodes
   public chooseAction(state: GridPosition): ActionType {
-    if (this.prng() < this.epsilon) {
-      // Random exploration
-      const idx = Math.floor(this.prng() * ACTIONS.length);
-      return ACTIONS[idx];
-    }
-
-    return this.getGreedyAction(state);
+    return this.chooseActionWithMode(state).action;
   }
 
   // Choose action strictly using pure greedy policy with deterministic tie-breaking (RIGHT, DOWN, UP, LEFT)
@@ -197,7 +201,7 @@ export class QLearningAgent {
     let reachedGoal = false;
 
     for (let s = 1; s <= maxSteps; s++) {
-      const action = this.chooseAction(currState);
+      const { action, mode } = this.chooseActionWithMode(currState);
       const { nextState, reward, done, isObstacle, isGoal } = this.stepEnvironment(currState, action);
 
       // Q-Learning update: Q(s,a) += alpha * [r + gamma * max_a' Q(s',a') - Q(s,a)]
@@ -219,6 +223,7 @@ export class QLearningAgent {
         reward,
         isGoal,
         isObstacle,
+        mode,
       });
 
       currState = nextState;
@@ -247,6 +252,15 @@ export class QLearningAgent {
       lastResult = this.runEpisode();
     }
     return lastResult;
+  }
+
+  // Run multiple episodes and preserve all episode traces
+  public trainBatchWithTrace(numEpisodes: number): RLEpisodeResult[] {
+    const traces: RLEpisodeResult[] = [];
+    for (let i = 0; i < numEpisodes; i++) {
+      traces.push(this.runEpisode());
+    }
+    return traces;
   }
 
   // Evaluate current greedy policy path without exploration (Pure Greedy)

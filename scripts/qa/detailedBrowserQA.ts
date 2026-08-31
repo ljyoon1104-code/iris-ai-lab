@@ -183,7 +183,7 @@ export async function runDetailedQA() {
         width: vp.width,
         height: vp.height,
         deviceScaleFactor: 1,
-        mobile: vp.width < 768,
+        mobile: vp.width <= 1024,
       });
 
       await cdp.send('Page.navigate', { url: 'http://127.0.0.1:4173/' });
