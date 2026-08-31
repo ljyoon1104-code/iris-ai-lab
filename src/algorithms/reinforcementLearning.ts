@@ -14,6 +14,8 @@ export interface RLEpisodeStep {
   isGoal: boolean;
   isObstacle: boolean;
   mode?: 'explore' | 'exploit';
+  oldQ?: number;
+  newQ?: number;
 }
 
 export interface RLEpisodeResult {
@@ -84,12 +86,12 @@ export class QLearningAgent {
     return `${r},${c}`;
   }
 
-  public initQTable() {
-    this.qTable = {};
+  public initBlankQTable(): Record<string, Record<ActionType, number>> {
+    const blank: Record<string, Record<ActionType, number>> = {};
     for (let r = 0; r < this.config.rows; r++) {
       for (let c = 0; c < this.config.cols; c++) {
         const key = this.getStateKey(r, c);
-        this.qTable[key] = {
+        blank[key] = {
           UP: 0,
           DOWN: 0,
           LEFT: 0,
@@ -97,6 +99,11 @@ export class QLearningAgent {
         };
       }
     }
+    return blank;
+  }
+
+  public initQTable() {
+    this.qTable = this.initBlankQTable();
     this.episodesTrained = 0;
   }
 
@@ -123,9 +130,13 @@ export class QLearningAgent {
   }
 
   // Choose action strictly using pure greedy policy with deterministic tie-breaking (RIGHT, DOWN, UP, LEFT)
-  public getGreedyAction(state: GridPosition): ActionType {
+  public getGreedyAction(
+    state: GridPosition,
+    customQTable?: Record<string, Record<ActionType, number>>
+  ): ActionType {
     const key = this.getStateKey(state.r, state.c);
-    const qValues = this.qTable[key] || { UP: 0, DOWN: 0, LEFT: 0, RIGHT: 0 };
+    const table = customQTable || this.qTable;
+    const qValues = table[key] || { UP: 0, DOWN: 0, LEFT: 0, RIGHT: 0 };
 
     let maxQ = -Infinity;
     let bestAction: ActionType = 'RIGHT';
@@ -138,6 +149,49 @@ export class QLearningAgent {
     });
 
     return bestAction;
+  }
+
+  // Clone a Q-table
+  public cloneQTable(
+    table: Record<string, Record<ActionType, number>> = this.qTable
+  ): Record<string, Record<ActionType, number>> {
+    const copy: Record<string, Record<ActionType, number>> = {};
+    for (const [key, actions] of Object.entries(table)) {
+      copy[key] = { ...actions };
+    }
+    return copy;
+  }
+
+  // Reconstruct exact Q-table at any given (episodeIndex, stepIndex)
+  public getQTableAtStep(
+    traces: RLEpisodeResult[],
+    qSnapshots: Record<string, Record<ActionType, number>>[],
+    targetEpIdx: number,
+    targetStepIdx: number
+  ): Record<string, Record<ActionType, number>> {
+    if (targetEpIdx < 0 || traces.length === 0) {
+      return this.initBlankQTable();
+    }
+
+    const baseEpIdx = targetEpIdx - 1;
+    const table =
+      baseEpIdx >= 0 && qSnapshots[baseEpIdx]
+        ? this.cloneQTable(qSnapshots[baseEpIdx])
+        : this.initBlankQTable();
+
+    const currentEp = traces[targetEpIdx];
+    if (currentEp && currentEp.steps) {
+      const maxStep = Math.min(targetStepIdx, currentEp.steps.length - 1);
+      for (let s = 0; s <= maxStep; s++) {
+        const step = currentEp.steps[s];
+        if (step && step.newQ !== undefined) {
+          const key = this.getStateKey(step.state.r, step.state.c);
+          table[key][step.action] = step.newQ;
+        }
+      }
+    }
+
+    return table;
   }
 
   // Environment transition step
@@ -211,8 +265,9 @@ export class QLearningAgent {
       const oldQ = this.qTable[currKey][action];
       const maxNextQ = Math.max(...Object.values(this.qTable[nextKey]));
       const newQ = oldQ + this.alpha * (reward + this.gamma * (done ? 0 : maxNextQ) - oldQ);
+      const roundedNewQ = Math.round(newQ * 100) / 100;
 
-      this.qTable[currKey][action] = Math.round(newQ * 100) / 100;
+      this.qTable[currKey][action] = roundedNewQ;
 
       totalReward += reward;
       steps.push({
@@ -224,6 +279,8 @@ export class QLearningAgent {
         isGoal,
         isObstacle,
         mode,
+        oldQ,
+        newQ: roundedNewQ,
       });
 
       currState = nextState;
@@ -279,8 +336,34 @@ export class QLearningAgent {
     return traces;
   }
 
+  // Run multiple episodes and preserve traces and per-episode Q-table snapshots
+  public trainBatchWithTraceAndSnapshots(
+    numEpisodes: number,
+    epsilonStart: number = 0.6,
+    epsilonMin: number = 0.05
+  ): {
+    traces: RLEpisodeResult[];
+    qSnapshots: Record<string, Record<ActionType, number>>[];
+  } {
+    const traces: RLEpisodeResult[] = [];
+    const qSnapshots: Record<string, Record<ActionType, number>>[] = [];
+    for (let i = 0; i < numEpisodes; i++) {
+      this.epsilon = Math.max(
+        epsilonMin,
+        epsilonStart - (i / Math.max(1, numEpisodes - 1)) * (epsilonStart - epsilonMin)
+      );
+      const epResult = this.runEpisode();
+      traces.push(epResult);
+      qSnapshots.push(this.cloneQTable());
+    }
+    return { traces, qSnapshots };
+  }
+
   // Evaluate current greedy policy path without exploration (Pure Greedy)
-  public getBestPolicyPath(maxSteps: number = 25): PolicyPathResult {
+  public getBestPolicyPath(
+    maxSteps: number = 25,
+    customQTable?: Record<string, Record<ActionType, number>>
+  ): PolicyPathResult {
     const path: GridPosition[] = [{ ...this.config.start }];
     let curr = { ...this.config.start };
     const visitedStates = new Set<string>();
@@ -312,7 +395,7 @@ export class QLearningAgent {
       }
       visitedStates.add(currKey);
 
-      const greedyAction = this.getGreedyAction(curr);
+      const greedyAction = this.getGreedyAction(curr, customQTable);
       const { nextState, reward, isObstacle, isGoal } = this.stepEnvironment(curr, greedyAction);
 
       totalReward += reward;
