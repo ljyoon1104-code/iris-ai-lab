@@ -7,6 +7,9 @@ import {
   type ExperimentResult,
 } from '../../algorithms/evaluation';
 import type { IrisSpecies } from '../../types/iris';
+import { SpeciesBadge, SpeciesLabel } from '../common/SpeciesBadge';
+import { SpeciesMarker } from '../common/SpeciesMarker';
+import { ALL_SPECIES_LIST } from '../../constants/species';
 import { ActivityProgress } from './ActivityProgress';
 import { PromptCard } from './PromptCard';
 import { PrimaryButton } from '../common/PrimaryButton';
@@ -398,17 +401,14 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                     <div className="text-emerald-900 bg-emerald-100 p-1 sm:p-2 rounded-lg font-extrabold text-[9px] sm:text-[11px] flex items-center justify-center">
                       실제\예측
                     </div>
-                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[11px] sm:text-xs">세토사</span>
-                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Setosa</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+                      <SpeciesBadge species="Iris-setosa" size="xs" />
                     </div>
-                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[11px] sm:text-xs">버시컬러</span>
-                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Versicolor</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+                      <SpeciesBadge species="Iris-versicolor" size="xs" />
                     </div>
-                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[11px] sm:text-xs">버지니카</span>
-                      <span className="text-[9px] text-slate-400 block font-normal hidden sm:block">Virginica</span>
+                    <div className="p-1 sm:p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+                      <SpeciesBadge species="Iris-virginica" size="xs" />
                     </div>
                   </div>
 
@@ -416,9 +416,8 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                   {currentEval.confusionMatrix.rows.map((actSp: IrisSpecies) => (
                     <div key={actSp} className="grid grid-cols-4 gap-1 sm:gap-2 items-center">
                       {/* Row Header (Actual Species) */}
-                      <div className="p-1.5 sm:p-2.5 bg-white rounded-lg border border-slate-200 font-bold text-slate-900 text-left flex flex-col justify-center">
-                        <span className="text-[11px] sm:text-xs">{SPECIES_MAP[actSp].korean}</span>
-                        <span className="text-[8px] sm:text-[9px] text-slate-400 font-normal hidden sm:block">실제 {SPECIES_MAP[actSp].english}</span>
+                      <div className="p-1.5 sm:p-2 bg-white rounded-lg border border-slate-200 font-bold text-slate-900 text-left flex items-center">
+                        <SpeciesBadge species={actSp} size="xs" />
                       </div>
 
                       {/* 3 Column Cells */}
@@ -484,13 +483,33 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                         <div>데이터 수: <strong className="text-amber-300">{count}개</strong></div>
                       </div>
 
-                      <p className="text-sm font-bold text-slate-100 pt-1">
-                        {isDiagonal
-                          ? `👉 실제 [${actKor}] ${count}개를 모델이 모두 [${predKor}]로 정확하게 맞혔습니다 (정답).`
-                          : count > 0
-                          ? `👉 실제 [${actKor}]이었지만 모델은 [${predKor}]이라고 잘못 판단(오분류)한 데이터가 ${count}개 있습니다.`
-                          : `👉 실제 [${actKor}]을 [${predKor}]로 잘못 판단한 데이터가 0개로, 두 품종을 서로 헷갈리지 않았습니다.`}
-                      </p>
+                      <div className="text-sm font-bold text-slate-100 pt-1 leading-relaxed">
+                        {isDiagonal ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span>👉 실제</span>
+                            <SpeciesLabel species={selectedCell.actual} size="xs" />
+                            <span>{count}개를 모델이 모두</span>
+                            <SpeciesLabel species={selectedCell.predicted} size="xs" />
+                            <span>로 정확하게 맞혔습니다 (정답).</span>
+                          </div>
+                        ) : count > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span>👉 실제</span>
+                            <SpeciesLabel species={selectedCell.actual} size="xs" />
+                            <span>였지만 모델은</span>
+                            <SpeciesLabel species={selectedCell.predicted} size="xs" />
+                            <span>로 잘못 판단(오분류)한 데이터가 {count}개 있습니다.</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span>👉 실제</span>
+                            <SpeciesLabel species={selectedCell.actual} size="xs" />
+                            <span>를</span>
+                            <SpeciesLabel species={selectedCell.predicted} size="xs" />
+                            <span>로 잘못 판단한 데이터가 0개로, 두 품종을 서로 헷갈리지 않았습니다.</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
@@ -510,9 +529,13 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                   🔥 [가장 많이 헷갈린 품종 조합]
                 </span>
                 {mostConfusedPair ? (
-                  <p className="text-xs">
-                    이 모델은 실제 <strong>{SPECIES_MAP[mostConfusedPair.actual].korean}</strong>를 <strong>{SPECIES_MAP[mostConfusedPair.predicted].korean}</strong>(으)로 가장 많이 헷갈렸습니다 (총 <strong className="text-rose-700 font-black">{mostConfusedPair.count}개</strong> 오분류).
-                  </p>
+                  <div className="text-xs flex items-center gap-1 flex-wrap">
+                    <span>이 모델은 실제</span>
+                    <SpeciesLabel species={mostConfusedPair.actual} size="xs" />
+                    <span>를</span>
+                    <SpeciesLabel species={mostConfusedPair.predicted} size="xs" />
+                    <span>로 가장 많이 잘못 예측했습니다 (총 <strong className="text-rose-700 font-black">{mostConfusedPair.count}개</strong>).</span>
+                  </div>
                 ) : (
                   <p className="text-xs text-emerald-800">
                     "이번 테스트에서는 잘못 분류된 데이터가 전혀 없습니다!"
@@ -528,9 +551,13 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                 <span>혼동행렬 직접 읽기 퀴즈</span>
               </span>
 
-              <p className="text-slate-700 font-medium">
-                질문: 실제 <strong>{SPECIES_MAP[quizTargetPair.actual].korean}</strong>를 <strong>{SPECIES_MAP[quizTargetPair.predicted].korean}</strong>(으)로 잘못 예측한 데이터는 몇 개인가요?
-              </p>
+              <div className="text-slate-700 font-medium flex items-center gap-1 flex-wrap">
+                <span>질문: 실제</span>
+                <SpeciesLabel species={quizTargetPair.actual} size="xs" />
+                <span>를</span>
+                <SpeciesLabel species={quizTargetPair.predicted} size="xs" />
+                <span>로 잘못 예측한 데이터는 몇 개인가요?</span>
+              </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {quizOptions.map(opt => (
@@ -655,6 +682,18 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                         </span>
                       </div>
 
+                      {/* Accessible Legend Bar */}
+                      <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+                        <span className="font-extrabold text-slate-700 text-xs shrink-0">품종 범례:</span>
+                        {ALL_SPECIES_LIST.map(spKey => (
+                          <SpeciesBadge key={spKey} species={spKey} showEnglish size="xs" />
+                        ))}
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 sm:ml-auto">
+                          <span>★</span>
+                          <span>오분류 레코드 #{targetRec.id}</span>
+                        </span>
+                      </div>
+
                       {/* SVG 2D Scatter Plot */}
                       <div className="w-full overflow-x-auto bg-white p-3 rounded-lg border border-slate-200">
                         <svg viewBox="0 0 460 260" className="w-full h-auto min-w-[300px]">
@@ -684,13 +723,18 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                                   const cy = mapY(r.petalWidth);
                                   const isTarget = r.id === targetRec.id;
 
-                                  if (r.species === 'Iris-setosa') {
-                                    return <circle key={r.id} cx={cx} cy={cy} r="3.5" fill="#10b981" opacity={isTarget ? 1 : 0.4} />;
-                                  } else if (r.species === 'Iris-versicolor') {
-                                    return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#3b82f6" opacity={isTarget ? 1 : 0.4} rx="1" />;
-                                  } else {
-                                    return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#8b5cf6" opacity={isTarget ? 1 : 0.4} />;
-                                  }
+                                  return (
+                                    <SpeciesMarker
+                                      key={r.id}
+                                      species={r.species}
+                                      cx={cx}
+                                      cy={cy}
+                                      size={isTarget ? 6.5 : 4}
+                                      opacity={isTarget ? 1 : 0.45}
+                                      stroke={isTarget ? '#000000' : '#ffffff'}
+                                      strokeWidth={isTarget ? 2 : 0.8}
+                                    />
+                                  );
                                 })}
 
                                 {(() => {
@@ -699,8 +743,19 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
 
                                   return (
                                     <g>
-                                      <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.25" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
-                                      <circle cx={tX} cy={tY} r="7" fill="#e11d48" stroke="#ffffff" strokeWidth="2" />
+                                      {/* Outer Red Dashed Ring for Misclassification Highlight */}
+                                      <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.2" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
+                                      {/* True Species Marker Preserved */}
+                                      <SpeciesMarker
+                                        species={targetRec.species}
+                                        cx={tX}
+                                        cy={tY}
+                                        size={7}
+                                        opacity={1}
+                                        stroke="#0f172a"
+                                        strokeWidth={2}
+                                      />
+                                      {/* Top Badge Tooltip */}
                                       <rect x={Math.min(300, tX - 45)} y={Math.max(25, tY - 28)} width="110" height="20" fill="#0f172a" rx="4" opacity="0.9" />
                                       <text x={Math.min(300, tX - 45) + 55} y={Math.max(25, tY - 28) + 14} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#ffffff">
                                         ★ 오분류 레코드 #{targetRec.id}
@@ -715,13 +770,24 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                       </div>
 
                       {/* Observation Question Section 16 */}
-                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium space-y-1">
-                        <span className="font-extrabold text-amber-900 block">
-                          🤔 질문: 이 데이터는 왜 두 품종 사이에서 헷갈리기 쉬웠을까요?
+                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium space-y-1.5">
+                        <span className="font-extrabold text-amber-900 block flex items-center gap-1.5">
+                          <span>🤔 질문: 이 데이터는 왜 두 품종 사이에서 헷갈리기 쉬웠을까요?</span>
                         </span>
-                        <p className="text-xs">
-                          "이 오분류 레코드 #{targetRec.id}(실제 {SPECIES_MAP[targetSample.actualSpecies as keyof typeof SPECIES_MAP].korean} ➔ 예측 {SPECIES_MAP[targetSample.predictedSpecies as keyof typeof SPECIES_MAP].korean})는 <strong>버시컬러와 버지니카 데이터점들이 서로 촘촘히 겹치는 경계 부근</strong>에 위치해 있어 모델이 헷갈리기 쉽습니다."
-                        </p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span>이 오분류 레코드 #{targetRec.id} (실제</span>
+                            <SpeciesBadge species={targetSample.actualSpecies} size="xs" />
+                            <span>➔ 모델 예측</span>
+                            <SpeciesBadge species={targetSample.predictedSpecies} size="xs" />
+                            <span>)는</span>
+                            <span className="inline-flex items-center gap-1 font-bold">
+                              <SpeciesLabel species="Iris-versicolor" size="xs" />
+                              <span>와</span>
+                              <SpeciesLabel species="Iris-virginica" size="xs" />
+                              <span>데이터점들이 서로 촘촘히 겹치는 경계 부근</span>
+                            </span>
+                            <span>에 위치해 있어 모델이 헷갈리기 쉽습니다.</span>
+                          </div>
                       </div>
                     </div>
                   );

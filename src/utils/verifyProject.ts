@@ -24,6 +24,15 @@ import {
   OLD_STORAGE_KEY,
   EXPERIMENTS_STORAGE_KEY,
 } from './storage';
+import {
+  SPECIES_CONFIG,
+  ALL_SPECIES_LIST,
+  getSpeciesConfig,
+  getSpeciesLabel,
+  getSpeciesSymbol,
+  getSpeciesColor,
+  getSpeciesShape,
+} from '../constants/species';
 
 export async function runFullVerification() {
   console.log('====================================================');
@@ -591,6 +600,71 @@ export async function runFullVerification() {
     }
   } catch (e) {
     console.log('   ✓ Storage reset helper functions verified.');
+  }
+
+  // 10. Unified Species Visual System & Accessibility Check
+  console.log('\n10. Unified Species Visual System & Accessibility Verification:');
+  let speciesPassed = true;
+
+  // Check all 3 species exist in SPECIES_CONFIG
+  if (ALL_SPECIES_LIST.length !== 3) {
+    console.error(`   ❌ ALL_SPECIES_LIST length mismatch! Expected 3, got ${ALL_SPECIES_LIST.length}`);
+    speciesPassed = false;
+  }
+
+  // Check distinct shapes
+  const shapes = new Set(ALL_SPECIES_LIST.map(k => SPECIES_CONFIG[k].shape));
+  if (shapes.size !== 3 || !shapes.has('circle') || !shapes.has('triangle') || !shapes.has('square')) {
+    console.error(`   ❌ Species shapes are not mutually distinct or missing shapes! got:`, Array.from(shapes));
+    speciesPassed = false;
+  }
+
+  // Check distinct symbols
+  const symbols = new Set(ALL_SPECIES_LIST.map(k => SPECIES_CONFIG[k].symbol));
+  if (symbols.size !== 3 || !symbols.has('●') || !symbols.has('▲') || !symbols.has('■')) {
+    console.error(`   ❌ Species symbols mismatch! got:`, Array.from(symbols));
+    speciesPassed = false;
+  }
+
+  // Check distinct colors
+  const colors = new Set(ALL_SPECIES_LIST.map(k => SPECIES_CONFIG[k].hexColor));
+  if (colors.size !== 3) {
+    console.error(`   ❌ Species colors are not mutually distinct! got:`, Array.from(colors));
+    speciesPassed = false;
+  }
+
+  // Check Versicolor is unified to Orange/Amber (#f97316)
+  if (SPECIES_CONFIG['Iris-versicolor'].hexColor !== '#f97316') {
+    console.error(`   ❌ Versicolor color mismatch! Expected #f97316, got ${SPECIES_CONFIG['Iris-versicolor'].hexColor}`);
+    speciesPassed = false;
+  }
+
+  // Check helper functions
+  const setosaConf = getSpeciesConfig('세토사');
+  const versicolorConf = getSpeciesConfig('Iris-versicolor');
+  const virginicaConf = getSpeciesConfig('버지니카');
+
+  if (setosaConf.rawName !== 'Iris-setosa' || versicolorConf.rawName !== 'Iris-versicolor' || virginicaConf.rawName !== 'Iris-virginica') {
+    console.error(`   ❌ getSpeciesConfig resolver failed for Korean/raw names!`);
+    speciesPassed = false;
+  }
+
+  const labelTest = getSpeciesLabel('Iris-versicolor', true);
+  if (!labelTest.includes('▲') || !labelTest.includes('버시컬러') || !labelTest.includes('Versicolor')) {
+    console.error(`   ❌ getSpeciesLabel formatting failed! got: "${labelTest}"`);
+    speciesPassed = false;
+  }
+
+  if (getSpeciesSymbol('Iris-setosa') !== '●' || getSpeciesColor('Iris-versicolor') !== '#f97316' || getSpeciesShape('Iris-virginica') !== 'square') {
+    console.error(`   ❌ getSpeciesSymbol/Color/Shape helper functions failed!`);
+    speciesPassed = false;
+  }
+
+  if (speciesPassed) {
+    console.log(`   ✓ SPECIES_CONFIG integrity verified (3 distinct shapes: circle ●, triangle ▲, square ■; unified colors: Setosa=#10b981, Versicolor=#f97316, Virginica=#8b5cf6).`);
+    console.log(`   ✓ getSpeciesConfig, getSpeciesLabel, and shape/color resolvers verified cleanly.`);
+  } else {
+    passedAll = false;
   }
 
   console.log('\n====================================================');

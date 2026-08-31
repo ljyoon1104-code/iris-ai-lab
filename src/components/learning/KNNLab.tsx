@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
-import type { IrisRecord, IrisSpecies } from '../../types/iris';
+import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
+import type { IrisRecord } from '../../types/iris';
 import { predictKNN, findBoundaryCase } from '../../algorithms/knn';
 import { SecondaryButton } from '../common/SecondaryButton';
+import { SpeciesBadge } from '../common/SpeciesBadge';
+import { SpeciesMarker } from '../common/SpeciesMarker';
+import { ALL_SPECIES_LIST } from '../../constants/species';
 import { Target, Sparkles, HelpCircle, Eye, Sliders, MousePointerClick } from 'lucide-react';
 import { SELECTED_FEATURES_KEY } from '../../utils/storage';
 
@@ -325,8 +328,8 @@ export const KNNLab: React.FC = () => {
         </div>
 
         {/* Prediction Output Metric Card */}
-        <div className="p-4 bg-emerald-600 text-white rounded-xl space-y-2 text-xs shadow-xs">
-          <div className="flex items-center justify-between border-b border-emerald-500 pb-2">
+        <div className="p-4 bg-emerald-700 text-white rounded-xl space-y-2 text-xs shadow-xs">
+          <div className="flex items-center justify-between border-b border-emerald-600 pb-2">
             <span className="font-black text-sm uppercase tracking-wider">k-NN 다수결 분류 결과 (k={k})</span>
             {isBoundaryLoaded && (
               <span className="bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded text-[10px]">
@@ -337,17 +340,22 @@ export const KNNLab: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-emerald-100 text-[11px] block">예측된 품종</span>
-              <span className="text-2xl font-black">{SPECIES_MAP[knnResult.predictedSpecies].korean}</span>
-              <span className="text-[11px] text-emerald-200 block font-mono">({knnResult.predictedSpecies})</span>
+              <span className="text-emerald-100 text-[11px] block mb-1">예측된 품종</span>
+              <SpeciesBadge species={knnResult.predictedSpecies} showEnglish size="lg" variant="solid" />
             </div>
 
             <div className="sm:text-right">
-              <span className="text-emerald-100 text-[11px] block">가장 가까운 k={k}개 이웃 득표율</span>
-              <div className="font-mono text-sm font-bold bg-emerald-700/60 px-3 py-1.5 rounded-lg border border-emerald-500 inline-block">
-                {Object.entries(knnResult.votes)
-                  .map(([sp, cnt]) => `${SPECIES_MAP[sp as IrisSpecies].korean}: ${cnt}표`)
-                  .join(' / ')}
+              <span className="text-emerald-100 text-[11px] block mb-1">가장 가까운 k={k}개 이웃 득표율</span>
+              <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                {ALL_SPECIES_LIST.map(spKey => {
+                  const voteCount = knnResult.votes[spKey] || 0;
+                  return (
+                    <span key={spKey} className="inline-flex items-center gap-1 font-mono text-xs font-bold bg-white/90 text-slate-800 px-2 py-1 rounded-lg border border-emerald-400">
+                      <SpeciesBadge species={spKey} size="xs" variant="subtle" />
+                      <span>: {voteCount}표</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -362,6 +370,18 @@ export const KNNLab: React.FC = () => {
             </span>
             <span className="text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-[11px]">
               👉 그래프의 원하는 위치를 터치하거나 클릭해보세요!
+            </span>
+          </div>
+
+          {/* Accessible Legend Bar with Exact Shapes */}
+          <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="font-extrabold text-slate-700 text-xs shrink-0">품종 범례:</span>
+            {ALL_SPECIES_LIST.map(spKey => (
+              <SpeciesBadge key={spKey} species={spKey} showEnglish size="xs" />
+            ))}
+            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 sm:ml-auto">
+              <span>★</span>
+              <span>새 입력 관측점</span>
             </span>
           </div>
 
@@ -439,53 +459,24 @@ export const KNNLab: React.FC = () => {
                 );
               })}
 
-              {/* Dataset Points */}
+              {/* Dataset Points with Exact Shapes (Circle: Setosa, Triangle: Versicolor, Square: Virginica) */}
               {ORIGINAL_IRIS_DATASET.map(r => {
                 const cx = mapX(r[xAxis]);
                 const cy = mapY(r[yAxis]);
                 const isNeighbor = knnResult.neighbors.some(n => n.record.id === r.id);
 
-                if (r.species === 'Iris-setosa') {
-                  return (
-                    <circle
-                      key={r.id}
-                      cx={cx}
-                      cy={cy}
-                      r={isNeighbor ? '6' : '3.5'}
-                      fill="#10b981"
-                      stroke={isNeighbor ? '#064e3b' : 'none'}
-                      strokeWidth={isNeighbor ? '2' : '0'}
-                      opacity={isNeighbor ? '1' : '0.6'}
-                    />
-                  );
-                } else if (r.species === 'Iris-versicolor') {
-                  return (
-                    <rect
-                      key={r.id}
-                      x={cx - (isNeighbor ? 4.5 : 3)}
-                      y={cy - (isNeighbor ? 4.5 : 3)}
-                      width={isNeighbor ? '9' : '6'}
-                      height={isNeighbor ? '9' : '6'}
-                      fill="#3b82f6"
-                      stroke={isNeighbor ? '#1e3a8a' : 'none'}
-                      strokeWidth={isNeighbor ? '2' : '0'}
-                      opacity={isNeighbor ? '1' : '0.6'}
-                      rx="1.5"
-                    />
-                  );
-                } else {
-                  const size = isNeighbor ? 5.5 : 4;
-                  return (
-                    <polygon
-                      key={r.id}
-                      points={`${cx},${cy - size} ${cx + size},${cy + size * 0.8} ${cx - size},${cy + size * 0.8}`}
-                      fill="#8b5cf6"
-                      stroke={isNeighbor ? '#4c1d95' : 'none'}
-                      strokeWidth={isNeighbor ? '2' : '0'}
-                      opacity={isNeighbor ? '1' : '0.6'}
-                    />
-                  );
-                }
+                return (
+                  <SpeciesMarker
+                    key={r.id}
+                    species={r.species}
+                    cx={cx}
+                    cy={cy}
+                    size={isNeighbor ? 6.5 : 4.5}
+                    stroke={isNeighbor ? '#000000' : '#ffffff'}
+                    strokeWidth={isNeighbor ? 2 : 1}
+                    opacity={isNeighbor ? 1 : 0.75}
+                  />
+                );
               })}
 
               {/* New Query Point */}
@@ -521,8 +512,8 @@ export const KNNLab: React.FC = () => {
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-500 block font-semibold">k={k} 다수결 예측 결과</span>
-              <span className="font-black text-rose-700 text-sm">{SPECIES_MAP[knnResult.predictedSpecies].korean}</span>
+              <span className="text-[10px] text-slate-500 block font-semibold mb-0.5">k={k} 다수결 예측 결과</span>
+              <SpeciesBadge species={knnResult.predictedSpecies} showEnglish size="sm" />
             </div>
           </div>
 
@@ -541,8 +532,8 @@ export const KNNLab: React.FC = () => {
                       {i + 1}
                     </span>
                     <div>
-                      <span className="font-bold text-slate-900 block">{SPECIES_MAP[n.record.species].korean}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">#{n.record.id}</span>
+                      <SpeciesBadge species={n.record.species} size="xs" />
+                      <span className="text-[10px] text-slate-500 font-mono block">ID #{n.record.id}</span>
                     </div>
                   </div>
                   <div className="text-right font-mono">

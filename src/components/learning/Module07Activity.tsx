@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
-import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
+import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import type { IrisRecord, IrisSpecies } from '../../types/iris';
 import { stratifiedSplitDataset } from '../../algorithms/evaluation';
 import { predictKNN } from '../../algorithms/knn';
 import { trainDecisionTree, traceDecisionPath } from '../../algorithms/decisionTree';
 import { ActivityProgress } from './ActivityProgress';
+import { SpeciesBadge } from '../common/SpeciesBadge';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
 import {
@@ -367,6 +368,34 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                 ))}
               </div>
 
+              {/* Quick Sample Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] font-bold text-slate-500 mr-1 flex items-center gap-1">
+                  <Sparkles size={13} className="text-amber-500" /> 테스트 예시:
+                </span>
+                <button
+                  onClick={() => setNewPoint({ sepalLength: 5.1, sepalWidth: 3.5, petalLength: 1.4, petalWidth: 0.2 })}
+                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span className="text-emerald-600 font-black">●</span>
+                  <span>세토사 샘플</span>
+                </button>
+                <button
+                  onClick={() => setNewPoint({ sepalLength: 5.7, sepalWidth: 2.8, petalLength: 4.1, petalWidth: 1.3 })}
+                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-orange-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span className="text-orange-600 font-black">▲</span>
+                  <span>버시컬러 샘플</span>
+                </button>
+                <button
+                  onClick={() => setNewPoint({ sepalLength: 6.3, sepalWidth: 3.3, petalLength: 6.0, petalWidth: 2.5 })}
+                  className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span className="text-purple-600 font-black">■</span>
+                  <span>버지니카 샘플</span>
+                </button>
+              </div>
+
               <div className="pt-2">
                 <PrimaryButton size="md" fullWidth onClick={handlePredictNewSample} icon={<Sparkles size={18} />}>
                   구축된 모델로 품종 예측하기
@@ -374,11 +403,12 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
               </div>
 
               {predictedSpecies && (
-                <div className="p-4 rounded-xl bg-purple-600 text-white text-xs font-bold space-y-1 animate-fadeIn shadow-xs">
-                  <span className="font-extrabold text-sm block">
-                    현재 모델 예측 결과: {SPECIES_MAP[predictedSpecies].korean} ({predictedSpecies})
-                  </span>
-                  <p className="text-purple-100 text-[11px] font-medium">
+                <div className="p-4 rounded-xl bg-purple-700 text-white text-xs font-bold space-y-2 animate-fadeIn shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-600 pb-2">
+                    <span className="text-purple-200 text-xs font-bold">현재 모델 예측 판정 결과:</span>
+                    <SpeciesBadge species={predictedSpecies} showEnglish size="lg" variant="solid" />
+                  </div>
+                  <p className="text-purple-100 text-[11px] font-medium leading-relaxed">
                     입력된 4가지 속성을 바탕으로 {algorithm === 'knn' ? `k-NN(k=${kParam})` : `의사결정트리(깊이 ${depthParam})`} 모델이 위와 같이 판정하였습니다.
                   </p>
                 </div>

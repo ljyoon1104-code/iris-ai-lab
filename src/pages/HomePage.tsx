@@ -54,7 +54,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Description */}
           <p className="text-sm sm:text-base text-emerald-50/90 leading-relaxed mb-6 max-w-2xl font-normal">
-            데이터를 살펴보고, 기계학습 모델을 만들고, 새로운 붓꽃 품종(세토사·버시컬러·버지니카)을 예측해 보세요.
+            데이터를 살펴보고, 기계학습 모델을 만들고, 새로운 붓꽃 품종(<span className="font-bold text-emerald-200">● 세토사</span> · <span className="font-bold text-amber-200">▲ 버시컬러</span> · <span className="font-bold text-purple-200">■ 버지니카</span>)을 예측해 보세요.
           </p>
 
           {/* Main Action Buttons */}

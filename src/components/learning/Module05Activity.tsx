@@ -4,7 +4,8 @@ import { ActivityProgress } from './ActivityProgress';
 import { ChoiceCard } from './ChoiceCard';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
-import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
+import { SpeciesLabel } from '../common/SpeciesBadge';
+import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import {
   Layers,
   CheckCircle2,
@@ -103,9 +104,9 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
                   <span className="text-[10px] text-slate-500 block">꽃잎 너비</span>
                   <span className="font-bold">{sampleIris.petalWidth} cm</span>
                 </div>
-                <div className="p-2 bg-emerald-100 rounded-lg border border-emerald-300 col-span-2 sm:col-span-1">
+                <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-300 col-span-2 sm:col-span-1">
                   <span className="text-[10px] text-emerald-800 block font-bold">정답 품종 (Label)</span>
-                  <span className="font-extrabold text-emerald-950">{SPECIES_MAP[sampleIris.species].korean}</span>
+                  <SpeciesLabel species={sampleIris.species} size="sm" />
                 </div>
               </div>
 
@@ -229,7 +230,15 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
                 <span className="font-extrabold text-emerald-900 block text-sm">1. 분류 (Classification)</span>
                 <p className="text-slate-700">정해진 범주 중 하나를 예측</p>
-                <p className="text-emerald-800 font-bold">예: 붓꽃 측정값으로 세토사/버시컬러/버지니카 중 판정</p>
+                <p className="text-slate-800 font-bold flex items-center gap-1 flex-wrap pt-0.5">
+                  <span>예: 붓꽃 측정값으로</span>
+                  <SpeciesLabel species="Iris-setosa" size="xs" />
+                  <span>/</span>
+                  <SpeciesLabel species="Iris-versicolor" size="xs" />
+                  <span>/</span>
+                  <SpeciesLabel species="Iris-virginica" size="xs" />
+                  <span>중 하나로 분류</span>
+                </p>
               </div>
               <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 space-y-1">
                 <span className="font-extrabold text-teal-950 block text-sm">2. 회귀 (Regression)</span>

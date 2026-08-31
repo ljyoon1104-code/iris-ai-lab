@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
+import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import {
   trainDecisionTree,
   traceDecisionPath,
   type DecisionTreeNode,
   type FeatureKey,
 } from '../../algorithms/decisionTree';
+import { SpeciesBadge } from '../common/SpeciesBadge';
+import { getSpeciesConfig } from '../../constants/species';
 import { GitBranch, Sliders, Eye, HelpCircle, Sparkles } from 'lucide-react';
 
 const FEATURE_LABELS: Record<FeatureKey, string> = {
@@ -249,21 +251,24 @@ export const DecisionTreeLab: React.FC = () => {
             </span>
             <button
               onClick={() => handleApplySample('setosa')}
-              className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-bold rounded-lg text-[11px] cursor-pointer"
+              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
             >
-              세토사 예시
+              <span className="text-emerald-600 font-black">●</span>
+              <span>세토사 예시</span>
             </button>
             <button
               onClick={() => handleApplySample('versicolor')}
-              className="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold rounded-lg text-[11px] cursor-pointer"
+              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-orange-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
             >
-              버시컬러 예시
+              <span className="text-orange-600 font-black">▲</span>
+              <span>버시컬러 예시</span>
             </button>
             <button
               onClick={() => handleApplySample('virginica')}
-              className="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-950 font-bold rounded-lg text-[11px] cursor-pointer"
+              className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-800 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1"
             >
-              버지니카 예시
+              <span className="text-purple-600 font-black">■</span>
+              <span>버지니카 예시</span>
             </button>
           </div>
         </div>
@@ -384,8 +389,8 @@ export const DecisionTreeLab: React.FC = () => {
 
           <div className="pt-2 border-t border-teal-600 flex items-center justify-between">
             <div>
-              <span className="text-teal-200 text-[11px] block">최종 도달 예측 품종</span>
-              <span className="text-xl font-black text-white">{SPECIES_MAP[trace.predictedSpecies].korean}</span>
+              <span className="text-teal-200 text-[11px] block mb-1">최종 도달 예측 품종</span>
+              <SpeciesBadge species={trace.predictedSpecies} showEnglish size="lg" variant="solid" />
             </div>
             <span className="text-xs bg-teal-800 px-3 py-1.5 rounded-lg border border-teal-500 font-mono font-bold">
               {trace.predictedSpecies}
@@ -494,13 +499,11 @@ export const DecisionTreeLab: React.FC = () => {
 
                   if (n.isLeaf) {
                     const sp = node.predictedSpecies!;
-                    const spInfo = SPECIES_MAP[sp];
-                    const isSetosa = sp === 'Iris-setosa';
-                    const isVersicolor = sp === 'Iris-versicolor';
+                    const conf = getSpeciesConfig(sp);
 
-                    const fill = isSetosa ? '#ecfdf5' : isVersicolor ? '#eff6ff' : '#faf5ff';
-                    const stroke = isSetosa ? '#10b981' : isVersicolor ? '#3b82f6' : '#a855f7';
-                    const textColor = isSetosa ? '#065f46' : isVersicolor ? '#1e40af' : '#6b21a8';
+                    const fill = conf.lightBgColor;
+                    const stroke = conf.borderColor;
+                    const textColor = conf.hexColor;
 
                     return (
                       <g
@@ -524,13 +527,13 @@ export const DecisionTreeLab: React.FC = () => {
                           textAnchor="middle"
                           fontSize="9"
                           fontWeight="bold"
-                          fill={textColor}
+                          fill="#475569"
                           letterSpacing="0.05em"
                         >
                           C. 최종 예측 노드
                         </text>
 
-                        {/* Species Korean Name */}
+                        {/* Species Symbol & Korean Name */}
                         <text
                           x={n.width / 2}
                           y="38"
@@ -539,7 +542,7 @@ export const DecisionTreeLab: React.FC = () => {
                           fontWeight="900"
                           fill={textColor}
                         >
-                          {spInfo.korean}
+                          {conf.symbol} {conf.koreanName}
                         </text>
 
                         {/* Species English Subtitle */}
@@ -552,7 +555,7 @@ export const DecisionTreeLab: React.FC = () => {
                           opacity="0.8"
                           fontFamily="monospace"
                         >
-                          ({spInfo.english})
+                          ({conf.englishName})
                         </text>
 
                         {/* Active Decision Conclusion Tag */}

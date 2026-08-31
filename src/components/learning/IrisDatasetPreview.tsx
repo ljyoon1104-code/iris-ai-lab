@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ORIGINAL_IRIS_DATASET, IRIS_METADATA, SPECIES_MAP } from '../../data/irisDataset';
-import type { IrisSpecies } from '../../types/iris';
+import { ORIGINAL_IRIS_DATASET, IRIS_METADATA } from '../../data/irisDataset';
+import { SpeciesBadge } from '../common/SpeciesBadge';
+import { SPECIES_CONFIG, ALL_SPECIES_LIST } from '../../constants/species';
 import { Database, Filter, Layers, Info } from 'lucide-react';
 
 export const IrisDatasetPreview: React.FC = () => {
@@ -48,24 +49,25 @@ export const IrisDatasetPreview: React.FC = () => {
           </div>
 
           <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-            <div className="w-1/3 bg-emerald-500 h-full border-r border-white/40" title="세토사 50개" />
-            <div className="w-1/3 bg-teal-500 h-full border-r border-white/40" title="버시컬러 50개" />
-            <div className="w-1/3 bg-cyan-600 h-full" title="버지니카 50개" />
+            <div className="w-1/3 bg-emerald-500 h-full border-r border-white/40" title="● 세토사 50개" />
+            <div className="w-1/3 bg-amber-500 h-full border-r border-white/40" title="▲ 버시컬러 50개" />
+            <div className="w-1/3 bg-purple-500 h-full" title="■ 버지니카 50개" />
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-              <span className="font-extrabold text-emerald-900 block">세토사 (Setosa)</span>
-              <span className="text-slate-600 text-[11px]">50개 (33.3%)</span>
-            </div>
-            <div className="p-2 rounded-lg bg-teal-50 border border-teal-200">
-              <span className="font-extrabold text-teal-900 block">버시컬러 (Versicolor)</span>
-              <span className="text-slate-600 text-[11px]">50개 (33.3%)</span>
-            </div>
-            <div className="p-2 rounded-lg bg-cyan-50 border border-cyan-200">
-              <span className="font-extrabold text-cyan-950 block">버지니카 (Virginica)</span>
-              <span className="text-slate-600 text-[11px]">50개 (33.3%)</span>
-            </div>
+            {ALL_SPECIES_LIST.map(spKey => {
+              const conf = SPECIES_CONFIG[spKey];
+              return (
+                <div key={spKey} className={`p-2 rounded-lg border ${conf.bgClass} ${conf.borderClass}`}>
+                  <span className={`font-extrabold ${conf.textClass} block flex items-center justify-center gap-1`}>
+                    <span style={{ color: conf.hexColor }} className="font-black shrink-0">{conf.symbol}</span>
+                    <span>{conf.koreanName}</span>
+                    <span className="opacity-75 text-[10px] hidden sm:inline">({conf.englishName})</span>
+                  </span>
+                  <span className="text-slate-600 text-[11px]">50개 (33.3%)</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -152,14 +154,11 @@ export const IrisDatasetPreview: React.FC = () => {
         {/* Mobile View: Cards Layout (< 640px) */}
         <div className="block sm:hidden space-y-3">
           {paginatedData.map(item => {
-            const mapped = SPECIES_MAP[item.species as IrisSpecies];
             return (
               <div key={item.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500">데이터 #{item.id}</span>
-                  <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    {mapped?.korean || item.species}
-                  </span>
+                  <SpeciesBadge species={item.species} showEnglish={true} size="xs" />
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs pt-1">
                   <div>
@@ -199,7 +198,6 @@ export const IrisDatasetPreview: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800">
               {paginatedData.map(item => {
-                const mapped = SPECIES_MAP[item.species as IrisSpecies];
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 font-mono font-semibold text-slate-400">#{item.id}</td>
@@ -208,10 +206,7 @@ export const IrisDatasetPreview: React.FC = () => {
                     <td className="p-3 font-bold">{item.petalLength} cm</td>
                     <td className="p-3 font-bold">{item.petalWidth} cm</td>
                     <td className="p-3">
-                      <span className="inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <span>{mapped?.korean}</span>
-                        <span className="text-[10px] text-emerald-600 font-normal">({item.species})</span>
-                      </span>
+                      <SpeciesBadge species={item.species} showEnglish={true} size="sm" />
                     </td>
                   </tr>
                 );

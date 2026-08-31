@@ -13,6 +13,7 @@ import {
   SPECIES_MAP,
 } from '../../data/irisDataset';
 import { getDatasetCounts } from '../../utils/irisHelpers';
+import { SpeciesLabel } from '../common/SpeciesBadge';
 import {
   CheckCircle2,
   ChevronRight,
@@ -125,10 +126,16 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                 <p className="text-sm font-bold text-slate-900">
                   "꽃받침과 꽃잎의 길이·너비를 이용해 붓꽃의 품종을 알아내고 싶다."
                 </p>
-                <div className="text-xs text-slate-600 pt-1 flex items-center gap-1.5">
+                <div className="text-xs text-slate-600 pt-1 flex items-center gap-1.5 flex-wrap">
                   <span className="font-bold text-emerald-700">🎯 최종 얻고 싶은 결과:</span>
-                  <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                    붓꽃 품종 (세토사 / 버시컬러 / 버지니카)
+                  <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 inline-flex items-center gap-1">
+                    <span>붓꽃 품종 (</span>
+                    <SpeciesLabel species="Iris-setosa" size="xs" />
+                    <span>/</span>
+                    <SpeciesLabel species="Iris-versicolor" size="xs" />
+                    <span>/</span>
+                    <SpeciesLabel species="Iris-virginica" size="xs" />
+                    <span>)</span>
                   </span>
                 </div>
               </div>
@@ -188,8 +195,14 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
 
             {/* Problem A */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-              <span className="text-xs font-bold text-slate-900 block">
-                문제 A: "새로운 붓꽃의 측정값을 보고 세토사, 버시컬러, 버지니카 중 하나를 맞힌다."
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1 flex-wrap">
+                <span>문제 A: "새로운 붓꽃의 측정값을 보고</span>
+                <SpeciesLabel species="Iris-setosa" size="xs" />
+                <span>,</span>
+                <SpeciesLabel species="Iris-versicolor" size="xs" />
+                <span>,</span>
+                <SpeciesLabel species="Iris-virginica" size="xs" />
+                <span>중 하나를 맞힌다."</span>
               </span>
               <div className="grid grid-cols-3 gap-2">
                 <ChoiceCard
@@ -552,8 +565,8 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                 <div className="space-y-2 text-xs">
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>세토사 (Setosa)</span>
-                      <span>50개 (33%)</span>
+                      <SpeciesLabel species="Iris-setosa" showEnglish size="xs" />
+                      <span>50개 (33.3%)</span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full w-1/3" />
@@ -561,20 +574,20 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                   </div>
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>버시컬러 (Versicolor)</span>
-                      <span>50개 (33%)</span>
+                      <SpeciesLabel species="Iris-versicolor" showEnglish size="xs" />
+                      <span>50개 (33.3%)</span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-teal-500 rounded-full w-1/3" />
+                      <div className="h-full bg-amber-500 rounded-full w-1/3" />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>버지니카 (Virginica)</span>
-                      <span>50개 (33%)</span>
+                      <SpeciesLabel species="Iris-virginica" showEnglish size="xs" />
+                      <span>50개 (33.3%)</span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-cyan-600 rounded-full w-1/3" />
+                      <div className="h-full bg-purple-500 rounded-full w-1/3" />
                     </div>
                   </div>
                 </div>
@@ -589,18 +602,18 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                 <div className="space-y-2 text-xs">
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>세토사 (Setosa)</span>
+                      <SpeciesLabel species="Iris-setosa" showEnglish size="xs" />
                       <span className="font-bold text-rose-700">
                         {biasedCounts.bySpecies['Iris-setosa']}개 (80%)
                       </span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-rose-500 rounded-full w-[80%]" />
+                      <div className="h-full bg-emerald-500 rounded-full w-[80%]" />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>버시컬러 (Versicolor)</span>
+                      <SpeciesLabel species="Iris-versicolor" showEnglish size="xs" />
                       <span>{biasedCounts.bySpecies['Iris-versicolor']}개 (16%)</span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
@@ -609,11 +622,11 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                   </div>
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-0.5">
-                      <span>버지니카 (Virginica)</span>
+                      <SpeciesLabel species="Iris-virginica" showEnglish size="xs" />
                       <span>{biasedCounts.bySpecies['Iris-virginica']}개 (4%)</span>
                     </div>
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-slate-400 rounded-full w-[4%]" />
+                      <div className="h-full bg-purple-500 rounded-full w-[4%]" />
                     </div>
                   </div>
                 </div>
@@ -685,7 +698,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
               {act6Choice === 'balanced' && (
                 <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 leading-relaxed animate-fadeIn">
                   <span className="font-bold text-emerald-900 block mb-0.5">✓ 정답입니다!</span>
-                  데이터가 특정 클래스로 지나치게 치우치면 모델이 데이터가 적은 버시컬러나 버지니카를 잘 구분하지 못하게 됩니다. 좋은 기계학습을 위해서는 대표성과 균형을 갖춘 데이터를 준비하는 것이 매우 중요합니다.
+                  데이터가 특정 클래스로 지나치게 치우치면 모델이 데이터가 적은 <SpeciesLabel species="Iris-versicolor" size="xs" />나 <SpeciesLabel species="Iris-virginica" size="xs" />를 잘 구분하지 못하게 됩니다. 좋은 기계학습을 위해서는 대표성과 균형을 갖춘 데이터를 준비하는 것이 매우 중요합니다.
                 </div>
               )}
             </div>

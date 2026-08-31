@@ -5,6 +5,7 @@ import { PromptCard } from './PromptCard';
 import { StudentDataCard } from './StudentDataCard';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
+import { SpeciesLabel } from '../common/SpeciesBadge';
 import { Modal } from '../common/Modal';
 import {
   ORIGINAL_IRIS_DATASET,
@@ -1421,9 +1422,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                           onChange={e => setSpeciesChoices(prev => ({ ...prev, [item.id]: e.target.value }))}
                           className="p-2 border rounded-lg font-bold text-xs flex-1"
                         >
-                          <option value="세토사">세토사 (Iris-setosa)</option>
-                          <option value="버시컬러">버시컬러 (Iris-versicolor)</option>
-                          <option value="버지니카">버지니카 (Iris-virginica)</option>
+                          <option value="세토사">● 세토사 (Iris-setosa)</option>
+                          <option value="버시컬러">▲ 버시컬러 (Iris-versicolor)</option>
+                          <option value="버지니카">■ 버지니카 (Iris-virginica)</option>
                         </select>
                         <PrimaryButton size="sm" onClick={() => {
                           const val = speciesChoices[item.id];
@@ -1563,7 +1564,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 Part B: 범주형 데이터 인코딩 (One-Hot Encoding 원리)
               </span>
               <p className="text-slate-600 leading-relaxed font-medium">
-                세토사, 버시컬러, 버지니카 같은 문자로 된 범주를 머신러닝이 처리할 수 있는 숫자 표기([1,0,0], [0,1,0], [0,0,1])로 변환합니다.
+                <SpeciesLabel species="Iris-setosa" size="xs" />, <SpeciesLabel species="Iris-versicolor" size="xs" />, <SpeciesLabel species="Iris-virginica" size="xs" /> 같은 문자로 된 범주를 머신러닝이 처리할 수 있는 숫자 표기([1,0,0], [0,1,0], [0,0,1])로 변환합니다.
               </p>
 
               <div className="w-full overflow-x-auto bg-white p-3 rounded-xl border border-slate-200">
@@ -1571,26 +1572,26 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <th className="p-2 text-left font-sans">품종 범주</th>
-                      <th className="p-2">세토사 (Setosa)</th>
-                      <th className="p-2">버시컬러 (Versicolor)</th>
-                      <th className="p-2">버지니카 (Virginica)</th>
+                      <th className="p-2"><SpeciesLabel species="Iris-setosa" showEnglish size="xs" /></th>
+                      <th className="p-2"><SpeciesLabel species="Iris-versicolor" showEnglish size="xs" /></th>
+                      <th className="p-2"><SpeciesLabel species="Iris-virginica" showEnglish size="xs" /></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr>
-                      <td className="p-2 text-left font-bold font-sans">세토사</td>
+                      <td className="p-2 text-left font-bold font-sans"><SpeciesLabel species="Iris-setosa" size="xs" /></td>
                       <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
                       <td className="p-2 text-slate-400">0</td>
                       <td className="p-2 text-slate-400">0</td>
                     </tr>
                     <tr>
-                      <td className="p-2 text-left font-bold font-sans">버시컬러</td>
+                      <td className="p-2 text-left font-bold font-sans"><SpeciesLabel species="Iris-versicolor" size="xs" /></td>
                       <td className="p-2 text-slate-400">0</td>
                       <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
                       <td className="p-2 text-slate-400">0</td>
                     </tr>
                     <tr>
-                      <td className="p-2 text-left font-bold font-sans">버지니카</td>
+                      <td className="p-2 text-left font-bold font-sans"><SpeciesLabel species="Iris-virginica" size="xs" /></td>
                       <td className="p-2 text-slate-400">0</td>
                       <td className="p-2 text-slate-400">0</td>
                       <td className="p-2 font-bold text-emerald-700 bg-emerald-50">1</td>
@@ -1601,8 +1602,10 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
               {/* Student One-Hot Practice */}
               <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                <span className="font-bold text-slate-800 block text-xs">
-                  연습: 품종 '버시컬러'를 원-핫 인코딩하면 어떻게 표현될까요?
+                <span className="font-bold text-slate-800 flex items-center gap-1 text-xs">
+                  <span>연습: 품종 '</span>
+                  <SpeciesLabel species="Iris-versicolor" size="xs" />
+                  <span>'를 원-핫 인코딩하면 어떻게 표현될까요?</span>
                 </span>
 
                 <div className="flex gap-2 font-mono">
@@ -1836,7 +1839,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                                 <td className="p-2">{rec.petalLength !== null ? `${rec.petalLength} cm` : '값 없음'}</td>
                                 <td className="p-2">{rec.petalWidth !== null ? `${rec.petalWidth} cm` : '값 없음'}</td>
                                 <td className="p-2 font-sans font-bold">
-                                  {rec.species === 'Iris-setosa' ? '세토사' : rec.species === 'Iris-versicolor' ? '버시컬러' : rec.species === 'Iris-virginica' ? '버지니카' : rec.species}
+                                  {['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'].includes(rec.species || '') ? (
+                                    <SpeciesLabel species={rec.species} size="xs" />
+                                  ) : (
+                                    <span className="text-slate-500 font-normal">{rec.species}</span>
+                                  )}
                                 </td>
                                 <td className="p-2">
                                   {isModified ? (

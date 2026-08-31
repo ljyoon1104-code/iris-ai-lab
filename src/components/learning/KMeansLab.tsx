@@ -9,6 +9,7 @@ import {
 } from '../../algorithms/kmeans';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
+import { SpeciesLabel } from '../common/SpeciesBadge';
 import { PieChart, Play, RotateCcw, Eye, Sliders, HelpCircle, MousePointerClick, Sparkles } from 'lucide-react';
 
 const FEATURE_NAMES: Record<FeatureKey, string> = {
@@ -25,8 +26,13 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
   petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
 };
 
-const CLUSTER_COLORS = ['#059669', '#2563eb', '#7c3aed', '#d97706'];
-const CLUSTER_BG_LIGHT = ['bg-emerald-50 text-emerald-950 border-emerald-300', 'bg-blue-50 text-blue-950 border-blue-300', 'bg-purple-50 text-purple-950 border-purple-300', 'bg-amber-50 text-amber-950 border-amber-300'];
+const CLUSTER_COLORS = ['#2563eb', '#0891b2', '#e11d48', '#4f46e5'];
+const CLUSTER_BG_LIGHT = [
+  'bg-blue-50 text-blue-950 border-blue-300',
+  'bg-cyan-50 text-cyan-950 border-cyan-300',
+  'bg-rose-50 text-rose-950 border-rose-300',
+  'bg-indigo-50 text-indigo-950 border-indigo-300',
+];
 
 export const KMeansLab: React.FC = () => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
@@ -332,6 +338,29 @@ export const KMeansLab: React.FC = () => {
             </span>
           </div>
 
+          {/* Cluster Legend Bar */}
+          {isExecuted && currState && (
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold shadow-2xs">
+              <span className="text-slate-500 font-normal text-[11px]">군집 범례:</span>
+              {currState.clusters.map((cl, cIdx) => {
+                const color = CLUSTER_COLORS[cIdx % CLUSTER_COLORS.length];
+                return (
+                  <span
+                    key={cIdx}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-extrabold ${CLUSTER_BG_LIGHT[cIdx % CLUSTER_BG_LIGHT.length]}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span>군집 {cIdx + 1} ({cl.records.length}개)</span>
+                  </span>
+                );
+              })}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-black sm:ml-auto">
+                <span className="text-amber-400">★</span>
+                <span>중심점(Centroid)</span>
+              </span>
+            </div>
+          )}
+
           <div className="w-full overflow-hidden bg-slate-50 p-2 sm:p-3 rounded-2xl border border-slate-200 touch-none select-none">
             <svg
               ref={svgRef}
@@ -447,6 +476,23 @@ export const KMeansLab: React.FC = () => {
             </svg>
           </div>
         </div>
+      </div>
+
+      {/* Educational Clarification Note: Clusters vs Actual Species */}
+      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-xs font-bold leading-relaxed space-y-1">
+        <span className="block font-extrabold text-amber-900">💡 [비지도 군집화와 실제 품종의 차이점]</span>
+        <p className="font-normal text-[11px] leading-relaxed">
+          비지도학습(K-Means)의 군집(Cluster 1, 2, 3)은 정답 레이블 없이 데이터의 수치적 거리만으로 묶은 그룹입니다.{' '}
+          <span className="font-extrabold text-amber-950 inline-flex items-center gap-1 flex-wrap">
+            <span>군집 번호(Cluster)와 실제 붓꽃 품종(</span>
+            <SpeciesLabel species="Iris-setosa" size="xs" />
+            <span>,</span>
+            <SpeciesLabel species="Iris-versicolor" size="xs" />
+            <span>,</span>
+            <SpeciesLabel species="Iris-virginica" size="xs" />
+            <span>)은 동일한 개념이 아닙니다.</span>
+          </span>
+        </p>
       </div>
 
       {/* Observation Question Card (Section 5) */}
