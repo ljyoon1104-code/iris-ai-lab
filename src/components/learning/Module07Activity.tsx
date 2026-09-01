@@ -4,7 +4,8 @@ import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import type { IrisRecord, IrisSpecies } from '../../types/iris';
 import { stratifiedSplitDataset } from '../../algorithms/evaluation';
 import { predictKNN } from '../../algorithms/knn';
-import { trainDecisionTree, traceDecisionPath } from '../../algorithms/decisionTree';
+import { trainDecisionTree, traceDecisionPath, type DecisionTreeNode } from '../../algorithms/decisionTree';
+import { saveActiveModelConfig, clearActiveModelConfig } from '../../utils/storage';
 import { ActivityProgress } from './ActivityProgress';
 import { SpeciesBadge } from '../common/SpeciesBadge';
 import { PrimaryButton } from '../common/PrimaryButton';
@@ -53,6 +54,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
   const [kParam, setKParam] = useState<number>(5);
   const [depthParam, setDepthParam] = useState<number>(3);
   const [isTrained, setIsTrained] = useState<boolean>(false);
+  const [trainedTree, setTrainedTree] = useState<DecisionTreeNode | null>(null);
 
   // Step 4: New Data Prediction
   const [newPoint, setNewPoint] = useState<Record<FeatureKey, number>>({
@@ -66,18 +68,47 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
   // Compute stratified split
   const splitResult = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, splitRatio, 42);
 
+  // Invalidate model state whenever configuration changes
+  const invalidateTraining = () => {
+    setIsTrained(false);
+    setTrainedTree(null);
+    setPredictedSpecies(null);
+    clearActiveModelConfig();
+  };
+
   const handleTrainModel = () => {
+    if (algorithm === 'decisionTree') {
+      const tree = trainDecisionTree(
+        splitResult.trainData,
+        ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
+        depthParam
+      );
+      setTrainedTree(tree);
+    } else {
+      setTrainedTree(null);
+    }
     setIsTrained(true);
     setPredictedSpecies(null);
+
+    // Save active model configuration for Module 08
+    saveActiveModelConfig({
+      algorithm,
+      splitRatio,
+      kParam,
+      depthParam,
+      trainedAt: Date.now(),
+    });
   };
 
   const handlePredictNewSample = () => {
     if (algorithm === 'knn') {
+      if (!isTrained) return;
       const res = predictKNN(splitResult.trainData, newPoint, ['petalLength', 'petalWidth'], kParam);
       setPredictedSpecies(res.predictedSpecies);
     } else {
-      const tree = trainDecisionTree(splitResult.trainData, ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], depthParam);
-      const trace = traceDecisionPath(tree, newPoint);
+      // Strictly use pre-trained tree from Step 3 without any retraining
+      if (!trainedTree) return;
+      const trace = traceDecisionPath(trainedTree, newPoint);
       setPredictedSpecies(trace.predictedSpecies);
     }
   };
@@ -153,7 +184,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
               <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-1">
                 <span className="font-extrabold text-blue-900 block text-xs">📙 테스트용 데이터 (Test Data)</span>
                 <p className="text-blue-800 leading-relaxed font-medium">
-                  "학습이 끝난 모델이 일반화되어 성능이 잘 작동하는지 최종 확인하는 검증용 데이터입니다."
+                  "학습에 사용하지 않은 독립된 데이터로 모델의 일반화 성능을 확인하고 과대적합 여부를 공정하게 평가하기 위한 검증용 데이터입니다."
                 </p>
               </div>
             </div>
@@ -172,7 +203,10 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                 ].map(item => (
                   <button
                     key={item.ratio}
-                    onClick={() => setSplitRatio(item.ratio)}
+                    onClick={() => {
+                      setSplitRatio(item.ratio);
+                      invalidateTraining();
+                    }}
                     className={`p-3 rounded-xl border font-bold font-mono transition-all min-h-[44px] cursor-pointer ${
                       splitRatio === item.ratio
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
@@ -224,7 +258,10 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <button
-                onClick={() => setAlgorithm('knn')}
+                onClick={() => {
+                  setAlgorithm('knn');
+                  invalidateTraining();
+                }}
                 className={`p-5 rounded-2xl border-2 text-left space-y-2 transition-all cursor-pointer ${
                   algorithm === 'knn'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-md ring-2 ring-emerald-300'
@@ -241,7 +278,10 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
               </button>
 
               <button
-                onClick={() => setAlgorithm('decisionTree')}
+                onClick={() => {
+                  setAlgorithm('decisionTree');
+                  invalidateTraining();
+                }}
                 className={`p-5 rounded-2xl border-2 text-left space-y-2 transition-all cursor-pointer ${
                   algorithm === 'decisionTree'
                     ? 'border-teal-600 bg-teal-50 text-teal-950 shadow-md ring-2 ring-teal-300'
@@ -280,7 +320,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                         key={kVal}
                         onClick={() => {
                           setKParam(kVal);
-                          setIsTrained(false);
+                          invalidateTraining();
                         }}
                         className={`p-3 rounded-xl font-bold font-mono text-sm cursor-pointer ${
                           kParam === kVal ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-300'
@@ -300,7 +340,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                         key={d}
                         onClick={() => {
                           setDepthParam(d);
-                          setIsTrained(false);
+                          invalidateTraining();
                         }}
                         className={`p-3 rounded-xl font-bold text-xs cursor-pointer ${
                           depthParam === d ? 'bg-teal-600 text-white' : 'bg-white text-slate-700 border border-slate-300'
@@ -396,10 +436,21 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                 </button>
               </div>
 
-              <div className="pt-2">
-                <PrimaryButton size="md" fullWidth onClick={handlePredictNewSample} icon={<Sparkles size={18} />}>
-                  구축된 모델로 품종 예측하기
+              <div className="pt-2 space-y-1.5">
+                <PrimaryButton
+                  size="md"
+                  fullWidth
+                  disabled={!isTrained}
+                  onClick={handlePredictNewSample}
+                  icon={<Sparkles size={18} />}
+                >
+                  {isTrained ? '구축된 모델로 품종 예측하기' : '3단계에서 모델을 먼저 학습/준비해 주세요'}
                 </PrimaryButton>
+                {!isTrained && (
+                  <p className="text-amber-800 font-bold text-center text-[11px] bg-amber-50 p-2 rounded-lg border border-amber-200">
+                    ⚠️ 모델 설정이 변경되었거나 아직 학습되지 않았습니다. 3단계에서 [모델 학습/준비]를 먼저 실행해 주세요.
+                  </p>
+                )}
               </div>
 
               {predictedSpecies && (
@@ -438,10 +489,10 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
             {/* Section 10 Transition Card */}
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3 max-w-xl mx-auto text-xs">
               <span className="font-extrabold text-slate-900 block text-sm">
-                🤔 다음 학습 연결 질문:
+                🤔 다음 학습 연결:
               </span>
               <p className="text-slate-700 font-bold text-sm leading-relaxed">
-                "모델을 만들었다면, 이 모델이 얼마나 잘 작동하는지는 어떻게 확인할까요?"
+                "방금 만든 모델의 설정(알고리즘, 파라미터, 데이터 분할)을 그대로 이어받아, 독립된 테스트 데이터에서 종합 성능(정확도 및 3×3 혼동행렬)을 확인해 봅시다."
               </p>
               <div className="pt-2">
                 <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<ArrowRight size={20} />}>

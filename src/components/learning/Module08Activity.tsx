@@ -6,6 +6,7 @@ import {
   evaluateClassifier,
   type ExperimentResult,
 } from '../../algorithms/evaluation';
+import { loadActiveModelConfig } from '../../utils/storage';
 import type { IrisSpecies } from '../../types/iris';
 import { SpeciesBadge, SpeciesLabel } from '../common/SpeciesBadge';
 import { SpeciesMarker } from '../common/SpeciesMarker';
@@ -41,11 +42,14 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
   const totalSteps = 5;
   const topRef = useActivityScrollTop<HTMLDivElement>(currentStep);
 
+  // Load configuration transferred from Module 07 if present, otherwise default fallback
+  const [initialModelConfig] = useState(() => loadActiveModelConfig());
+
   // Experiment setup state for current iteration
-  const [algorithm, setAlgorithm] = useState<'knn' | 'decisionTree'>('knn');
-  const [splitRatio, setSplitRatio] = useState<number>(0.8); // 80:20
-  const [kParam, setKParam] = useState<number>(5);
-  const [depthParam, setDepthParam] = useState<number>(3);
+  const [algorithm, setAlgorithm] = useState<'knn' | 'decisionTree'>(() => initialModelConfig?.algorithm || 'knn');
+  const [splitRatio, setSplitRatio] = useState<number>(() => initialModelConfig?.splitRatio || 0.8);
+  const [kParam, setKParam] = useState<number>(() => initialModelConfig?.kParam || 5);
+  const [depthParam, setDepthParam] = useState<number>(() => initialModelConfig?.depthParam || 3);
 
   // Saved experiments list (Max 3)
   const [experiments, setExperiments] = useState<ExperimentResult[]>(() => {
@@ -92,6 +96,10 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       setSelectedMisclassifiedId(null);
       setHasCheckedMatrix(false);
       setHasReevaluated(false);
+      setAlgorithm('knn');
+      setSplitRatio(0.8);
+      setKParam(5);
+      setDepthParam(3);
     };
 
     window.addEventListener('learning_data_reset', handleReset);
@@ -259,6 +267,15 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
           07에서 만든 모델을 **독립된 테스트 데이터(30개)**에 적용하여 정확도 수치와 혼동행렬 오분류 원인을 다각도로 평가합니다.
         </p>
+
+        {initialModelConfig && (
+          <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 font-bold">
+            <span className="text-emerald-700">✓ 07에서 만든 모델 설정을 불러왔습니다:</span>
+            <span className="bg-white px-2 py-0.5 rounded border border-emerald-300 font-mono text-[11px]">
+              {initialModelConfig.algorithm === 'knn' ? `k-NN (k=${initialModelConfig.kParam})` : `의사결정트리 (깊이 ${initialModelConfig.depthParam})`} · 분할 {Math.round(initialModelConfig.splitRatio * 100)}:{Math.round((1 - initialModelConfig.splitRatio) * 100)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* STEP 1: 테스트 데이터 성능 평가 & 3×3 혼동행렬 */}

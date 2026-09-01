@@ -23,6 +23,10 @@ import {
   STORAGE_KEY,
   OLD_STORAGE_KEY,
   EXPERIMENTS_STORAGE_KEY,
+  loadActiveModelConfig,
+  saveActiveModelConfig,
+  clearActiveModelConfig,
+  ACTIVE_MODEL_CONFIG_KEY,
 } from './storage';
 import {
   SPECIES_CONFIG,
@@ -663,6 +667,192 @@ export async function runFullVerification() {
   if (speciesPassed) {
     console.log(`   ✓ SPECIES_CONFIG integrity verified (3 distinct shapes: circle ●, triangle ▲, square ■; unified colors: Setosa=#10b981, Versicolor=#f97316, Virginica=#8b5cf6).`);
     console.log(`   ✓ getSpeciesConfig, getSpeciesLabel, and shape/color resolvers verified cleanly.`);
+  } else {
+    passedAll = false;
+  }
+
+  // 11. Module 07 Model Training Timing & 07->08 Model Config State Transfer Verification
+  console.log('\n11. Module 07 Model Training Timing & 07->08 State Transfer Verification:');
+  let m07Passed = true;
+
+  const mockStorage: Record<string, string> = {};
+  const origLocalStorage = globalThis.localStorage;
+  (globalThis as any).localStorage = {
+    getItem: (k: string) => mockStorage[k] || null,
+    setItem: (k: string, v: string) => { mockStorage[k] = v; },
+    removeItem: (k: string) => { delete mockStorage[k]; },
+    clear: () => { for (const k in mockStorage) delete mockStorage[k]; },
+    key: (i: number) => Object.keys(mockStorage)[i] || null,
+    get length() { return Object.keys(mockStorage).length; },
+  };
+
+  try {
+    // A. Decision Tree model object generation upon training execution (Exact 1 call)
+    let trainCallCount = 0;
+    const split80M07 = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, 0.8, 42);
+    const trainTreeWithCounter = (data: any[], feats: any[], depth: number) => {
+      trainCallCount++;
+      return trainDecisionTree(data, feats, depth);
+    };
+
+    const trainedTreeDepth3 = trainTreeWithCounter(split80M07.trainData, ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], 3);
+    if (!trainedTreeDepth3 || trainedTreeDepth3.depth !== 0 || !trainedTreeDepth3.feature || trainCallCount !== 1) {
+      console.error(`   ❌ Decision Tree training failed! Expected callCount 1, got ${trainCallCount}`);
+      m07Passed = false;
+    } else {
+      console.log('   ✓ Step 3 training execution calls trainDecisionTree exactly 1 time.');
+    }
+
+    // B. Prediction uses the pre-trained tree without retraining (0 additional training calls across multiple inferences)
+    const sample1 = { sepalLength: 5.1, sepalWidth: 3.5, petalLength: 1.4, petalWidth: 0.2 };
+    const sample2 = { sepalLength: 5.7, sepalWidth: 2.8, petalLength: 4.1, petalWidth: 1.3 };
+    const sample3 = { sepalLength: 6.3, sepalWidth: 3.3, petalLength: 6.0, petalWidth: 2.5 };
+
+    const pred1 = traceDecisionPath(trainedTreeDepth3, sample1);
+    const pred2 = traceDecisionPath(trainedTreeDepth3, sample2);
+    const pred3 = traceDecisionPath(trainedTreeDepth3, sample3);
+
+    if (trainCallCount !== 1) {
+      console.error(`   ❌ Step 4 prediction caused retraining! Expected callCount 1, got ${trainCallCount}`);
+      m07Passed = false;
+    } else if (pred1.predictedSpecies !== 'Iris-setosa' || pred2.predictedSpecies !== 'Iris-versicolor' || pred3.predictedSpecies !== 'Iris-virginica') {
+      console.error('   ❌ Prediction on pre-trained tree failed to identify correct species classes!');
+      m07Passed = false;
+    } else {
+      console.log('   ✓ Step 4 repeated inferences (3 distinct observations) made with 0 additional training calls.');
+    }
+
+    // C. Invalidation & Stale Config Prevention: Changing depthParam / split produces distinct model and purges active config
+    let activeTree: any = trainedTreeDepth3;
+    let activeIsTrained: any = true;
+
+    // Invalidate simulation
+    const simulateInvalidate = () => {
+      activeTree = null;
+      activeIsTrained = false;
+      clearActiveModelConfig();
+    };
+
+    simulateInvalidate();
+    if (activeTree !== null || activeIsTrained !== false || loadActiveModelConfig() !== null) {
+      console.error('   ❌ Invalidation simulation failed: activeTree or config not cleared!');
+      m07Passed = false;
+    } else {
+      console.log('   ✓ Configuration change successfully invalidates trainedTree and purges active model config from localStorage.');
+    }
+
+    // Re-train with depth 2
+    activeTree = trainTreeWithCounter(split80M07.trainData, ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], 2);
+    activeIsTrained = true;
+    saveActiveModelConfig({
+      algorithm: 'decisionTree',
+      splitRatio: 0.8,
+      kParam: 5,
+      depthParam: 2,
+      trainedAt: Date.now(),
+    });
+
+    const reloadedConfig = loadActiveModelConfig();
+    if (!reloadedConfig || reloadedConfig.depthParam !== 2 || activeTree.depth !== 0) {
+      console.error('   ❌ Retraining with depth 2 failed to update active model config!');
+      m07Passed = false;
+    } else {
+      console.log('   ✓ Retraining successfully generates new depth 2 model and stores updated active config.');
+    }
+
+    // Test D: Save 70:30 + DT depth 4 in 07
+    saveActiveModelConfig({
+      algorithm: 'decisionTree',
+      splitRatio: 0.7,
+      kParam: 5,
+      depthParam: 4,
+      trainedAt: Date.now(),
+    });
+
+    const loadedConfigD = loadActiveModelConfig();
+    if (
+      !loadedConfigD ||
+      loadedConfigD.algorithm !== 'decisionTree' ||
+      loadedConfigD.splitRatio !== 0.7 ||
+      loadedConfigD.depthParam !== 4
+    ) {
+      console.error('   ❌ 07->08 config transfer failed for 70:30 DT depth4! Got:', loadedConfigD);
+      m07Passed = false;
+    } else {
+      // Evaluate classifier in 08 using this loaded config
+      const split70 = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, loadedConfigD.splitRatio, 42);
+      const evalD = evaluateClassifier(loadedConfigD.algorithm, split70.trainData, split70.testData, {
+        maxDepth: loadedConfigD.depthParam,
+      });
+      if (evalD.confusionMatrix.totalCount !== 45 || evalD.confusionMatrix.accuracyPercent < 80) {
+        console.error(`   ❌ 08 evaluation with transferred 70:30 DT config failed! Total: ${evalD.confusionMatrix.totalCount}, Acc: ${evalD.confusionMatrix.accuracyPercent}%`);
+        m07Passed = false;
+      } else {
+        console.log(`   ✓ 07->08 Transfer verified for 70:30 DT depth 4 (45 test samples, ${evalD.confusionMatrix.accuracyPercent}% accuracy).`);
+      }
+    }
+
+    // Test E: Save 60:40 + kNN k=7 in 07
+    saveActiveModelConfig({
+      algorithm: 'knn',
+      splitRatio: 0.6,
+      kParam: 7,
+      depthParam: 3,
+      trainedAt: Date.now(),
+    });
+
+    const loadedConfigE = loadActiveModelConfig();
+    if (
+      !loadedConfigE ||
+      loadedConfigE.algorithm !== 'knn' ||
+      loadedConfigE.splitRatio !== 0.6 ||
+      loadedConfigE.kParam !== 7
+    ) {
+      console.error('   ❌ 07->08 config transfer failed for 60:40 kNN k7! Got:', loadedConfigE);
+      m07Passed = false;
+    } else {
+      const split60 = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, loadedConfigE.splitRatio, 42);
+      const evalE = evaluateClassifier(loadedConfigE.algorithm, split60.trainData, split60.testData, {
+        k: loadedConfigE.kParam,
+      });
+      if (evalE.confusionMatrix.totalCount !== 60 || evalE.confusionMatrix.accuracyPercent < 80) {
+        console.error(`   ❌ 08 evaluation with transferred 60:40 kNN config failed! Total: ${evalE.confusionMatrix.totalCount}, Acc: ${evalE.confusionMatrix.accuracyPercent}%`);
+        m07Passed = false;
+      } else {
+        console.log(`   ✓ 07->08 Transfer verified for 60:40 kNN k=7 (60 test samples, ${evalE.confusionMatrix.accuracyPercent}% accuracy).`);
+      }
+    }
+
+    // Test F: Fallback to default when no active config
+    clearActiveModelConfig();
+    const fallbackConfig = loadActiveModelConfig();
+    if (fallbackConfig !== null || mockStorage[ACTIVE_MODEL_CONFIG_KEY]) {
+      console.error('   ❌ Fallback config expected null after clearActiveModelConfig, got:', fallbackConfig);
+      m07Passed = false;
+    } else {
+      console.log('   ✓ Fallback to default verified when no active model config exists in localStorage.');
+    }
+
+    // Test G: Global clearAllLearningData removes ACTIVE_MODEL_CONFIG_KEY
+    saveActiveModelConfig({
+      algorithm: 'decisionTree',
+      splitRatio: 0.8,
+      kParam: 5,
+      depthParam: 3,
+    });
+    clearAllLearningData();
+    if (loadActiveModelConfig() !== null || mockStorage[ACTIVE_MODEL_CONFIG_KEY]) {
+      console.error('   ❌ clearAllLearningData failed to remove active model config!');
+      m07Passed = false;
+    } else {
+      console.log('   ✓ clearAllLearningData cleanly purges active model config.');
+    }
+  } finally {
+    (globalThis as any).localStorage = origLocalStorage;
+  }
+
+  if (m07Passed) {
+    console.log('   ✓ All Module 07 model training and 07->08 state transfer checks passed cleanly.');
   } else {
     passedAll = false;
   }

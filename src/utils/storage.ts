@@ -6,6 +6,15 @@ export const EXPERIMENTS_STORAGE_KEY = 'iris_ai_lab_experiments';
 export const SELECTED_FEATURES_KEY = 'iris_ai_lab_selected_features';
 export const MODULE04_COMPLETION_KEY = 'iris_ai_lab_module04_completion';
 export const MODULE04_EDITS_KEY = 'iris_ai_lab_module04_edits';
+export const ACTIVE_MODEL_CONFIG_KEY = 'iris_ai_lab_active_model_config';
+
+export interface ActiveModelConfig {
+  algorithm: 'knn' | 'decisionTree';
+  splitRatio: number;
+  kParam: number;
+  depthParam: number;
+  trainedAt?: number;
+}
 
 export interface Module04Edit {
   recordId: number;
@@ -100,6 +109,46 @@ export const clearModule04DataOnly = (): void => {
   }
 };
 
+export const loadActiveModelConfig = (): ActiveModelConfig | null => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(ACTIVE_MODEL_CONFIG_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (
+      parsed &&
+      (parsed.algorithm === 'knn' || parsed.algorithm === 'decisionTree') &&
+      typeof parsed.splitRatio === 'number' &&
+      typeof parsed.kParam === 'number' &&
+      typeof parsed.depthParam === 'number'
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch (e) {
+    console.error('Failed to load active model config from localStorage:', e);
+    return null;
+  }
+};
+
+export const saveActiveModelConfig = (config: ActiveModelConfig): void => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(ACTIVE_MODEL_CONFIG_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.error('Failed to save active model config to localStorage:', e);
+  }
+};
+
+export const clearActiveModelConfig = (): void => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(ACTIVE_MODEL_CONFIG_KEY);
+  } catch (e) {
+    console.error('Failed to clear active model config:', e);
+  }
+};
+
 export const DEFAULT_PROGRESS: LearningProgress = {
   currentModuleId: 1,
   completedModuleIds: [],
@@ -153,6 +202,7 @@ export const clearAllLearningData = (): void => {
     localStorage.removeItem(SELECTED_FEATURES_KEY);
     localStorage.removeItem(MODULE04_COMPLETION_KEY);
     localStorage.removeItem(MODULE04_EDITS_KEY);
+    localStorage.removeItem(ACTIVE_MODEL_CONFIG_KEY);
 
     // 2. Dynamically scan and remove any remaining learning/experiment/model keys
     const keysToRemove: string[] = [];

@@ -146,7 +146,10 @@ export const ModuleDetailPage: React.FC<ModuleDetailPageProps> = ({
         <LearningCard title="07 모델 만들기 — Train/Test 데이터 분할 및 학습" subtitle="층화 데이터 분할(Train/Test), 알고리즘 및 하이퍼파라미터 설정과 모델 학습">
           <Module07Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              if (!isCompleted) onToggleComplete(currentModule.id);
+              onSelectModule(8);
+            }}
           />
         </LearningCard>
       ) : (
