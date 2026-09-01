@@ -25,6 +25,8 @@ interface ModuleDetailPageProps {
   completedModuleIds: number[];
   onSelectModule: (id: number) => void;
   onGoHome: () => void;
+  onBack?: () => void;
+  previousModuleId?: number | null;
   onToggleComplete: (id: number) => void;
 }
 
@@ -33,6 +35,8 @@ export const ModuleDetailPage: React.FC<ModuleDetailPageProps> = ({
   completedModuleIds,
   onSelectModule,
   onGoHome,
+  onBack,
+  previousModuleId,
   onToggleComplete,
 }) => {
   const moduleIndex = MODULES.findIndex(m => m.id === moduleId);
@@ -49,12 +53,12 @@ export const ModuleDetailPage: React.FC<ModuleDetailPageProps> = ({
       {/* Top Header Navigation */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <button
-          onClick={onGoHome}
+          onClick={onBack || onGoHome}
           className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 hover:text-emerald-700 transition-colors p-2 rounded-xl hover:bg-slate-100 min-h-[44px] cursor-pointer"
-          aria-label="학습 목록 홈으로 이동"
+          aria-label={previousModuleId ? `0${previousModuleId} 영역으로 뒤로가기` : '학습 목록 홈으로 이동'}
         >
           <ArrowLeft size={18} />
-          <span>학습 목록으로</span>
+          <span>{previousModuleId ? `0${previousModuleId} 영역으로` : '학습 목록으로'}</span>
         </button>
 
         <div className="flex items-center gap-2">

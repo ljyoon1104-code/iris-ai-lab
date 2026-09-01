@@ -129,7 +129,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
             {/* Summary Comparison */}
             {act1A === 'trad' && act1B === 'ml' && (
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-2 animate-fadeIn">
-                <span className="font-bold text-emerald-900 block text-sm">✓ 완벽하게 이해하셨습니다!</span>
+                <span className="font-bold text-emerald-900 block text-sm">✓ 정확하게 파악하셨습니다!</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <div className="p-3 bg-white rounded-xl border border-emerald-200">
                     <span className="font-bold text-slate-900 block mb-1">전통적 프로그래밍</span>
@@ -403,7 +403,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
             다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
     </div>

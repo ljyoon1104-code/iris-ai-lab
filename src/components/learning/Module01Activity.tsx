@@ -186,6 +186,9 @@ export const Module01Activity: React.FC<Module01ActivityProps> = ({ isCompleted,
                   <p className="text-slate-500 mt-1">표, Bullet point, 마크다운 등 받고 싶은 답변의 양식을 지정합니다.</p>
                 </div>
               )}
+              <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-200 font-medium">
+                💡 목적, 조건, 원하는 형식을 구체적으로 알려주면 원하는 결과를 얻는 데 큰 도움이 됩니다.
+              </p>
             </div>
 
             {/* Assembled Combined Prompt Display */}
@@ -259,7 +262,7 @@ export const Module01Activity: React.FC<Module01ActivityProps> = ({ isCompleted,
             <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs space-y-1">
               <span className="font-bold text-slate-900 block">용어 가이드 — 환각(Hallucination):</span>
               <p className="text-slate-600 leading-relaxed">
-                생성형 AI가 사실이 아니거나 실제로 확인되지 않은 내용을 자신감 있게 그럴듯한 거짓말로 만들어 내는 현상입니다. 따라서 중요한 수치나 정보는 반드시 원본 붓꽃 데이터로 재검증해야 합니다.
+                생성형 AI가 사실이 아니거나 확인되지 않은 내용을 그럴듯하지만 사실과 다른 내용으로 생성해내는 현상입니다. 따라서 중요한 수치나 정보는 신뢰할 수 있는 원본 데이터나 공식 출처로 직접 확인하고 검증해야 합니다.
               </p>
             </div>
           </div>
@@ -395,7 +398,7 @@ export const Module01Activity: React.FC<Module01ActivityProps> = ({ isCompleted,
             다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
     </div>

@@ -348,7 +348,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                 </span>
                 <p className="leading-relaxed">
                   ① <strong>행 (줄 ↓)</strong>: 데이터의 **실제 정답 품종 (Actual)**<br />
-                  ② <strong>열 (칸 →)</strong>: 기계학습 모델이 판단한 **예측 품종 (Predicted)**
+                  ② <strong>열 (칸 →)</strong>: 기계학습 모델이 출력한 **예측 품종 (Predicted)**
                 </p>
                 <p className="text-[11px] text-blue-900/80 font-medium">
                   ※ 행과 열이 교차하는 칸의 숫자를 읽으면 "실제 어떤 품종을 어떤 품종으로 몇 개 헷갈렸는지"를 정확히 알 수 있습니다.
@@ -801,9 +801,9 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                               <SpeciesLabel species="Iris-versicolor" size="xs" />
                               <span>와</span>
                               <SpeciesLabel species="Iris-virginica" size="xs" />
-                              <span>데이터점들이 서로 촘촘히 겹치는 경계 부근</span>
+                              <span>데이터점들이 서로 가깝게 분포하는 경계 부근</span>
                             </span>
-                            <span>에 위치해 있어 모델이 헷갈리기 쉽습니다.</span>
+                            <span>에 위치해 있어, 이러한 밀집 영역에서는 오분류가 발생할 수 있습니다.</span>
                           </div>
                       </div>
                     </div>
@@ -1020,6 +1020,9 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                     <li><strong>2. 오분류 양상:</strong> 어떤 특정 품종끼리 집중적으로 헷갈리는지 검토.</li>
                     <li><strong>3. 설명하기 쉬운가:</strong> 의사결정트리처럼 판단 이유를 사람이 직관적으로 설명할 수 있는가?</li>
                   </ul>
+                  <p className="text-[11px] text-slate-500 pt-1.5 border-t border-slate-200 font-medium">
+                    💡 <strong>참고:</strong> k-NN은 2개 특성(꽃잎 길이·너비), 의사결정트리는 4개 특성 전체를 활용하므로, 이번 실험의 정확도 차이만으로 알고리즘의 절대적인 우열을 단정할 수는 없습니다.
+                  </p>
                 </div>
 
                 {selectedFinalExpId && (
@@ -1115,7 +1118,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
           onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
           icon={<ChevronLeft size={16} />}
         >
-          이전 단계
+          이전 활동
         </SecondaryButton>
 
         {currentStep < totalSteps ? (
@@ -1125,10 +1128,10 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
             icon={<ChevronRight size={16} />}
             className="flex-row-reverse"
           >
-            다음 단계
+            다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
     </div>

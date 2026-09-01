@@ -26,6 +26,7 @@ export const LinearRegressionLab: React.FC = () => {
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
   const [inputX, setInputX] = useState<number>(4.5);
+  const [rawInputX, setRawInputX] = useState<string>('4.5');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
   const [manualSlope, setManualSlope] = useState<number>(0.3);
   const [manualIntercept, setManualIntercept] = useState<number>(0.0);
@@ -68,10 +69,27 @@ export const LinearRegressionLab: React.FC = () => {
   const lineY2Val = predictLinearRegression(activeSlope, activeIntercept, lineX2Val);
 
   const handleDirectNumberInput = (rawVal: string) => {
-    const parsed = parseFloat(rawVal);
+    let cleaned = rawVal;
+    if (/^0[0-9]/.test(cleaned)) {
+      cleaned = cleaned.replace(/^0+(?=[1-9])/, '');
+    }
+    setRawInputX(cleaned);
+
+    const parsed = parseFloat(cleaned);
     if (!isNaN(parsed)) {
-      const clamped = Math.min(xSpec.max, Math.max(xSpec.min, parsed));
-      setInputX(Math.round(clamped * 10) / 10);
+      setInputX(Math.round(parsed * 10) / 10);
+    }
+  };
+
+  const handleBlurInputX = () => {
+    const str = rawInputX.trim();
+    if (str === '' || isNaN(Number(str))) {
+      setRawInputX(String(inputX));
+    } else {
+      const parsed = parseFloat(str);
+      const clamped = Math.min(xSpec.max, Math.max(xSpec.min, Math.round(parsed * 10) / 10));
+      setInputX(clamped);
+      setRawInputX(String(clamped));
     }
   };
 
@@ -86,7 +104,9 @@ export const LinearRegressionLab: React.FC = () => {
 
     const domainX = xSpec.min + ((clampedSvgX - paddingLeft) / plotW) * (xSpec.max - xSpec.min);
     const roundedX = Math.round(domainX * 10) / 10;
-    setInputX(Math.min(xSpec.max, Math.max(xSpec.min, roundedX)));
+    const finalX = Math.min(xSpec.max, Math.max(xSpec.min, roundedX));
+    setInputX(finalX);
+    setRawInputX(String(finalX));
   };
 
   const predSvgX = getSvgX(inputX);
@@ -121,7 +141,7 @@ export const LinearRegressionLab: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <LineChart size={20} className="text-emerald-600" />
-            <span>선형회귀 (Linear Regression) 추론 & 인터랙티브 예측 시뮬레이터</span>
+            <span>선형회귀 (Linear Regression) 인터랙티브 수치 예측 시뮬레이터</span>
           </h3>
 
           <div className="flex items-center gap-2">
@@ -178,14 +198,13 @@ export const LinearRegressionLab: React.FC = () => {
             <span className="font-bold text-slate-700 block mb-1">입력 X값 (cm) 직접 타이핑:</span>
             <div className="flex items-center gap-1.5">
               <input
-                type="number"
-                step="0.1"
-                min={xSpec.min}
-                max={xSpec.max}
+                type="text"
                 inputMode="decimal"
-                value={inputX}
+                value={rawInputX}
                 onChange={e => handleDirectNumberInput(e.target.value)}
-                className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs font-mono text-emerald-700 min-h-[44px] bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                onBlur={handleBlurInputX}
+                placeholder={String(inputX)}
+                className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs font-mono text-emerald-700 min-h-[44px] bg-emerald-50/50 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <span className="text-slate-600 font-mono text-xs shrink-0 font-bold">cm</span>
             </div>
@@ -390,7 +409,7 @@ export const LinearRegressionLab: React.FC = () => {
                 ●
               </span>
               <div>
-                <span className="font-extrabold text-slate-900 block">현재 실시간 회귀 추론 좌표</span>
+                <span className="font-extrabold text-slate-900 block">현재 실시간 회귀 예측 좌표</span>
                 <span className="text-[11px] text-slate-600 font-medium">
                   {FEATURE_NAMES[xAxis].split(' ')[0]}: <strong className="font-mono text-emerald-700">{inputX}cm</strong> &nbsp;➔&nbsp; {FEATURE_NAMES[yAxis].split(' ')[0]} 예측: <strong className="font-mono text-rose-600">{activePredY.toFixed(2)}cm</strong>
                 </span>

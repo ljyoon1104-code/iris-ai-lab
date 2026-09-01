@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProgress } from './hooks/useProgress';
 import { Header } from './components/common/Header';
 import { BottomNavigation } from './components/common/BottomNavigation';
@@ -9,25 +9,88 @@ import { ModuleDetailPage } from './pages/ModuleDetailPage';
 import { ML_STEPS } from './data/modules';
 import { BookOpen, ShieldCheck, Cpu } from 'lucide-react';
 
+const parseModuleFromHash = (): number | null => {
+  if (typeof window === 'undefined') return null;
+  const match = window.location.hash.match(/#module-(\d+)/);
+  if (match) {
+    const id = parseInt(match[1], 10);
+    if (id >= 1 && id <= 8) return id;
+  }
+  return null;
+};
+
 export function App() {
   const { progress, setModuleCompleted, setCurrentModule, resetAllProgress, calculatePercentage } =
     useProgress();
 
-  const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
+  const [activeModuleId, setActiveModuleId] = useState<number | null>(() => parseModuleFromHash());
+  const [previousModuleId, setPreviousModuleId] = useState<number | null>(null);
+  const activeModuleIdRef = useRef<number | null>(activeModuleId);
+  activeModuleIdRef.current = activeModuleId;
+
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
 
   const progressPercent = calculatePercentage(8);
 
+  // Sync with browser history popstate (Back / Forward)
+  useEffect(() => {
+    const initialId = parseModuleFromHash();
+    const initialUrl = initialId
+      ? `${window.location.pathname}${window.location.search}#module-${initialId}`
+      : window.location.href;
+    window.history.replaceState({ moduleId: initialId, prevId: null }, '', initialUrl);
+
+    const handlePopState = (e: PopStateEvent) => {
+      let targetId: number | null = null;
+      if (e.state && e.state.moduleId !== undefined) {
+        targetId = e.state.moduleId;
+      } else {
+        targetId = parseModuleFromHash();
+      }
+
+      setPreviousModuleId(activeModuleIdRef.current);
+      setActiveModuleId(targetId);
+      if (targetId !== null) {
+        setCurrentModule(targetId);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [setCurrentModule]);
+
   const handleSelectModule = (id: number) => {
+    if (id === activeModuleId) return;
+    setPreviousModuleId(activeModuleId);
     setActiveModuleId(id);
     setCurrentModule(id);
+
+    const hash = `#module-${id}`;
+    const newUrl = `${window.location.pathname}${window.location.search}${hash}`;
+    window.history.pushState({ moduleId: id, prevId: activeModuleId }, '', newUrl);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGoHome = () => {
+    if (activeModuleId === null) return;
+    setPreviousModuleId(activeModuleId);
     setActiveModuleId(null);
+
+    const newUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.pushState({ moduleId: null, prevId: activeModuleId }, '', newUrl);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = () => {
+    if (window.history.state && window.history.state.moduleId !== undefined) {
+      window.history.back();
+    } else if (previousModuleId !== null) {
+      handleSelectModule(previousModuleId);
+    } else {
+      handleGoHome();
+    }
   };
 
   const handleStartOrContinue = () => {
@@ -66,6 +129,8 @@ export function App() {
             completedModuleIds={progress.completedModuleIds}
             onSelectModule={handleSelectModule}
             onGoHome={handleGoHome}
+            onBack={handleBack}
+            previousModuleId={previousModuleId}
             onToggleComplete={handleToggleComplete}
           />
         )}

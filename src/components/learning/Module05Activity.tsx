@@ -389,7 +389,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
                 <span className="font-extrabold text-amber-950 block text-sm">강화학습</span>
                 <p>정답: <strong>보상 / 벌점</strong></p>
-                <p>목적: <strong>최적 행동 학습</strong></p>
+                <p>목적: <strong>보상을 극대화하는 행동 학습</strong></p>
                 <p>대표 문제: <strong>행동 시뮬레이션</strong></p>
               </div>
             </div>
@@ -443,7 +443,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
                 { id: 1, title: '문제 1: 붓꽃 측정값으로 정답 품종을 맞힌다.', correct: 'sup_class', label: '지도학습 → 분류' },
                 { id: 2, title: '문제 2: 꽃잎 길이로 꽃잎 너비를 숫자로 예상한다.', correct: 'sup_reg', label: '지도학습 → 회귀' },
                 { id: 3, title: '문제 3: 품종을 숨기고 비슷한 붓꽃끼리 3개 그룹으로 묶는다.', correct: 'unsup_clust', label: '비지도학습 → 군집' },
-                { id: 4, title: '문제 4: 탐사 로봇이 보상을 이용해 최적 이동 경로를 찾는다.', correct: 'rl', label: '강화학습' },
+                { id: 4, title: '문제 4: 탐사 로봇이 시행착오와 보상을 통해 목적지까지 이동하는 방법을 학습한다.', correct: 'rl', label: '강화학습' },
               ].map(q => (
                 <div key={q.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
                   <span className="font-bold text-slate-900 block">{q.title}</span>
@@ -571,7 +571,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               {[
                 { key: 'q1', text: '새 붓꽃 주변의 가장 가까운 데이터 k개를 관찰해 품종을 정한다.', correct: 'knn', label: 'k-NN' },
                 { key: 'q2', text: '조건 질문을 스무고개처럼 따라가며 가지(Branch)별로 품종을 결정한다.', correct: 'dt', label: '의사결정트리' },
-                { key: 'q3', text: '데이터의 수치 관계를 최적 직선으로 나타내어 이웃 수치를 예측한다.', correct: 'lr', label: '선형 회귀' },
+                { key: 'q3', text: '데이터의 수치 관계를 가장 잘 설명하는 직선을 찾아 수치를 예측한다.', correct: 'lr', label: '선형 회귀' },
                 { key: 'q4', text: '레이블 없이 데이터 특성이 비슷한 붓꽃끼리 k개 그룹으로 묶는다.', correct: 'kmeans', label: 'k-means' },
               ].map(item => (
                 <div key={item.key} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
@@ -671,7 +671,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
             다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
     </div>

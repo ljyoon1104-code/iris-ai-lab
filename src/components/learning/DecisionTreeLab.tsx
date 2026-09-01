@@ -162,6 +162,13 @@ export const DecisionTreeLab: React.FC = () => {
     petalWidth: 1.6,
   });
 
+  const [rawInputs, setRawInputs] = useState<Record<FeatureKey, string>>({
+    sepalLength: '6.0',
+    sepalWidth: '3.0',
+    petalLength: '4.8',
+    petalWidth: '1.6',
+  });
+
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
   const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
@@ -174,27 +181,53 @@ export const DecisionTreeLab: React.FC = () => {
     setNewPoint(prev => {
       const nextVal = Math.round((prev[feat] + delta) * 10) / 10;
       const clamped = Math.min(spec.max, Math.max(spec.min, nextVal));
+      setRawInputs(r => ({ ...r, [feat]: String(clamped) }));
       return { ...prev, [feat]: clamped };
     });
   };
 
   const handleDirectNumberInput = (feat: FeatureKey, rawVal: string) => {
-    const spec = FEATURE_MIN_MAX[feat];
-    const parsed = parseFloat(rawVal);
+    let cleaned = rawVal;
+    if (/^0[0-9]/.test(cleaned)) {
+      cleaned = cleaned.replace(/^0+(?=[1-9])/, '');
+    }
+    setRawInputs(prev => ({ ...prev, [feat]: cleaned }));
+
+    const parsed = parseFloat(cleaned);
     if (!isNaN(parsed)) {
-      const clamped = Math.min(spec.max, Math.max(spec.min, parsed));
-      setNewPoint(prev => ({ ...prev, [feat]: Math.round(clamped * 10) / 10 }));
+      setNewPoint(prev => ({ ...prev, [feat]: Math.round(parsed * 10) / 10 }));
+    }
+  };
+
+  const handleBlurInput = (feat: FeatureKey) => {
+    const spec = FEATURE_MIN_MAX[feat];
+    const str = (rawInputs[feat] || '').trim();
+    if (str === '' || isNaN(Number(str))) {
+      setRawInputs(prev => ({ ...prev, [feat]: String(newPoint[feat]) }));
+    } else {
+      const parsed = parseFloat(str);
+      const clamped = Math.min(spec.max, Math.max(spec.min, Math.round(parsed * 10) / 10));
+      setNewPoint(prev => ({ ...prev, [feat]: clamped }));
+      setRawInputs(prev => ({ ...prev, [feat]: String(clamped) }));
     }
   };
 
   const handleApplySample = (sampleType: 'setosa' | 'versicolor' | 'virginica') => {
+    let pt: Record<FeatureKey, number>;
     if (sampleType === 'setosa') {
-      setNewPoint({ sepalLength: 5.1, sepalWidth: 3.5, petalLength: 1.4, petalWidth: 0.2 });
+      pt = { sepalLength: 5.1, sepalWidth: 3.5, petalLength: 1.4, petalWidth: 0.2 };
     } else if (sampleType === 'versicolor') {
-      setNewPoint({ sepalLength: 5.7, sepalWidth: 2.8, petalLength: 4.1, petalWidth: 1.3 });
+      pt = { sepalLength: 5.7, sepalWidth: 2.8, petalLength: 4.1, petalWidth: 1.3 };
     } else {
-      setNewPoint({ sepalLength: 6.3, sepalWidth: 3.3, petalLength: 6.0, petalWidth: 2.5 });
+      pt = { sepalLength: 6.3, sepalWidth: 3.3, petalLength: 6.0, petalWidth: 2.5 };
     }
+    setNewPoint(pt);
+    setRawInputs({
+      sepalLength: String(pt.sepalLength),
+      sepalWidth: String(pt.sepalWidth),
+      petalLength: String(pt.petalLength),
+      petalWidth: String(pt.petalWidth),
+    });
   };
 
   const isNodeOnPath = (node: DecisionTreeNode): boolean => {
@@ -315,13 +348,13 @@ export const DecisionTreeLab: React.FC = () => {
                     <span>{FEATURE_LABELS[feat]}</span>
                     <div className="flex items-center gap-1">
                       <input
-                        type="number"
-                        step={spec.step}
-                        min={spec.min}
-                        max={spec.max}
-                        value={val}
+                        type="text"
+                        inputMode="decimal"
+                        value={rawInputs[feat] !== undefined ? rawInputs[feat] : String(val)}
                         onChange={e => handleDirectNumberInput(feat, e.target.value)}
-                        className="w-20 p-1.5 text-right font-mono font-black text-teal-700 border border-slate-300 rounded-lg bg-teal-50/50 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onBlur={() => handleBlurInput(feat)}
+                        placeholder={String(val)}
+                        className="w-20 p-1.5 text-right font-mono font-black text-teal-700 border border-slate-300 rounded-lg bg-teal-50/50 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
                       />
                       <span className="text-slate-600 font-mono">cm</span>
                     </div>
@@ -343,6 +376,7 @@ export const DecisionTreeLab: React.FC = () => {
                       onChange={e => {
                         const nV = parseFloat(e.target.value);
                         setNewPoint(prev => ({ ...prev, [feat]: nV }));
+                        setRawInputs(prev => ({ ...prev, [feat]: String(nV) }));
                       }}
                       className="w-full accent-teal-600 cursor-pointer"
                     />

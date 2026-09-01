@@ -302,7 +302,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return new Set(module04Edits.map(e => e.recordId)).size;
   }, [module04Edits]);
 
-  const promptText = `오류 데이터(결측치, 이상치, 표현 불일치, 데이터형 오류)가 포함된 붓꽃 데이터셋을 정제하고 Min-Max 스케일링 및 원-핫 인코딩으로 변환하는 전처리 과정이 기계학습 모델의 정확도에 미치는 영향을 설명해줘.`;
+  const promptText = `정제 대상 데이터(결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류)가 포함된 붓꽃 데이터셋을 정제하고 Min-Max 스케일링 및 원-핫 인코딩으로 변환하는 전처리 과정이 기계학습 모델에 미치는 영향을 설명해줘.`;
 
   // Checklist items
   const checklistItems = [
@@ -403,7 +403,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          학생이 직접 20개 붓꽃 데이터(오류 12개 + 정상 8개)를 살펴보고, <strong>결측치(4개)·이상치(2개)·표현불일치(4개)·자료형 오류(2개)</strong>를 완벽히 수정해봅니다.
+          학생이 직접 20개 붓꽃 데이터(정제 대상 12개 + 정상 8개)를 살펴보고, <strong>결측치(4개)·입력 오류 이상치(2개)·표현 불일치(4개)·자료형 오류(2개)</strong>를 차례대로 정제해봅니다.
         </p>
       </div>
 
@@ -1504,7 +1504,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 Part A: 수치형 데이터 스케일링 (Min-Max Scaling)
               </span>
               <p className="text-slate-600 leading-relaxed font-medium">
-                속성들의 수치 범위가 다르면 거리 계산 기반 알고리즘(k-NN 등)이 특정 속성에 편향될 수 있습니다. 모든 수치를 0~1 범위로 맞춥니다.
+                특성들의 수치 범위(단위)가 크게 다르면 거리 계산 기반 알고리즘(k-NN 등)에서 특정 특성의 영향력이 지나치게 커질 수 있습니다. 스케일링을 통해 수치 범위를 0~1 사이로 균일하게 맞추어 볼 수 있습니다.
               </p>
 
               <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200">
@@ -1552,7 +1552,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                     <div className="p-2 bg-emerald-50 text-emerald-950 rounded font-bold">스케일링 범위: 0.00 ~ 1.00</div>
                   </div>
                   <p className="font-sans text-[11px] text-slate-600 pt-1">
-                    💡 값의 범위는 0~1로 조정되었지만 데이터 간 상대적인 크기 및 순서 관계는 완벽히 유지됩니다!
+                    💡 값의 범위는 0~1로 조정되었지만 데이터 간 상대적인 크기 비율과 순서 관계는 그대로 유지됩니다!
                   </p>
                 </div>
               )}
@@ -1698,7 +1698,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       <td className={`p-2.5 font-black ${currentErrorCounts.missing === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.missing} 개</td>
                     </tr>
                     <tr>
-                      <td className="p-2.5 text-left font-bold text-slate-700">이상치 오류 (Outlier Error)</td>
+                      <td className="p-2.5 text-left font-bold text-slate-700">입력 오류 이상치 (Outlier)</td>
                       <td className="p-2.5 text-rose-600 font-bold">2 개</td>
                       <td className={`p-2.5 font-black ${currentErrorCounts.outlier === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.outlier} 개</td>
                     </tr>
@@ -1713,7 +1713,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       <td className={`p-2.5 font-black ${currentErrorCounts.invalidType === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.invalidType} 개</td>
                     </tr>
                     <tr className="bg-slate-50 font-extrabold text-xs">
-                      <td className="p-2.5 text-left font-sans text-slate-900">총 오류 (Total Errors)</td>
+                      <td className="p-2.5 text-left font-sans text-slate-900">총 정제 대상 (Total)</td>
                       <td className="p-2.5 text-rose-700 font-black">12 개</td>
                       <td className={`p-2.5 font-black text-sm ${currentErrorCounts.total === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.total} 개</td>
                     </tr>
@@ -1723,7 +1723,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
               {currentErrorCounts.total === 0 && (
                 <div className="p-3.5 bg-emerald-100 text-emerald-950 rounded-xl font-black text-center text-xs shadow-2xs border border-emerald-300">
-                  🎉 축하합니다! 발견된 교육용 데이터 오류 12개를 모두 올바르게 수정했습니다! (남은 오류 = 0개)
+                  🎉 축하합니다! 발견된 교육용 데이터 정제 대상 12개를 모두 올바르게 수정했습니다! (남은 오류 = 0개)
                 </div>
               )}
             </div>
@@ -1732,7 +1732,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 text-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
                 <span className="font-extrabold text-slate-900 text-sm">
-                  [내가 수정한 레코드 카드 (총 12개 오류 항목 전체)]
+                  [내가 수정한 레코드 카드 (총 12개 정제 대상 전체)]
                 </span>
                 <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200">
                   수정한 데이터: <strong className="text-emerald-700">{uniqueModifiedRecordCount}개</strong> | 수정한 항목: <strong className="text-emerald-700">{module04Edits.length}개</strong>
@@ -1745,7 +1745,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                     아직 직접 수정한 데이터가 없습니다.
                   </span>
                   <p className="text-slate-500 text-xs">
-                    앞의 전처리 활동(활동 3~5)에서 결측치, 이상치, 표현 불일치, 데이터형 오류를 직접 수정해보세요.
+                    앞의 전처리 활동(활동 3~5)에서 결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류를 직접 정제해보세요.
                   </p>
                 </div>
               ) : (
@@ -1905,7 +1905,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 "데이터 전처리는 설명을 읽는 활동이 아니라 실제 데이터를 확인하고 필요한 부분을 수정하는 과정입니다."
               </p>
               <p className="text-slate-300 text-xs">
-                내가 수정한 결과가 실제 작업용 데이터에 완벽하게 반영되었습니다.
+                내가 수정한 결과가 실제 작업용 데이터에 정상적으로 반영되었습니다.
               </p>
             </div>
 

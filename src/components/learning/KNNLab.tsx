@@ -38,6 +38,13 @@ export const KNNLab: React.FC = () => {
     petalWidth: 1.6,
   });
 
+  const [rawInputs, setRawInputs] = useState<Record<FeatureKey, string>>({
+    sepalLength: '6.0',
+    sepalWidth: '3.0',
+    petalLength: '4.8',
+    petalWidth: '1.6',
+  });
+
   const [k, setK] = useState<number>(5);
   const [isBoundaryLoaded, setIsBoundaryLoaded] = useState(false);
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
@@ -65,18 +72,36 @@ export const KNNLab: React.FC = () => {
     setNewPoint(prev => {
       const nextVal = Math.round((prev[feat] + delta) * 10) / 10;
       const clamped = Math.min(spec.max, Math.max(spec.min, nextVal));
+      setRawInputs(r => ({ ...r, [feat]: String(clamped) }));
       return { ...prev, [feat]: clamped };
     });
     setIsBoundaryLoaded(false);
   };
 
   const handleDirectNumberInput = (feat: FeatureKey, rawVal: string) => {
-    const spec = FEATURE_MIN_MAX[feat];
-    const parsed = parseFloat(rawVal);
+    let cleaned = rawVal;
+    if (/^0[0-9]/.test(cleaned)) {
+      cleaned = cleaned.replace(/^0+(?=[1-9])/, '');
+    }
+    setRawInputs(prev => ({ ...prev, [feat]: cleaned }));
+
+    const parsed = parseFloat(cleaned);
     if (!isNaN(parsed)) {
-      const clamped = Math.min(spec.max, Math.max(spec.min, parsed));
-      setNewPoint(prev => ({ ...prev, [feat]: Math.round(clamped * 10) / 10 }));
+      setNewPoint(prev => ({ ...prev, [feat]: Math.round(parsed * 10) / 10 }));
       setIsBoundaryLoaded(false);
+    }
+  };
+
+  const handleBlurInput = (feat: FeatureKey) => {
+    const spec = FEATURE_MIN_MAX[feat];
+    const str = (rawInputs[feat] || '').trim();
+    if (str === '' || isNaN(Number(str))) {
+      setRawInputs(prev => ({ ...prev, [feat]: String(newPoint[feat]) }));
+    } else {
+      const parsed = parseFloat(str);
+      const clamped = Math.min(spec.max, Math.max(spec.min, Math.round(parsed * 10) / 10));
+      setNewPoint(prev => ({ ...prev, [feat]: clamped }));
+      setRawInputs(prev => ({ ...prev, [feat]: String(clamped) }));
     }
   };
 
@@ -86,6 +111,13 @@ export const KNNLab: React.FC = () => {
       setNewPoint(prev => ({
         ...prev,
         ...bCase.point,
+      }));
+      setRawInputs(prev => ({
+        ...prev,
+        sepalLength: String(bCase.point.sepalLength ?? prev.sepalLength),
+        sepalWidth: String(bCase.point.sepalWidth ?? prev.sepalWidth),
+        petalLength: String(bCase.point.petalLength ?? prev.petalLength),
+        petalWidth: String(bCase.point.petalWidth ?? prev.petalWidth),
       }));
       setIsBoundaryLoaded(true);
     }
@@ -134,10 +166,17 @@ export const KNNLab: React.FC = () => {
     const roundedX = Math.round(domainX * 10) / 10;
     const roundedY = Math.round(domainY * 10) / 10;
 
+    const clX = Math.min(xSpec.max, Math.max(xSpec.min, roundedX));
+    const clY = Math.min(ySpec.max, Math.max(ySpec.min, roundedY));
     setNewPoint(prev => ({
       ...prev,
-      [xAxis]: Math.min(xSpec.max, Math.max(xSpec.min, roundedX)),
-      [yAxis]: Math.min(ySpec.max, Math.max(ySpec.min, roundedY)),
+      [xAxis]: clX,
+      [yAxis]: clY,
+    }));
+    setRawInputs(prev => ({
+      ...prev,
+      [xAxis]: String(clX),
+      [yAxis]: String(clY),
     }));
     setIsBoundaryLoaded(false);
   };
@@ -281,14 +320,13 @@ export const KNNLab: React.FC = () => {
                     <span>{FEATURE_NAMES[feat]}</span>
                     <div className="flex items-center gap-1">
                       <input
-                        type="number"
-                        step={spec.step}
-                        min={spec.min}
-                        max={spec.max}
+                        type="text"
                         inputMode="decimal"
-                        value={val}
+                        value={rawInputs[feat] !== undefined ? rawInputs[feat] : String(val)}
                         onChange={e => handleDirectNumberInput(feat, e.target.value)}
-                        className="w-20 p-1.5 text-right font-mono font-black text-emerald-700 border border-slate-300 rounded-lg bg-emerald-50/50 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onBlur={() => handleBlurInput(feat)}
+                        placeholder={String(val)}
+                        className="w-20 p-1.5 text-right font-mono font-black text-emerald-700 border border-slate-300 rounded-lg bg-emerald-50/50 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                       <span className="text-slate-600 font-mono">cm</span>
                     </div>
@@ -310,6 +348,7 @@ export const KNNLab: React.FC = () => {
                       onChange={e => {
                         const nV = parseFloat(e.target.value);
                         setNewPoint(prev => ({ ...prev, [feat]: nV }));
+                        setRawInputs(prev => ({ ...prev, [feat]: String(nV) }));
                         setIsBoundaryLoaded(false);
                       }}
                       className="w-full accent-emerald-600 cursor-pointer"

@@ -7,7 +7,8 @@ import { KMeansLab } from './KMeansLab';
 import { ReinforcementLearningLab } from './ReinforcementLearningLab';
 import { MasterAlgorithmComparison } from './MasterAlgorithmComparison';
 import { PrimaryButton } from '../common/PrimaryButton';
-import { Target, GitBranch, Scale, LineChart, PieChart, Bot, CheckCircle2 } from 'lucide-react';
+import { SecondaryButton } from '../common/SecondaryButton';
+import { Target, GitBranch, Scale, LineChart, PieChart, Bot, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Module06ActivityProps {
   isCompleted: boolean;
@@ -172,6 +173,39 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
         <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
           06 알고리즘 실험실 완료 & 07 모델 만들기로 이동
         </PrimaryButton>
+      </div>
+
+      {/* Internal Step Control Navigation */}
+      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
+        <SecondaryButton
+          size="md"
+          disabled={activeTab === 'knn'}
+          onClick={() => {
+            const tabs: ('knn' | 'dt' | 'lr' | 'kmeans' | 'rl' | 'compare')[] = ['knn', 'dt', 'lr', 'kmeans', 'rl', 'compare'];
+            const idx = tabs.indexOf(activeTab);
+            if (idx > 0) setActiveTab(tabs[idx - 1]);
+          }}
+          icon={<ChevronLeft size={16} />}
+        >
+          이전 활동
+        </SecondaryButton>
+
+        {activeTab !== 'compare' ? (
+          <PrimaryButton
+            size="md"
+            onClick={() => {
+              const tabs: ('knn' | 'dt' | 'lr' | 'kmeans' | 'rl' | 'compare')[] = ['knn', 'dt', 'lr', 'kmeans', 'rl', 'compare'];
+              const idx = tabs.indexOf(activeTab);
+              if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1]);
+            }}
+            icon={<ChevronRight size={16} />}
+            className="flex-row-reverse"
+          >
+            다음 활동
+          </PrimaryButton>
+        ) : (
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+        )}
       </div>
     </div>
   );

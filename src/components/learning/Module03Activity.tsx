@@ -804,7 +804,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
             다음 활동
           </PrimaryButton>
         ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 단계</span>
+          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
         )}
       </div>
     </div>
