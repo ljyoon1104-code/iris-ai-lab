@@ -230,7 +230,7 @@ export const ERROR_GROUND_TRUTH_MAP: Record<number, Record<string, any>> = {
   105: { species: 'Iris-setosa' },
   106: { species: 'Iris-setosa' },
   107: { sepalLength: 5.1 },
-  108: { sepalWidth: 3.4 },
+  108: { sepalWidth: 3.2 },
   109: { species: 'Iris-versicolor' },
   112: { petalWidth: 1.5 },
   114: { species: 'Iris-virginica' },

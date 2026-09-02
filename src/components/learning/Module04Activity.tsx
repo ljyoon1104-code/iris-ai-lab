@@ -45,6 +45,7 @@ import {
   Info,
   Table,
   Check,
+  Database,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 import {
@@ -64,9 +65,18 @@ interface Module04ActivityProps {
   onComplete: () => void;
 }
 
+// Activity 1 Attributes configuration
+const ACT0_ATTRIBUTES = [
+  { id: 'sepalLength', label: '꽃받침 길이 (sepal length)', sample: '5.1 cm', correctType: 'numeric', correctRole: 'X' },
+  { id: 'sepalWidth', label: '꽃받침 너비 (sepal width)', sample: '3.5 cm', correctType: 'numeric', correctRole: 'X' },
+  { id: 'petalLength', label: '꽃잎 길이 (petal length)', sample: '1.4 cm', correctType: 'numeric', correctRole: 'X' },
+  { id: 'petalWidth', label: '꽃잎 너비 (petal width)', sample: '0.2 cm', correctType: 'numeric', correctRole: 'X' },
+  { id: 'species', label: '품종 (species)', sample: '세토사 (Iris-setosa)', correctType: 'categorical', correctRole: 'y' },
+];
+
 export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted: _isCompleted, onComplete }) => {
   const [currentActivity, setCurrentActivity] = useState(1);
-  const totalActivities = 8;
+  const totalActivities = 9;
   const topRef = useActivityScrollTop<HTMLDivElement>(currentActivity);
 
   // Student Edits Log & Hydrated Working Dataset
@@ -106,27 +116,49 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const [isNotebookOpen, setIsNotebookOpen] = useState<boolean>(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState<boolean>(false);
 
-  // ACTIVITY 1: Intro Q State
+  // ACTIVITY 1: Attribute & Types State (Introductory Activity)
+  const [act0DataTypes, setAct0DataTypes] = useState<Record<string, 'numeric' | 'categorical' | null>>({
+    sepalLength: null,
+    sepalWidth: null,
+    petalLength: null,
+    petalWidth: null,
+    species: null,
+  });
+  const [isAct0TypeChecked, setIsAct0TypeChecked] = useState<boolean>(false);
+  const [act0TypeHintOpen, setAct0TypeHintOpen] = useState<boolean>(false);
+
+  const [act0Roles, setAct0Roles] = useState<Record<string, 'X' | 'y' | null>>({
+    sepalLength: null,
+    sepalWidth: null,
+    petalLength: null,
+    petalWidth: null,
+    species: null,
+  });
+  const [isAct0RoleChecked, setIsAct0RoleChecked] = useState<boolean>(false);
+  const [act0RoleHintOpen, setAct0RoleHintOpen] = useState<boolean>(false);
+  const [selectedSampleCol, setSelectedSampleCol] = useState<string | null>(null);
+
+  // ACTIVITY 2: Intro Q State (Why clean data?)
   const [act1Answer, setAct1Answer] = useState<string | null>(null);
 
-  // ACTIVITY 2: Data Detective Choices for 20 Records
+  // ACTIVITY 3: Data Detective Choices for 20 Records
   const [detectiveAnswers, setDetectiveAnswers] = useState<Record<number, string>>({});
 
-  // ACTIVITY 3: Missing Value State (4 Missing Records: 101, 102, 108, 115)
+  // ACTIVITY 4: Missing Value State (4 Missing Records: 101, 102, 108, 115)
   const [selectedMissingId, setSelectedMissingId] = useState<number>(101);
   const [missingChoice, setMissingChoice] = useState<string | null>(null);
   const [showMissingGroundTruth, setShowMissingGroundTruth] = useState<Record<number, boolean>>({});
   const [missingInputs, setMissingInputs] = useState<Record<number, string>>({});
   const [missingFeedbacks, setMissingFeedbacks] = useState<Record<number, { type: 'success' | 'error'; msg: string }>>({});
 
-  // ACTIVITY 4: Outliers (Step nav 1~5 and Feature tabs sepalLength, sepalWidth, petalLength, petalWidth)
+  // ACTIVITY 5: Outliers (Step nav 1~5 and Feature tabs sepalLength, sepalWidth, petalLength, petalWidth)
   const [outlierStep, setOutlierStep] = useState<number>(1);
   const [outlierFeature, setOutlierFeature] = useState<FeatureKey>('sepalLength');
   const [showOutlierGroundTruth, setShowOutlierGroundTruth] = useState<Record<number, boolean>>({});
   const [outlierInputs, setOutlierInputs] = useState<Record<number, string>>({});
   const [outlierFeedbacks, setOutlierFeedbacks] = useState<Record<number, { type: 'success' | 'error'; msg: string }>>({});
 
-  // ACTIVITY 5: Inconsistent Labels (4 records) & Invalid Types (2 records)
+  // ACTIVITY 6: Inconsistent Labels (4 records) & Invalid Types (2 records)
   const [speciesChoices, setSpeciesChoices] = useState<Record<number, string>>({
     105: '세토사',
     106: '세토사',
@@ -135,18 +167,19 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   });
   const [typeChoices, setTypeChoices] = useState<Record<number, string>>({});
 
-  // ACTIVITY 6: Scaling & Encoding State
+  // ACTIVITY 7: Scaling & Encoding State
   const [scalingFeature, setScalingFeature] = useState<FeatureKey>('sepalLength');
   const [showScalingFormula, setShowScalingFormula] = useState<boolean>(false);
   const [isScalingExecuted, setIsScalingExecuted] = useState<boolean>(false);
   const [encodingChoice, setEncodingChoice] = useState<string | null>(null);
 
-  // ACTIVITY 7: Full Dataset Review & Pagination State
+  // ACTIVITY 8: Full Dataset Review & Pagination State
+  const [isModifiedCardsOpen, setIsModifiedCardsOpen] = useState<boolean>(false);
   const [isFullDatasetOpen, setIsFullDatasetOpen] = useState<boolean>(false);
   const [fullDatasetPage, setFullDatasetPage] = useState<number>(1);
   const pageSize = 15;
 
-  // ACTIVITY 8: Scatter, Heatmap, Key Features State
+  // ACTIVITY 9: Scatter, Heatmap, Key Features State
   const [scatterX, setScatterX] = useState<FeatureKey>('petalLength');
   const [scatterY, setScatterY] = useState<FeatureKey>('petalWidth');
   const [selectedFeatures04, setSelectedFeatures04] = useState<FeatureKey[]>(() => {
@@ -160,15 +193,30 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return ['petalLength', 'petalWidth'];
   });
 
-  // Track completion per activity entry
+  // Activity 3 completion: all 20 records attempted at least once
+  const attemptedDetectiveCount = useMemo(() => Object.keys(detectiveAnswers).length, [detectiveAnswers]);
+  const isDetectiveAllAttempted = attemptedDetectiveCount >= workingDataset.length;
+
   useEffect(() => {
-    if (currentActivity === 2) {
+    if (isDetectiveAllAttempted) {
       setActivityCompletion(prev => ({ ...prev, detectiveComplete: true }));
-    } else if (currentActivity === 6) {
+    }
+  }, [isDetectiveAllAttempted]);
+
+  // Activity 7 completion: scaling executed at least once and encoding question answered
+  const isTransformReady = isScalingExecuted && encodingChoice !== null;
+
+  useEffect(() => {
+    if (isTransformReady) {
       setActivityCompletion(prev => ({ ...prev, transformComplete: true }));
-    } else if (currentActivity === 7) {
+    }
+  }, [isTransformReady]);
+
+  // Track completion per activity entry (for reviewComplete and relationComplete)
+  useEffect(() => {
+    if (currentActivity === 8) {
       setActivityCompletion(prev => ({ ...prev, reviewComplete: true }));
-    } else if (currentActivity === 8) {
+    } else if (currentActivity === 9) {
       setActivityCompletion(prev => ({ ...prev, relationComplete: true }));
     }
   }, [currentActivity]);
@@ -176,7 +224,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   // Key Features completion status
   const isKeyFeaturesSelected = selectedFeatures04.length === 2;
   useEffect(() => {
-    if (isKeyFeaturesSelected && currentActivity >= 7) {
+    if (isKeyFeaturesSelected && currentActivity >= 8) {
       setActivityCompletion(prev => ({ ...prev, relationComplete: true }));
     }
   }, [isKeyFeaturesSelected, currentActivity]);
@@ -346,8 +394,8 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const missingItemsConfig = [
     { id: 101, field: 'sepalLength', label: '꽃받침 길이', expected: 5.1, species: '세토사', desc: '데이터 #101의 꽃받침 길이에 값(null)이 빠져 있습니다.' },
     { id: 102, field: 'petalWidth', label: '꽃잎 너비', expected: 0.2, species: '세토사', desc: '데이터 #102의 꽃잎 너비에 값(null)이 빠져 있습니다.' },
-    { id: 108, field: 'sepalWidth', label: '꽃받침 너비', expected: 3.4, species: '세토사', desc: '데이터 #108의 꽃받침 너비에 값(null)이 빠져 있습니다.' },
-    { id: 115, field: 'petalLength', label: '꽃잎 길이', expected: 5.1, species: '버지니카', desc: '데이터 #115의 꽃잎 길이에 값(null)이 빠져 있습니다.' },
+    { id: 108, field: 'sepalWidth', label: '꽃받침 너비', expected: 3.2, species: '버시컬러', desc: '데이터 #108의 꽃받침 너비에 값(null)이 빠져 있습니다.' },
+    { id: 115, field: 'petalLength', label: '꽃잎 길이', expected: 5.9, species: '버지니카', desc: '데이터 #115의 꽃잎 길이에 값(null)이 빠져 있습니다.' },
   ];
 
   // Inconsistent species labels metadata (4 items: 105, 106, 109, 114)
@@ -372,20 +420,22 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         totalSteps={totalActivities}
         title={
           currentActivity === 1
-            ? '활동 1. [개념] 왜 데이터를 정리해야 할까?'
+            ? '활동 1. [기본] 데이터의 속성과 종류 알아보기'
             : currentActivity === 2
-            ? '활동 2. [탐정] 데이터에서 문제를 찾아보자'
+            ? '활동 2. [개념] 왜 데이터를 정리해야 할까?'
             : currentActivity === 3
-            ? '활동 3. [결측치] 빠진 값을 어떻게 처리할까?'
+            ? '활동 3. [탐정] 데이터에서 문제를 찾아보자'
             : currentActivity === 4
-            ? `활동 4. [이상치] 이 값은 정말 이상한 값일까? (${outlierStep}/5 단계)`
+            ? '활동 4. [결측치] 빠진 값을 어떻게 처리할까?'
             : currentActivity === 5
-            ? '활동 5. [표현/자료형] 같은 뜻인데 다르게 적혀 있다면?'
+            ? `활동 5. [이상치] 이 값은 정말 이상한 값일까? (${outlierStep}/5 단계)`
             : currentActivity === 6
-            ? '활동 6. [변환] 데이터를 학습하기 좋은 형태로 바꿔보자'
+            ? '활동 6. [표현/자료형] 같은 뜻인데 다르게 적혀 있다면?'
             : currentActivity === 7
-            ? '활동 7. [확인] 내가 수정한 데이터 확인하기'
-            : '활동 8. [관계] 속성끼리는 어떤 관계가 있을까?'
+            ? '활동 7. [변환] 데이터를 학습하기 좋은 형태로 바꿔보자'
+            : currentActivity === 8
+            ? '활동 8. [확인] 내가 수정한 데이터 확인하기'
+            : '활동 9. [관계] 속성끼리는 어떤 관계가 있을까?'
         }
       />
 
@@ -403,17 +453,519 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          학생이 직접 20개 붓꽃 데이터(정제 대상 12개 + 정상 8개)를 살펴보고, <strong>결측치(4개)·입력 오류 이상치(2개)·표현 불일치(4개)·자료형 오류(2개)</strong>를 차례대로 정제해봅니다.
+          데이터의 기본 속성과 형태를 이해한 후, 학생이 직접 20개 붓꽃 데이터(정제 대상 12개 + 정상 8개)를 살펴보고 <strong>결측치(4개)·입력 오류 이상치(2개)·표현 불일치(4개)·자료형 오류(2개)</strong>를 차례대로 정제해봅니다.
         </p>
       </div>
 
-      {/* ACTIVITY 1: 왜 데이터를 정리해야 할까? */}
+      {/* ACTIVITY 1: 데이터의 속성과 종류 알아보기 (신규 도입 활동) */}
       {currentActivity === 1 && (
+        <div className="space-y-5 animate-fadeIn">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Database size={20} className="text-emerald-600" />
+                <span>활동 1: 데이터의 속성과 종류 알아보기</span>
+              </h3>
+              <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                도입: 데이터 구조 이해
+              </span>
+            </div>
+
+            {/* Core Question Banner */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed space-y-2">
+              <span className="font-extrabold text-slate-900 text-sm block">
+                🤔 핵심 질문
+              </span>
+              <p className="text-sm font-bold text-emerald-950">
+                "붓꽃 데이터 한 줄에는 여러 정보가 들어 있습니다. 이 정보들은 모두 같은 종류의 데이터일까요?"
+              </p>
+              <p className="text-slate-600">
+                기계학습 모델에 데이터를 넣기 전에, 데이터가 어떤 구조로 이루어져 있고 각 정보가 어떤 종류인지 실제 붓꽃 데이터를 보며 직접 살펴봅시다.
+              </p>
+            </div>
+
+            {/* Section 1: Real Iris Record Observation */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900 block">
+                  1단계: 실제 붓꽃(Iris) 데이터 1행(Row) 관찰하기
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  * 열(column)을 클릭해 강조해 보세요
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-center border-collapse bg-white rounded-xl overflow-hidden font-mono text-xs border border-slate-200 shadow-2xs">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <th className="p-2.5 border-r border-slate-200 font-sans">ID</th>
+                      <th className="p-2.5 border-r border-slate-200 font-sans">꽃받침 길이</th>
+                      <th className="p-2.5 border-r border-slate-200 font-sans">꽃받침 너비</th>
+                      <th className="p-2.5 border-r border-slate-200 font-sans">꽃잎 길이</th>
+                      <th className="p-2.5 border-r border-slate-200 font-sans">꽃잎 너비</th>
+                      <th className="p-2.5 font-sans">품종</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="divide-x divide-slate-200 font-medium">
+                      <td className="p-3 bg-slate-50 text-slate-500 font-bold">1</td>
+                      <td
+                        onClick={() => setSelectedSampleCol(selectedSampleCol === 'sepalLength' ? null : 'sepalLength')}
+                        className={`p-3 cursor-pointer transition-colors ${selectedSampleCol === 'sepalLength' ? 'bg-emerald-100 text-emerald-950 font-bold' : 'hover:bg-slate-50'}`}
+                      >
+                        5.1 cm
+                      </td>
+                      <td
+                        onClick={() => setSelectedSampleCol(selectedSampleCol === 'sepalWidth' ? null : 'sepalWidth')}
+                        className={`p-3 cursor-pointer transition-colors ${selectedSampleCol === 'sepalWidth' ? 'bg-emerald-100 text-emerald-950 font-bold' : 'hover:bg-slate-50'}`}
+                      >
+                        3.5 cm
+                      </td>
+                      <td
+                        onClick={() => setSelectedSampleCol(selectedSampleCol === 'petalLength' ? null : 'petalLength')}
+                        className={`p-3 cursor-pointer transition-colors ${selectedSampleCol === 'petalLength' ? 'bg-emerald-100 text-emerald-950 font-bold' : 'hover:bg-slate-50'}`}
+                      >
+                        1.4 cm
+                      </td>
+                      <td
+                        onClick={() => setSelectedSampleCol(selectedSampleCol === 'petalWidth' ? null : 'petalWidth')}
+                        className={`p-3 cursor-pointer transition-colors ${selectedSampleCol === 'petalWidth' ? 'bg-emerald-100 text-emerald-950 font-bold' : 'hover:bg-slate-50'}`}
+                      >
+                        0.2 cm
+                      </td>
+                      <td
+                        onClick={() => setSelectedSampleCol(selectedSampleCol === 'species' ? null : 'species')}
+                        className={`p-3 cursor-pointer transition-colors font-sans ${selectedSampleCol === 'species' ? 'bg-emerald-100 text-emerald-950 font-bold' : 'hover:bg-slate-50'}`}
+                      >
+                        <SpeciesLabel species="Iris-setosa" showEnglish size="xs" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Observation Guide */}
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950">
+                <p className="font-bold text-emerald-900">
+                  💡 "한 붓꽃을 설명하기 위해 여러 종류의 정보가 열(column)로 나뉘어 있습니다."
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div className="p-2.5 bg-white rounded-lg border border-emerald-200">
+                    <strong className="text-emerald-900 block mb-0.5">행 (Row)</strong>
+                    붓꽃 한 송이(한 개체)의 전체 관측 기록
+                  </div>
+                  <div className="p-2.5 bg-white rounded-lg border border-emerald-200">
+                    <strong className="text-emerald-900 block mb-0.5">열 (Column)</strong>
+                    붓꽃을 설명하는 하나의 속성(특징 항목)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Attribute Concept & Types */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <span className="text-xs font-extrabold text-slate-900 block">
+                2단계: 데이터 속성(Attribute)과 형태(종류) 알아보기
+              </span>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <span className="font-extrabold text-slate-900 text-sm block">
+                  📌 데이터 속성(Attribute)이란?
+                </span>
+                <p className="leading-relaxed text-slate-700">
+                  <strong>"데이터 속성은 하나의 대상을 설명하는 각각의 특징이나 항목입니다."</strong>
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  붓꽃 데이터의 속성: 꽃받침 길이, 꽃받침 너비, 꽃잎 길이, 꽃잎 너비, 품종 (총 5개 속성)
+                </p>
+              </div>
+
+              {/* Numerical vs Categorical Comparison Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-indigo-900 text-sm">수치형 데이터 (Numerical)</span>
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full border border-indigo-200">측정·계산</span>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
+                    "길이, 무게, 온도처럼 <strong>수치로 측정하거나 계산할 수 있는 데이터</strong>"
+                  </p>
+                  <div className="p-2.5 bg-white rounded-lg border border-indigo-200 text-[11px] space-y-1">
+                    <span className="font-bold text-indigo-950 block">붓꽃 데이터 예시:</span>
+                    <ul className="list-disc list-inside text-slate-600 space-y-0.5 font-mono">
+                      <li>꽃받침 길이: 5.1 cm</li>
+                      <li>꽃받침 너비: 3.5 cm</li>
+                      <li>꽃잎 길이: 1.4 cm</li>
+                      <li>꽃잎 너비: 0.2 cm</li>
+                    </ul>
+                  </div>
+                  <p className="text-[11px] text-indigo-900 font-bold">
+                    ✓ 숫자로 표현되어 있고 크기 차이나 계산(평균, 차이 등)이 의미가 있습니다.
+                  </p>
+                  <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-[10px] text-amber-950 leading-tight">
+                    💡 <strong>작은 안내:</strong> 숫자로 적혀 있다는 이유만으로 모두 수치형 특성이 되는 것은 아닙니다. ID처럼 대상을 구별하기 위한 번호도 있습니다.
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-emerald-900 text-sm">범주형 데이터 (Categorical)</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">종류·그룹</span>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
+                    "대상을 <strong>종류나 그룹으로 구분하는 데이터</strong>"
+                  </p>
+                  <div className="p-2.5 bg-white rounded-lg border border-emerald-200 text-[11px] space-y-1">
+                    <span className="font-bold text-emerald-950 block">붓꽃 데이터 예시:</span>
+                    <ul className="list-disc list-inside text-slate-600 space-y-0.5">
+                      <li>품종: 세토사 (Iris-setosa)</li>
+                      <li>품종: 버시컬러 (Iris-versicolor)</li>
+                      <li>품종: 버지니카 (Iris-virginica)</li>
+                    </ul>
+                  </div>
+                  <p className="text-[11px] text-emerald-900 font-bold">
+                    ✓ 값의 크기를 비교하기보다 어떤 범주(종류)에 속하는지를 나타냅니다.
+                  </p>
+                  <div className="p-2.5 bg-white rounded-lg border border-emerald-200 text-[10px] text-emerald-950 leading-tight">
+                    💡 <strong>비교 포인트:</strong> [수치형] 꽃잎 길이 4.5cm → 측정값 vs [범주형] 버시컬러 → 종류
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Student Judgment 1 (Numerical vs Categorical) */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900 block">
+                  3단계: [학생 판단 1] 다음 속성을 데이터의 종류에 따라 나누어보세요.
+                </span>
+                <button
+                  onClick={() => setAct0TypeHintOpen(!act0TypeHintOpen)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
+                >
+                  {act0TypeHintOpen ? '힌트 닫기' : '💡 힌트 보기'}
+                </button>
+              </div>
+
+              {act0TypeHintOpen && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 animate-fadeIn">
+                  💡 <strong>사고 힌트:</strong> 값의 크기를 측정하는 정보인지, 종류를 구분하는 정보인지 생각해보세요.
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {ACT0_ATTRIBUTES.map(attr => {
+                  const chosen = act0DataTypes[attr.id];
+                  const isCorrect = isAct0TypeChecked && chosen === attr.correctType;
+
+                  return (
+                    <div
+                      key={attr.id}
+                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all ${
+                        isAct0TypeChecked
+                          ? isCorrect
+                            ? 'border-emerald-300 bg-emerald-50/40'
+                            : 'border-rose-300 bg-rose-50/30'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-xs text-slate-900 block">{attr.label}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">예시 수치: {attr.sample}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setAct0DataTypes(prev => ({ ...prev, [attr.id]: 'numeric' }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                            chosen === 'numeric'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          수치형
+                        </button>
+                        <button
+                          onClick={() => setAct0DataTypes(prev => ({ ...prev, [attr.id]: 'categorical' }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                            chosen === 'categorical'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          범주형
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-1">
+                <PrimaryButton
+                  size="md"
+                  onClick={() => setIsAct0TypeChecked(true)}
+                  icon={<Check size={18} />}
+                  fullWidth
+                >
+                  {isAct0TypeChecked ? '분류 결과 다시 확인하기' : '분류 결과 확인하기'}
+                </PrimaryButton>
+              </div>
+
+              {isAct0TypeChecked && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1 animate-fadeIn">
+                  <span className="font-extrabold text-emerald-900 block">✓ 수치형/범주형 분류 확인 결과</span>
+                  <p className="leading-relaxed">
+                    꽃받침 길이, 꽃받침 너비, 꽃잎 길이, 꽃잎 너비는 측정 가능한 <strong>수치형 데이터</strong>이고, 붓꽃 품종은 꽃의 종류를 나타내는 <strong>범주형 데이터</strong>입니다.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Feature X vs Target y */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <span className="text-xs font-extrabold text-slate-900 block">
+                4단계: 기계학습에서의 역할 — 입력 특성(X, 독립변수)과 예측 목표(y, 종속변수)
+              </span>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <p className="font-bold text-slate-900 text-sm">
+                  "이번에는 데이터의 '종류'가 아니라 기계학습 문제에서 어떤 역할을 하는지 살펴봅시다."
+                </p>
+                <p className="text-slate-600 leading-relaxed">
+                  머신러닝은 데이터를 그냥 모아두는 것이 아니라, <strong>무엇을 보고(입력) 무엇을 맞힐 것인가(출력)</strong> 역할을 나누어 학습합니다.
+                </p>
+              </div>
+
+              {/* X and y definitions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-sky-900 text-sm">입력 특성 (X, 독립변수)</span>
+                    <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-200">모델의 입력</span>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
+                    "모델이 예측할 때 <strong>입력으로 사용하는 데이터</strong>"
+                  </p>
+                  <p className="text-[11px] text-slate-600">
+                    이 앱에서는 모델에 넣어 주는 입력 정보를 <strong>입력 특성(Feature)</strong> 또는 <strong>독립변수(X)</strong>라고 부릅니다.
+                  </p>
+                  <div className="p-2.5 bg-white rounded-lg border border-sky-200 text-[11px] space-y-1">
+                    <div className="font-mono text-slate-700">붓꽃 X: 꽃받침 길이, 꽃받침 너비, 꽃잎 길이, 꽃잎 너비 (4개 특성)</div>
+                    <p className="text-[10px] text-sky-900 leading-relaxed font-medium pt-1 border-t border-sky-100">
+                      💡 이 데이터셋에는 입력 후보 특성 X가 4개 있지만, 실제 모델을 만들 때는 목적이나 알고리즘에 따라 이 중 일부 특성만 사용할 수도 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-rose-50/70 border border-rose-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-rose-900 text-sm">예측 목표 (y, 종속변수)</span>
+                    <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200">예측할 목표</span>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
+                    "모델이 입력 데이터를 이용해 <strong>최종적으로 예측하려는 값</strong>"
+                  </p>
+                  <p className="text-[11px] text-slate-600">
+                    현재 Iris 분류 문제에서는 붓꽃의 품종이 <strong>예측 목표(y)</strong>이자 모델이 맞혀야 하는 <strong>정답 레이블(Label, 종속변수)</strong>입니다.
+                  </p>
+                  <div className="p-2.5 bg-white rounded-lg border border-rose-200 text-[11px] text-slate-700">
+                    붓꽃 y: 품종 (세토사 / 버시컬러 / 버지니카)
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual Flow diagram */}
+              <div className="p-3.5 bg-slate-100 rounded-xl border border-slate-200 space-y-2 text-xs">
+                <span className="font-bold text-slate-800 block text-[11px]">📊 붓꽃 문제에서의 데이터 흐름</span>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-white rounded-lg border border-slate-200 text-xs">
+                  <div className="p-2 bg-sky-50 rounded border border-sky-200 text-center w-full sm:w-auto">
+                    <span className="font-bold text-sky-900 block">입력 특성 (X, 독립변수)</span>
+                    <span className="text-[10px] text-slate-600">꽃받침/꽃잎 4개 측정값</span>
+                  </div>
+                  <span className="text-slate-400 font-black">➔</span>
+                  <div className="p-2 bg-slate-900 text-white rounded font-bold text-center w-full sm:w-auto">
+                    기계학습 모델
+                  </div>
+                  <span className="text-slate-400 font-black">➔</span>
+                  <div className="p-2 bg-rose-50 rounded border border-rose-200 text-center w-full sm:w-auto">
+                    <span className="font-bold text-rose-900 block">예측 목표 (y, 종속변수)</span>
+                    <span className="text-[10px] text-slate-600">붓꽃 품종 (정답 레이블)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CRITICAL WARNING NOTICE */}
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 space-y-1">
+                <span className="font-extrabold text-amber-900 block text-xs">
+                  ⚠️ 중요한 개념 주의: 형태와 역할은 다릅니다!
+                </span>
+                <p className="leading-relaxed font-medium">
+                  <strong>"수치형/범주형은 데이터의 형태를 구분하는 기준이고, 입력 특성(X)/예측 목표(y)는 기계학습 문제에서 데이터가 맡는 역할을 구분하는 기준입니다."</strong>
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  * 현재 붓꽃 문제에서는 우연히 수치형 측정치 4개가 입력 특성(X, 독립변수)이고 범주형 품종이 예측 목표(y, 종속변수)이지만, 다른 문제(예: 집값이나 온도 예측 같은 회귀 문제)에서는 예측 목표(y)도 숫자가 될 수 있습니다.
+                </p>
+              </div>
+            </div>
+
+            {/* Section 5: Student Judgment 2 (Feature X vs Target y) */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900 block">
+                  5단계: [학생 판단 2] 붓꽃 품종을 예측하는 현재 문제에서 각 속성은 어떤 역할을 할까요?
+                </span>
+                <button
+                  onClick={() => setAct0RoleHintOpen(!act0RoleHintOpen)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
+                >
+                  {act0RoleHintOpen ? '힌트 닫기' : '💡 힌트 보기'}
+                </button>
+              </div>
+
+              {act0RoleHintOpen && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 animate-fadeIn">
+                  💡 <strong>사고 힌트:</strong> 모델이 입력받는 정보와 최종적으로 맞혀야 하는 값을 구분해보세요.
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {ACT0_ATTRIBUTES.map(attr => {
+                  const chosen = act0Roles[attr.id];
+                  const isCorrect = isAct0RoleChecked && chosen === attr.correctRole;
+
+                  return (
+                    <div
+                      key={attr.id}
+                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all ${
+                        isAct0RoleChecked
+                          ? isCorrect
+                            ? 'border-emerald-300 bg-emerald-50/40'
+                            : 'border-rose-300 bg-rose-50/30'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-xs text-slate-900 block">{attr.label}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">예시 수치: {attr.sample}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setAct0Roles(prev => ({ ...prev, [attr.id]: 'X' }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                            chosen === 'X'
+                              ? 'bg-sky-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          입력 특성 (X)
+                        </button>
+                        <button
+                          onClick={() => setAct0Roles(prev => ({ ...prev, [attr.id]: 'y' }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                            chosen === 'y'
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          예측 목표 (y)
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-1">
+                <PrimaryButton
+                  size="md"
+                  onClick={() => setIsAct0RoleChecked(true)}
+                  icon={<Check size={18} />}
+                  fullWidth
+                >
+                  {isAct0RoleChecked ? '역할 확인 다시 하기' : '역할 확인하기'}
+                </PrimaryButton>
+              </div>
+
+              {isAct0RoleChecked && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1 animate-fadeIn">
+                  <span className="font-extrabold text-emerald-900 block">✓ 역할 확인 결과</span>
+                  <p className="leading-relaxed">
+                    꽃받침과 꽃잎의 4가지 측정값은 모델이 품종을 판별하기 위해 관찰하는 <strong>입력 특성(X, 독립변수)</strong>이고, 최종적으로 알아내려는 품종은 <strong>예측 목표(y, 종속변수)</strong>입니다.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Section 6: Final 2x2 Summary & Connection to Preprocessing */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <span className="text-xs font-extrabold text-slate-900 block">
+                6단계: 한눈에 정리 & 데이터 전처리로 연결
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <span className="font-extrabold text-slate-900 block text-xs">[데이터의 형태 (종류)]</span>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200">
+                      <strong className="text-indigo-900 block">수치형 (Numerical)</strong>
+                      숫자로 측정하거나 계산 가능 (꽃잎 길이 등 4개 측정치)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-slate-200">
+                      <strong className="text-emerald-900 block">범주형 (Categorical)</strong>
+                      종류나 그룹으로 구분 (붓꽃 품종)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <span className="font-extrabold text-slate-900 block text-xs">[기계학습에서의 역할]</span>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200">
+                      <strong className="text-sky-900 block">입력 특성 (X, 독립변수)</strong>
+                      모델에 입력으로 제공하는 특성 (4개 측정값)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-slate-200">
+                      <strong className="text-rose-900 block">예측 목표 (y, 종속변수)</strong>
+                      모델이 최종 맞혀야 하는 목표 (품종 정답 레이블)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Core Takeaway Quote */}
+              <div className="p-3.5 bg-slate-900 text-white rounded-xl text-center space-y-1">
+                <p className="text-xs font-bold leading-relaxed text-emerald-300">
+                  "수치형/범주형은 데이터의 형태, 입력 특성(X)/예측 목표(y)는 기계학습에서의 역할을 나타냅니다."
+                </p>
+              </div>
+
+              {/* Preprocessing Connection Bridge */}
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1.5">
+                <span className="font-extrabold text-emerald-900 text-sm block">
+                  🚀 이제 본격적인 데이터 전처리로 나아가 봅시다!
+                </span>
+                <p className="leading-relaxed">
+                  데이터의 종류(수치형/범주형)와 역할(X/y)에 따라 <strong>필요한 전처리 방법도 달라질 수 있습니다.</strong>
+                </p>
+                <p className="text-slate-600">
+                  이제 실제 수집된 데이터에 빠진 값이나 잘못 적힌 값 등 어떤 문제가 있는지 살펴보고, 기계학습에 안전하게 사용할 수 있도록 직접 정리해봅시다!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVITY 2: 왜 데이터를 정리해야 할까? */}
+      {currentActivity === 2 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Layers size={20} className="text-emerald-600" />
-              <span>활동 1. [왜 데이터를 정리해야 할까?]</span>
+              <span>활동 2. [왜 데이터를 정리해야 할까?]</span>
             </h3>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed space-y-2">
@@ -489,21 +1041,30 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 2: 데이터에서 문제를 찾아보자 (전체 20개 레코드 관찰) */}
-      {currentActivity === 2 && (
+      {/* ACTIVITY 3: 데이터에서 문제를 찾아보자 (전체 20개 레코드 관찰) */}
+      {currentActivity === 3 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Search size={20} className="text-rose-600" />
-              <span>활동 2. [데이터에서 문제를 찾아보자] (데이터 탐정: 전체 20개 관찰)</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Search size={20} className="text-rose-600" />
+                <span>활동 3. [데이터에서 문제를 찾아보자] (데이터 탐정: 전체 20개 관찰)</span>
+              </h3>
+              <span className={`text-xs font-mono font-extrabold px-3 py-1 rounded-full border ${
+                isDetectiveAllAttempted
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-slate-100 text-slate-700 border-slate-200'
+              }`}>
+                판별 진행: {attemptedDetectiveCount} / {workingDataset.length} 개 완료
+              </span>
+            </div>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
               아래 데이터 카드 20개(오류 레코드 12개 + 정상 레코드 8개)를 살펴보고 각 카드의 문제 유형을 직접 판단해보세요. 정상 데이터는 수정하지 않습니다.
             </p>
 
             {/* Detective Reference Notebook Sample */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <BookOpen size={16} className="text-emerald-600" />
@@ -520,6 +1081,15 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                     <div className="text-slate-600">{rec.sepalLength} / {rec.sepalWidth} / {rec.petalLength} / {rec.petalWidth} cm</div>
                   </div>
                 ))}
+              </div>
+
+              {/* Neutral observation hint */}
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <span className="font-bold text-slate-800 block">💡 탐정 관찰 요령:</span>
+                <p className="leading-relaxed">
+                  • 같은 열의 다른 데이터와 비교했을 때 형태(—, 표기법, 단위)나 크기가 유난히 다른 값이 있는지 기준값과 비교해보세요.<br />
+                  • 정상적인 데이터는 수정할 필요가 없으므로 [오류 없음]을 선택합니다.
+                </p>
               </div>
             </div>
 
@@ -600,14 +1170,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 3: 결측치를 수정해보자 (총 4개: #101, #102, #108, #115) */}
-      {currentActivity === 3 && (
+      {/* ACTIVITY 4: 결측치를 수정해보자 (총 4개: #101, #102, #108, #115) */}
+      {currentActivity === 4 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <HelpCircle size={20} className="text-amber-600" />
-                <span>활동 3. [빠진 값을 어떻게 처리할까?] (결측치 4개 직접 수정)</span>
+                <span>활동 4. [빠진 값을 어떻게 처리할까?] (결측치 4개 직접 수정)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-amber-100 text-amber-900 rounded-full">
                 결측치 해결: {4 - currentErrorCounts.missing} / 4 개 완료
@@ -764,14 +1334,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 4: 이상치를 찾아 수정해보자 (구조 개편: 1/5~5/5 네비게이터 공통화 & 범위형 히스토그램 & 박스플롯 축 스케일링) */}
-      {currentActivity === 4 && (
+      {/* ACTIVITY 5: 이상치를 찾아 수정해보자 (구조 개편: 1/5~5/5 네비게이터 공통화 & 범위형 히스토그램 & 박스플롯 축 스케일링) */}
+      {currentActivity === 5 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <BarChart2 size={20} className="text-emerald-600" />
-                <span>활동 4. [이 값은 정말 이상한 값일까?] (이상치 5단계 탐구)</span>
+                <span>활동 5. [이 값은 정말 이상한 값일까?] (이상치 5단계 탐구)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
                 이상치 해결: {2 - currentErrorCounts.outlier} / 2 개 완료
@@ -1377,14 +1947,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 5: 표현과 데이터형 오류를 수정해보자 (표현 4개 & 자료형 2개 정제) */}
-      {currentActivity === 5 && (
+      {/* ACTIVITY 6: 표현과 데이터형 오류를 수정해보자 (표현 4개 & 자료형 2개 정제) */}
+      {currentActivity === 6 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <CheckCircle2 size={20} className="text-emerald-600" />
-                <span>활동 5. [같은 뜻인데 다르게 적혀 있다면?] (표현 4개 & 자료형 2개 정제)</span>
+                <span>활동 6. [같은 뜻인데 다르게 적혀 있다면?] (표현 4개 & 자료형 2개 정제)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
                 표현: {4 - currentErrorCounts.inconsistent} / 4 | 자료형: {2 - currentErrorCounts.invalidType} / 2
@@ -1489,14 +2059,23 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 6: 데이터를 학습하기 좋은 형태로 바꿔보자 (Scaling & Encoding) */}
-      {currentActivity === 6 && (
+      {/* ACTIVITY 7: 데이터를 학습하기 좋은 형태로 바꿔보자 (Scaling & Encoding) */}
+      {currentActivity === 7 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Sliders size={20} className="text-indigo-600" />
-              <span>활동 6. [데이터를 학습하기 좋은 형태로 바꿔보자] (스케일링 & 인코딩)</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Sliders size={20} className="text-indigo-600" />
+                <span>활동 7. [데이터를 학습하기 좋은 형태로 바꿔보자] (스케일링 & 인코딩)</span>
+              </h3>
+              <span className={`text-xs font-mono font-extrabold px-3 py-1 rounded-full border ${
+                isTransformReady
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-indigo-50 text-indigo-800 border-indigo-200'
+              }`}>
+                체험 진행: {Number(isScalingExecuted) + Number(encodingChoice !== null)} / 2 개 완료
+              </span>
+            </div>
 
             {/* Part A: Min-Max Scaling */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
@@ -1636,13 +2215,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 7: [내가 수정한 데이터 확인하기] */}
-      {currentActivity === 7 && (
+      {/* ACTIVITY 8: [내가 수정한 데이터 확인하기] */}
+      {currentActivity === 8 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-emerald-600" />
-              <span>활동 7. [내가 수정한 데이터 확인하기]</span>
+              <span>활동 8. [내가 수정한 데이터 확인하기]</span>
             </h3>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1.5">
@@ -1728,87 +2307,99 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               )}
             </div>
 
-            {/* Modified Records Cards Section */}
+            {/* Modified Records Cards Section (Collapsible) */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 text-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
-                <span className="font-extrabold text-slate-900 text-sm">
-                  [내가 수정한 레코드 카드 (총 12개 정제 대상 전체)]
-                </span>
-                <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200">
-                  수정한 데이터: <strong className="text-emerald-700">{uniqueModifiedRecordCount}개</strong> | 수정한 항목: <strong className="text-emerald-700">{module04Edits.length}개</strong>
-                </span>
+                <div>
+                  <span className="font-extrabold text-slate-900 text-sm block">
+                    [내가 수정한 레코드 카드 (총 12개 정제 대상 전체)]
+                  </span>
+                  <span className="font-mono text-xs font-bold text-slate-700">
+                    수정한 데이터: <strong className="text-emerald-700">{uniqueModifiedRecordCount}개</strong> | 수정한 항목: <strong className="text-emerald-700">{module04Edits.length}개</strong>
+                  </span>
+                </div>
+                <SecondaryButton
+                  size="sm"
+                  onClick={() => setIsModifiedCardsOpen(!isModifiedCardsOpen)}
+                >
+                  {isModifiedCardsOpen ? '수정 내역 접기' : '내가 수정한 데이터 자세히 보기 (12개 카드)'}
+                </SecondaryButton>
               </div>
 
-              {module04Edits.length === 0 ? (
-                <div className="p-5 bg-white rounded-xl border border-slate-200 text-center space-y-2">
-                  <span className="font-extrabold text-slate-800 text-sm block">
-                    아직 직접 수정한 데이터가 없습니다.
-                  </span>
-                  <p className="text-slate-500 text-xs">
-                    앞의 전처리 활동(활동 3~5)에서 결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류를 직접 정제해보세요.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {module04Edits.map((edit, idx) => {
-                    const actualRecord = workingDataset.find(r => r.id === edit.recordId);
-                    const actualVal = actualRecord ? (actualRecord as any)[edit.field] : edit.after;
-                    const isValVerified = String(actualVal) === String(edit.after);
+              {isModifiedCardsOpen && (
+                <>
+                  {module04Edits.length === 0 ? (
+                    <div className="p-5 bg-white rounded-xl border border-slate-200 text-center space-y-2">
+                      <span className="font-extrabold text-slate-800 text-sm block">
+                        아직 직접 수정한 데이터가 없습니다.
+                      </span>
+                      <p className="text-slate-500 text-xs">
+                        앞의 전처리 활동(활동 4~6)에서 결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류를 직접 정제해보세요.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+                      {module04Edits.map((edit, idx) => {
+                        const actualRecord = workingDataset.find(r => r.id === edit.recordId);
+                        const actualVal = actualRecord ? (actualRecord as any)[edit.field] : edit.after;
+                        const isValVerified = String(actualVal) === String(edit.after);
 
-                    return (
-                      <div key={idx} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <span className="font-extrabold text-slate-900 text-sm">
-                            [데이터 #{edit.recordId}]
-                          </span>
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
-                            {getErrorReasonLabel(edit.errorType)}
-                          </span>
-                        </div>
+                        return (
+                          <div key={idx} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                              <span className="font-extrabold text-slate-900 text-sm">
+                                [데이터 #{edit.recordId}]
+                              </span>
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                {getErrorReasonLabel(edit.errorType)}
+                              </span>
+                            </div>
 
-                        <div className="font-bold text-slate-700 text-xs">
-                          대상 속성: <span className="text-slate-900 font-mono">[{NUMERIC_FEATURE_LABELS[edit.field as FeatureKey]?.full || '품종'}]</span>
-                        </div>
+                            <div className="font-bold text-slate-700 text-xs">
+                              대상 속성: <span className="text-slate-900 font-mono">[{NUMERIC_FEATURE_LABELS[edit.field as FeatureKey]?.full || '품종'}]</span>
+                            </div>
 
-                        {/* Mobile & PC Before / After Comparison Cards */}
-                        <div className="grid grid-cols-2 gap-2 text-center font-mono text-[11px]">
-                          <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-lg space-y-0.5">
-                            <span className="font-sans font-bold text-[10px] text-rose-700 block">수정 전</span>
-                            <span className="font-bold text-rose-950 text-xs">{formatBeforeDisplay(edit)}</span>
+                            {/* Mobile & PC Before / After Comparison Cards */}
+                            <div className="grid grid-cols-2 gap-2 text-center font-mono text-[11px]">
+                              <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-lg space-y-0.5">
+                                <span className="font-sans font-bold text-[10px] text-rose-700 block">수정 전</span>
+                                <span className="font-bold text-rose-950 text-xs">{formatBeforeDisplay(edit)}</span>
+                              </div>
+                              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-0.5">
+                                <span className="font-sans font-bold text-[10px] text-emerald-700 block">수정 후 (현재 반영)</span>
+                                <span className="font-black text-emerald-950 text-xs">{formatAfterDisplay(edit)}</span>
+                              </div>
+                            </div>
+
+                            {/* Real workingDataset validation check */}
+                            <div className="text-[10px] text-slate-500 font-sans flex items-center justify-between pt-1 border-t border-slate-100">
+                              <span>작업 데이터 검증:</span>
+                              <span className={isValVerified ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                                {isValVerified ? '✓ workingDataset 일치' : '⚠️ 작업 데이터 검증 필요'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-0.5">
-                            <span className="font-sans font-bold text-[10px] text-emerald-700 block">수정 후 (현재 반영)</span>
-                            <span className="font-black text-emerald-950 text-xs">{formatAfterDisplay(edit)}</span>
-                          </div>
-                        </div>
-
-                        {/* Real workingDataset validation check */}
-                        <div className="text-[10px] text-slate-500 font-sans flex items-center justify-between pt-1 border-t border-slate-100">
-                          <span>작업 데이터 검증:</span>
-                          <span className={isValVerified ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
-                            {isValVerified ? '✓ workingDataset 일치' : '⚠️ 작업 데이터 검증 필요'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             {/* Full Preprocessed Dataset View & Pagination */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="font-extrabold text-slate-900 text-sm">
                   [전체 전처리 작업 데이터 (workingDataset: 총 {workingDataset.length}개)]
                 </span>
-                <PrimaryButton
+                <SecondaryButton
                   size="sm"
                   onClick={() => setIsFullDatasetOpen(!isFullDatasetOpen)}
                   icon={<Table size={16} />}
                 >
-                  {isFullDatasetOpen ? '전체 데이터 닫기' : '전체 전처리 데이터 보기'}
-                </PrimaryButton>
+                  {isFullDatasetOpen ? '전체 20개 데이터 닫기' : '전체 20개 데이터 보기'}
+                </SecondaryButton>
               </div>
 
               {isFullDatasetOpen && (
@@ -1927,13 +2518,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         </div>
       )}
 
-      {/* ACTIVITY 8: 속성 사이의 관계를 알아보자 (산점도, 히트맵, 06 연동) */}
-      {currentActivity === 8 && (
+      {/* ACTIVITY 9: 속성 사이의 관계를 알아보자 (산점도, 히트맵, 06 연동) */}
+      {currentActivity === 9 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <TrendingUp size={20} className="text-teal-600" />
-              <span>활동 8. [속성끼리는 어떤 관계가 있을까?] (산점도 & 상관계수 히트맵)</span>
+              <span>활동 9. [속성끼리는 어떤 관계가 있을까?] (산점도 & 상관계수 히트맵)</span>
             </h3>
 
             {/* 2D Scatter Plot */}
@@ -2108,28 +2699,53 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
       />
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentActivity === 1}
-          onClick={() => setCurrentActivity(a => Math.max(1, a - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
-
-        {currentActivity < totalActivities ? (
-          <PrimaryButton
-            size="md"
-            onClick={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
-            icon={<ChevronRight size={16} />}
-            className="flex-row-reverse"
-          >
-            다음 활동
-          </PrimaryButton>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {currentActivity === 1 && (!isAct0TypeChecked || !isAct0RoleChecked) && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            💡 수치형/범주형 분류와 입력 특성(X)/예측 목표(y) 역할 확인을 먼저 완료하면 다음 활동으로 이동할 수 있습니다.
+          </p>
         )}
+
+        {currentActivity === 3 && !isDetectiveAllAttempted && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 {attemptedDetectiveCount} / {workingDataset.length}개 완료)
+          </p>
+        )}
+
+        {currentActivity === 7 && !isTransformReady && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            💡 스케일링을 한 번 실행하고 인코딩 문제에 응답하면 다음 활동으로 이동할 수 있습니다.
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentActivity === 1}
+            onClick={() => setCurrentActivity(a => Math.max(1, a - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentActivity < totalActivities ? (
+            <PrimaryButton
+              size="md"
+              disabled={
+                (currentActivity === 1 && (!isAct0TypeChecked || !isAct0RoleChecked)) ||
+                (currentActivity === 3 && !isDetectiveAllAttempted) ||
+                (currentActivity === 7 && !isTransformReady)
+              }
+              onClick={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
+              icon={<ChevronRight size={16} />}
+              className="flex-row-reverse"
+            >
+              다음 활동
+            </PrimaryButton>
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
 
       {/* Modal for Notebook Guide */}
@@ -2142,6 +2758,16 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           <p className="font-medium text-slate-600">
             정상 붓꽃 데이터의 수치 범위를 참조하여 문제 데이터를 찾아보세요!
           </p>
+
+          <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950">
+            <span className="font-bold text-emerald-900 block">💡 탐정 관찰 요령 (무엇을 비교할까요?)</span>
+            <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-700">
+              <li>같은 열의 다른 정상 데이터와 비교해보세요.</li>
+              <li>값이 비어 있지는 않은지(—), 표현 방식이나 단위(cm)가 다른 값은 없는지 살펴보세요.</li>
+              <li>수치 데이터의 단위(cm)와 값의 범위를 비교해보세요.</li>
+              <li>다른 데이터와 비교했을 때 형태나 크기가 유난히 다른 값이 있는지 살펴보세요.</li>
+            </ul>
+          </div>
 
           <div className="space-y-2 font-mono text-[11px]">
             {[normalSampleSetosa, normalSampleVersicolor, normalSampleVirginica].map(rec => (

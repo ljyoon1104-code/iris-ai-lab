@@ -4,6 +4,7 @@ import type { ErrorIrisRecord, IrisRecord } from '../../types/iris';
 interface StudentDataCardProps {
   record: ErrorIrisRecord | IrisRecord;
   title?: string;
+  showErrorHint?: boolean;
 }
 
 interface FieldDisplay {
@@ -17,7 +18,8 @@ interface FieldDisplay {
 
 export function formatIrisFieldForStudent(
   field: keyof Omit<IrisRecord, 'id'>,
-  val: any
+  val: any,
+  showErrorHint = false
 ): FieldDisplay {
   const fieldLabels: Record<string, string> = {
     sepalLength: '꽃받침 길이',
@@ -33,8 +35,9 @@ export function formatIrisFieldForStudent(
   if (val === null || val === undefined || val === '') {
     return {
       label,
-      valueText: '값 없음',
+      valueText: '—',
       isMissing: true,
+      note: showErrorHint ? '※ 값 없음' : undefined,
     };
   }
 
@@ -46,8 +49,8 @@ export function formatIrisFieldForStudent(
     // Inconsistent representation (e.g. setosa, Setosa, versicolor, virginica)
     return {
       label,
-      valueText: `"${val}"`,
-      note: '※ 표준 표기와 다름',
+      valueText: String(val),
+      note: showErrorHint ? '※ 표준 표기와 다름' : undefined,
       isInconsistent: true,
     };
   }
@@ -56,8 +59,8 @@ export function formatIrisFieldForStudent(
   if (typeof val === 'string') {
     return {
       label,
-      valueText: `"${val}"`,
-      note: '※ 숫자가 아닌 문자로 저장됨',
+      valueText: String(val),
+      note: showErrorHint ? '※ 숫자가 아닌 문자로 저장됨' : undefined,
       isStringData: true,
     };
   }
@@ -76,7 +79,7 @@ export function formatIrisFieldForStudent(
   };
 }
 
-export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title }) => {
+export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title, showErrorHint = false }) => {
   const fields: (keyof Omit<IrisRecord, 'id'>)[] = [
     'sepalLength',
     'sepalWidth',
@@ -96,7 +99,7 @@ export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title 
 
       <div className="space-y-1.5 pt-0.5">
         {fields.map(field => {
-          const formatted = formatIrisFieldForStudent(field, (record as any)[field]);
+          const formatted = formatIrisFieldForStudent(field, (record as any)[field], showErrorHint);
 
           return (
             <div
@@ -107,20 +110,24 @@ export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title 
 
               <div className="text-right min-w-0 break-words">
                 <span
-                  className={`font-bold inline-block ${
-                    formatted.isMissing
-                      ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200'
-                      : formatted.isStringData
-                      ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-mono'
-                      : formatted.isInconsistent
-                      ? 'text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200'
-                      : 'text-slate-900 font-mono'
+                  className={`font-bold inline-block font-mono ${
+                    showErrorHint
+                      ? formatted.isMissing
+                        ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200'
+                        : formatted.isStringData
+                        ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200'
+                        : formatted.isInconsistent
+                        ? 'text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200'
+                        : 'text-slate-900'
+                      : formatted.isMissing
+                      ? 'text-slate-400 font-bold'
+                      : 'text-slate-900'
                   }`}
                 >
                   {formatted.valueText}
                 </span>
 
-                {formatted.note && (
+                {showErrorHint && formatted.note && (
                   <span className="block text-[10px] text-slate-500 pt-0.5 font-sans">
                     {formatted.note}
                   </span>
