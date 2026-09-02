@@ -1,5 +1,5 @@
-import type { IrisRecord, IrisSpecies, DatasetCounts } from '../types/iris';
-import { SPECIES_MAP } from '../data/irisDataset';
+import type { IrisRecord, IrisSpecies, DatasetCounts, ErrorIrisRecord } from '../types/iris';
+import { SPECIES_MAP, ORIGINAL_IRIS_DATASET, ERROR_IRIS_DATASET } from '../data/irisDataset';
 
 // 1. Get record by ID
 export function getIrisById(dataset: IrisRecord[], id: number): IrisRecord | undefined {
@@ -225,7 +225,7 @@ export function validateIrisDataset(dataset: IrisRecord[]): {
 export const ERROR_GROUND_TRUTH_MAP: Record<number, Record<string, any>> = {
   101: { sepalLength: 5.1 },
   102: { petalWidth: 0.2 },
-  103: { sepalLength: 5.0 },
+  103: { sepalLength: 4.7 },
   104: { petalLength: 1.5 },
   105: { species: 'Iris-setosa' },
   106: { species: 'Iris-setosa' },
@@ -255,3 +255,160 @@ export function applyEditsToDataset<T extends { id: number }>(dataset: T[], edit
   return cloned;
 }
 
+/**
+ * Explicit 1-to-1 Provenance Mapping from ERROR_IRIS_DATASET (101~120) to ORIGINAL_IRIS_DATASET (1~150).
+ */
+export const ERROR_TO_ORIGINAL_ID_MAP: Record<number, number> = {
+  101: 1,
+  102: 2,
+  103: 3,
+  104: 4,
+  105: 5,
+  106: 6,
+  107: 18,
+  108: 51,
+  109: 52,
+  110: 53,
+  111: 54,
+  112: 55,
+  113: 101,
+  114: 102,
+  115: 103,
+  116: 104,
+  117: 105,
+  118: 106,
+  119: 107,
+  120: 108,
+};
+
+/**
+ * 12 educational error records in ERROR_IRIS_DATASET and the specific field containing the error.
+ * Normal records (110, 111, 113, 116, 117, 118, 119, 120) are excluded since they are identical to originals.
+ */
+export const ERROR_RECORD_FIELD_MAP: Record<number, keyof Omit<ErrorIrisRecord, 'id'>> = {
+  101: 'sepalLength',
+  102: 'petalWidth',
+  103: 'sepalLength',
+  104: 'petalLength',
+  105: 'species',
+  106: 'species',
+  107: 'sepalLength',
+  108: 'sepalWidth',
+  109: 'species',
+  112: 'petalWidth',
+  114: 'species',
+  115: 'petalLength',
+};
+
+/**
+ * Creates a 150-record dataset based on ORIGINAL_IRIS_DATASET with the 12 educational errors injected
+ * into their corresponding original rows. The 8 normal records in ERROR_IRIS_DATASET are not injected
+ * as they are already identical to their original counterparts.
+ * Maintains original row IDs (1~150) and always returns exactly 150 items.
+ */
+export function createCorruptedIrisDataset(): ErrorIrisRecord[] {
+  const corrupted: ErrorIrisRecord[] = cloneDataset(ORIGINAL_IRIS_DATASET) as any[];
+
+  Object.entries(ERROR_RECORD_FIELD_MAP).forEach(([errIdStr, field]) => {
+    const errorId = Number(errIdStr);
+    const originalId = ERROR_TO_ORIGINAL_ID_MAP[errorId];
+    if (!originalId) return;
+
+    const errorSource = ERROR_IRIS_DATASET.find(r => r.id === errorId);
+    const targetRow = corrupted.find(r => r.id === originalId);
+
+    if (errorSource && targetRow) {
+      (targetRow as any)[field] = (errorSource as any)[field];
+    }
+  });
+
+  return corrupted;
+}
+
+/**
+ * Creates the student's 150-record Prepared Dataset by starting with the 150 Corrupted Dataset
+ * and applying the student's edits (module04Edits).
+ * - Maps edit.recordId (101~120) to the corresponding original ID (1~150).
+ * - Unedited errors remain corrupted as in the corrupted dataset.
+ * - Edited errors reflect the student's actual values (whether correct or flawed).
+ * - Always returns exactly 150 items.
+ */
+export function createPreparedIrisDataset(
+  module04Edits: Array<{ recordId: number; field: string; after: any }> = []
+): ErrorIrisRecord[] {
+  const dataset = createCorruptedIrisDataset();
+  if (!module04Edits || module04Edits.length === 0) {
+    return dataset;
+  }
+
+  module04Edits.forEach(edit => {
+    const targetOriginalId = ERROR_TO_ORIGINAL_ID_MAP[edit.recordId] ?? edit.recordId;
+    const targetRow = dataset.find(r => r.id === targetOriginalId);
+    if (targetRow) {
+      (targetRow as any)[edit.field] = edit.after;
+    }
+  });
+
+  return dataset;
+}
+
+export const CANONICAL_SPECIES_SET = new Set<string>(['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']);
+
+export interface UsableIrisRecordsResult<T = ErrorIrisRecord> {
+  usableData: T[];
+  excludedData: {
+    record: ErrorIrisRecord;
+    reasons: string[];
+  }[];
+  totalCount: number;
+  usableCount: number;
+  excludedCount: number;
+}
+
+/**
+ * Filters a dataset for records that can be safely computed in an algorithm.
+ * Strictly excludes unusable records without modifying/auto-correcting any values.
+ * - For numeric features: requires typeof === 'number' && Number.isFinite(value)
+ * - For species (if requireCanonicalSpecies === true): requires species to be in ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
+ */
+export function getUsableIrisRecords(
+  dataset: ErrorIrisRecord[],
+  requiredFeatures: Array<'sepalLength' | 'sepalWidth' | 'petalLength' | 'petalWidth'> = [],
+  requireCanonicalSpecies: boolean = false
+): UsableIrisRecordsResult {
+  const usableData: ErrorIrisRecord[] = [];
+  const excludedData: { record: ErrorIrisRecord; reasons: string[] }[] = [];
+
+  for (const record of dataset) {
+    const reasons: string[] = [];
+
+    // Check required numeric features
+    for (const feat of requiredFeatures) {
+      const val = record[feat];
+      if (typeof val !== 'number' || !Number.isFinite(val)) {
+        reasons.push(`${feat}: 유효한 수치 아님(${val})`);
+      }
+    }
+
+    // Check canonical species if required
+    if (requireCanonicalSpecies) {
+      if (!CANONICAL_SPECIES_SET.has(record.species)) {
+        reasons.push(`비표준 품종 라벨(${record.species})`);
+      }
+    }
+
+    if (reasons.length === 0) {
+      usableData.push(record);
+    } else {
+      excludedData.push({ record, reasons });
+    }
+  }
+
+  return {
+    usableData,
+    excludedData,
+    totalCount: dataset.length,
+    usableCount: usableData.length,
+    excludedCount: excludedData.length,
+  };
+}

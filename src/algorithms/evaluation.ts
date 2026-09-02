@@ -42,6 +42,7 @@ export interface ExperimentResult {
   correctCount: number;
   confusionMatrix: ConfusionMatrixResult;
   misclassifiedSamples: MisclassifiedSample[];
+  featureKeys?: (keyof Omit<IrisRecord, 'id' | 'species'>)[];
 }
 
 // Seeded PRNG Mulberry32 for reproducible stratified splitting
@@ -144,20 +145,29 @@ export function evaluateClassifier(
   algorithm: 'knn' | 'decisionTree',
   trainData: IrisRecord[],
   testData: IrisRecord[],
-  params: { k?: number; maxDepth?: number }
+  params: {
+    k?: number;
+    maxDepth?: number;
+    featureKeys?: (keyof Omit<IrisRecord, 'id' | 'species'>)[];
+  }
 ): { predictions: IrisSpecies[]; confusionMatrix: ConfusionMatrixResult; misclassified: MisclassifiedSample[] } {
   const predictions: IrisSpecies[] = [];
   const actuals: IrisSpecies[] = testData.map(r => r.species);
   const misclassified: MisclassifiedSample[] = [];
 
-  const features2D = ['petalLength', 'petalWidth'] as const;
+  const defaultKnnFeatures: (keyof Omit<IrisRecord, 'id' | 'species'>)[] = ['petalLength', 'petalWidth'];
   const features4D = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as const;
 
   if (algorithm === 'knn') {
     const k = params.k || 5;
+    const knnFeatures =
+      params.featureKeys && params.featureKeys.length === 2
+        ? params.featureKeys
+        : defaultKnnFeatures;
+
     testData.forEach(testRec => {
       // Predict ONLY using trainData (NO test leakage!)
-      const res = predictKNN(trainData, testRec, [...features2D], k);
+      const res = predictKNN(trainData, testRec, knnFeatures, k);
       predictions.push(res.predictedSpecies);
       if (res.predictedSpecies !== testRec.species) {
         misclassified.push({

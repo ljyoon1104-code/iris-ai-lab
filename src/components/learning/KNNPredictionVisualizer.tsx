@@ -6,6 +6,22 @@ import { SpeciesMarker } from '../common/SpeciesMarker';
 import { getSpeciesConfig, ALL_SPECIES_LIST } from '../../constants/species';
 import { Target, Info, CheckCircle2 } from 'lucide-react';
 
+type FeatureKey = keyof Omit<IrisRecord, 'id' | 'species'>;
+
+const FEATURE_NAMES: Record<FeatureKey, string> = {
+  sepalLength: '꽃받침 길이 (cm)',
+  sepalWidth: '꽃받침 너비 (cm)',
+  petalLength: '꽃잎 길이 (cm)',
+  petalWidth: '꽃잎 너비 (cm)',
+};
+
+const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: number }> = {
+  sepalLength: { min: 4.0, max: 8.0, step: 0.1 },
+  sepalWidth: { min: 2.0, max: 4.5, step: 0.1 },
+  petalLength: { min: 1.0, max: 7.0, step: 0.1 },
+  petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
+};
+
 interface KNNPredictionVisualizerProps {
   trainData: IrisRecord[];
   newPoint: {
@@ -16,6 +32,7 @@ interface KNNPredictionVisualizerProps {
   };
   kParam: number;
   knnResult: KNNPredictionResult | null;
+  featureKeys?: [FeatureKey, FeatureKey];
 }
 
 export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = ({
@@ -23,7 +40,10 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
   newPoint,
   kParam,
   knnResult,
+  featureKeys,
 }) => {
+  const [xKey, yKey] = featureKeys || (['petalLength', 'petalWidth'] as [FeatureKey, FeatureKey]);
+
   // SVG Dimensions and Plot Bounds
   const svgWidth = 460;
   const svgHeight = 290;
@@ -34,28 +54,31 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
   const plotW = plotRight - plotLeft;
   const plotH = plotBottom - plotTop;
 
-  // Coordinate Domain: Petal Length (1.0 ~ 7.0), Petal Width (0.1 ~ 2.5)
-  const xMin = 1.0;
-  const xMax = 7.0;
-  const yMin = 0.1;
-  const yMax = 2.5;
+  // Dynamic Coordinate Domain from trainData and specs
+  const xSpec = FEATURE_MIN_MAX[xKey];
+  const ySpec = FEATURE_MIN_MAX[yKey];
+
+  const axisMinX = Math.min(xSpec.min, ...trainData.map(r => (typeof r[xKey] === 'number' ? (r[xKey] as number) : xSpec.min)));
+  const axisMaxX = Math.max(xSpec.max, ...trainData.map(r => (typeof r[xKey] === 'number' ? (r[xKey] as number) : xSpec.max)));
+  const axisMinY = Math.min(ySpec.min, ...trainData.map(r => (typeof r[yKey] === 'number' ? (r[yKey] as number) : ySpec.min)));
+  const axisMaxY = Math.max(ySpec.max, ...trainData.map(r => (typeof r[yKey] === 'number' ? (r[yKey] as number) : ySpec.max)));
 
   const mapX = (v: number) =>
-    plotLeft + ((Math.max(xMin, Math.min(xMax, v)) - xMin) / (xMax - xMin)) * plotW;
+    plotLeft + ((Math.max(axisMinX, Math.min(axisMaxX, v)) - axisMinX) / (axisMaxX - axisMinX || 1)) * plotW;
   const mapY = (v: number) =>
-    plotBottom - ((Math.max(yMin, Math.min(yMax, v)) - yMin) / (yMax - yMin)) * plotH;
+    plotBottom - ((Math.max(axisMinY, Math.min(axisMaxY, v)) - axisMinY) / (axisMaxY - axisMinY || 1)) * plotH;
 
-  const safePetalLength =
-    typeof newPoint?.petalLength === 'number' && !isNaN(newPoint.petalLength)
-      ? newPoint.petalLength
-      : 4.8;
-  const safePetalWidth =
-    typeof newPoint?.petalWidth === 'number' && !isNaN(newPoint.petalWidth)
-      ? newPoint.petalWidth
-      : 1.6;
+  const safeX =
+    typeof newPoint?.[xKey] === 'number' && !isNaN(newPoint[xKey])
+      ? newPoint[xKey]
+      : (axisMinX + axisMaxX) / 2;
+  const safeY =
+    typeof newPoint?.[yKey] === 'number' && !isNaN(newPoint[yKey])
+      ? newPoint[yKey]
+      : (axisMinY + axisMaxY) / 2;
 
-  const newX = mapX(safePetalLength);
-  const newY = mapY(safePetalWidth);
+  const newX = mapX(safeX);
+  const newY = mapY(safeY);
 
   // Position badge above or below point without clipping
   const badgeW = 54;
@@ -84,7 +107,7 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
             <span>k-NN은 어떤 이웃을 참고했을까?</span>
           </div>
           <p className="text-[11px] text-slate-500 font-medium">
-            꽃잎 길이와 꽃잎 너비 특성을 기준으로 가장 가까운 학습용 데이터(Train)를 찾습니다.
+            {FEATURE_NAMES[xKey]}와 {FEATURE_NAMES[yKey]} 특성을 기준으로 가장 가까운 학습용 데이터(Train)를 찾습니다.
           </p>
         </div>
 
@@ -120,28 +143,30 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
           className="w-full h-auto rounded-xl bg-white shadow-2xs border border-slate-100"
         >
           {/* Coordinate Grid Lines */}
-          {[2.0, 3.0, 4.0, 5.0, 6.0].map(xVal => (
-            <line
-              key={`x-grid-${xVal}`}
-              x1={mapX(xVal)}
-              y1={plotTop}
-              x2={mapX(xVal)}
-              y2={plotBottom}
-              stroke="#f1f5f9"
-              strokeDasharray="3 3"
-            />
-          ))}
-          {[0.5, 1.0, 1.5, 2.0].map(yVal => (
-            <line
-              key={`y-grid-${yVal}`}
-              x1={plotLeft}
-              y1={mapY(yVal)}
-              x2={plotRight}
-              y2={mapY(yVal)}
-              stroke="#f1f5f9"
-              strokeDasharray="3 3"
-            />
-          ))}
+          {[0.25, 0.5, 0.75].map(ratio => {
+            const xVal = axisMinX + ratio * (axisMaxX - axisMinX);
+            const yVal = axisMinY + ratio * (axisMaxY - axisMinY);
+            return (
+              <React.Fragment key={`grid-${ratio}`}>
+                <line
+                  x1={mapX(xVal)}
+                  y1={plotTop}
+                  x2={mapX(xVal)}
+                  y2={plotBottom}
+                  stroke="#f1f5f9"
+                  strokeDasharray="3 3"
+                />
+                <line
+                  x1={plotLeft}
+                  y1={mapY(yVal)}
+                  x2={plotRight}
+                  y2={mapY(yVal)}
+                  stroke="#f1f5f9"
+                  strokeDasharray="3 3"
+                />
+              </React.Fragment>
+            );
+          })}
 
           {/* Axes */}
           <line
@@ -163,32 +188,20 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
 
           {/* Axis Ticks & Labels */}
           <text x={plotLeft} y={plotBottom + 13} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-            1.0
-          </text>
-          <text x={mapX(3.0)} y={plotBottom + 13} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-            3.0
-          </text>
-          <text x={mapX(5.0)} y={plotBottom + 13} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-            5.0
+            {axisMinX}
           </text>
           <text x={plotRight} y={plotBottom + 13} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-            7.0
+            {axisMaxX}
           </text>
           <text x={(plotLeft + plotRight) / 2} y={plotBottom + 26} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">
-            꽃잎 길이 (petalLength, cm)
+            {FEATURE_NAMES[xKey]}
           </text>
 
           <text x={plotLeft - 8} y={plotBottom} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-            0.1
-          </text>
-          <text x={plotLeft - 8} y={mapY(1.0)} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-            1.0
-          </text>
-          <text x={plotLeft - 8} y={mapY(2.0)} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-            2.0
+            {axisMinY}
           </text>
           <text x={plotLeft - 8} y={plotTop + 4} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-            2.5
+            {axisMaxY}
           </text>
           <text
             x="13"
@@ -199,14 +212,14 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
             fill="#334155"
             transform={`rotate(-90 13 ${(plotTop + plotBottom) / 2})`}
           >
-            꽃잎 너비 (petalWidth, cm)
+            {FEATURE_NAMES[yKey]}
           </text>
 
           {/* Exact k Nearest Neighbor Connecting Lines (only if prediction executed) */}
           {knnResult &&
             knnResult.neighbors.map((n, i) => {
-              const nX = mapX(n.record.petalLength);
-              const nY = mapY(n.record.petalWidth);
+              const nX = mapX(n.record[xKey]);
+              const nY = mapY(n.record[yKey]);
               const midX = (newX + nX) / 2;
               const midY = (newY + nY) / 2;
 
@@ -239,8 +252,8 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
 
           {/* Train Data Points (Exact Shapes: Circle, Triangle, Square) */}
           {trainData.map(r => {
-            const cx = mapX(r.petalLength);
-            const cy = mapY(r.petalWidth);
+            const cx = mapX(r[xKey]);
+            const cy = mapY(r[yKey]);
             const isNeighbor = neighborIds.has(r.id);
 
             return (
@@ -300,12 +313,12 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
         <div>
           <span>현재 관측 위치: </span>
-          <strong className="text-slate-800 font-mono">꽃잎 길이 {newPoint.petalLength}cm</strong>
+          <strong className="text-slate-800 font-mono">{FEATURE_NAMES[xKey]} {newPoint[xKey]}cm</strong>
           <span> · </span>
-          <strong className="text-slate-800 font-mono">꽃잎 너비 {newPoint.petalWidth}cm</strong>
+          <strong className="text-slate-800 font-mono">{FEATURE_NAMES[yKey]} {newPoint[yKey]}cm</strong>
         </div>
         <span className="text-[10px] text-slate-400">
-          ※ k-NN 예측 거리는 07 모델 설정에 따라 꽃잎 길이·너비 2개 특성으로 계산됩니다.
+          ※ k-NN 예측 거리는 04에서 선정한 {FEATURE_NAMES[xKey]}·{FEATURE_NAMES[yKey]} 2개 특성으로 계산됩니다.
         </span>
       </div>
 
@@ -349,7 +362,7 @@ export const KNNPredictionVisualizer: React.FC<KNNPredictionVisualizerProps> = (
                       {n.distance} cm
                     </span>
                     <span className="block text-[9px] text-slate-400 font-mono">
-                      {n.record.petalLength} × {n.record.petalWidth}
+                      {n.record[xKey]} × {n.record[yKey]}
                     </span>
                   </div>
                 </div>

@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
-import type { IrisRecord } from '../../types/iris';
+import type { IrisRecord, ErrorIrisRecord } from '../../types/iris';
 import { predictKNN, findBoundaryCase } from '../../algorithms/knn';
+import { getUsableIrisRecords } from '../../utils/irisHelpers';
+import { LabDataStatusBadge } from './LabDataStatusBadge';
 import { SecondaryButton } from '../common/SecondaryButton';
 import { SpeciesBadge } from '../common/SpeciesBadge';
 import { SpeciesMarker } from '../common/SpeciesMarker';
@@ -26,14 +28,45 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
 };
 
 export interface KNNLabProps {
+  dataset?: ErrorIrisRecord[];
   onInteract?: () => void;
 }
 
-export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
-  const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
-  const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
+export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
+  const [xAxis, setXAxis] = useState<FeatureKey>(() => {
+    try {
+      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 2) return parsed[0] as FeatureKey;
+      }
+    } catch {}
+    return 'petalLength';
+  });
 
-  const [saved04Features, setSaved04Features] = useState<[FeatureKey, FeatureKey] | null>(null);
+  const [yAxis, setYAxis] = useState<FeatureKey>(() => {
+    try {
+      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 2) return parsed[1] as FeatureKey;
+      }
+    } catch {}
+    return 'petalWidth';
+  });
+
+  const [saved04Features] = useState<[FeatureKey, FeatureKey] | null>(() => {
+    try {
+      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 2) {
+          return [parsed[0] as FeatureKey, parsed[1] as FeatureKey];
+        }
+      }
+    } catch {}
+    return null;
+  });
 
   const [newPoint, setNewPoint] = useState<Record<FeatureKey, number>>({
     sepalLength: 6.0,
@@ -55,21 +88,19 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
 
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Load selected features from Module 04 if present
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 2) {
-          setSaved04Features([parsed[0] as FeatureKey, parsed[1] as FeatureKey]);
-        }
-      }
-    } catch {}
-  }, []);
+  // Safe dataset filtering: require finite numeric values for chosen axes and canonical species
+  const effectiveDataset = dataset || (ORIGINAL_IRIS_DATASET as any[]);
 
-  // Compute prediction with current settings
-  const knnResult = predictKNN(ORIGINAL_IRIS_DATASET, newPoint, [xAxis, yAxis], k);
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(
+    () => getUsableIrisRecords(effectiveDataset, [xAxis, yAxis], true),
+    [effectiveDataset, xAxis, yAxis]
+  );
+
+  // Compute prediction with current settings on usable dataset
+  const knnResult = useMemo(
+    () => predictKNN(usableData as IrisRecord[], newPoint, [xAxis, yAxis], k),
+    [usableData, newPoint, xAxis, yAxis, k]
+  );
 
   const handleAdjustValue = (feat: FeatureKey, delta: number) => {
     const spec = FEATURE_MIN_MAX[feat];
@@ -112,7 +143,7 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
   };
 
   const handleLoadBoundaryCase = () => {
-    const bCase = findBoundaryCase(ORIGINAL_IRIS_DATASET, [xAxis, yAxis]);
+    const bCase = findBoundaryCase(usableData as IrisRecord[], [xAxis, yAxis]);
     if (bCase) {
       setNewPoint(prev => ({
         ...prev,
@@ -137,7 +168,7 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
     }
   };
 
-  // SVG coordinate transformation logic
+  // SVG coordinate transformation logic with dynamic bounds for outliers
   const svgWidth = 460;
   const svgHeight = 300;
   const plotLeft = 50;
@@ -150,8 +181,13 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
   const xSpec = FEATURE_MIN_MAX[xAxis];
   const ySpec = FEATURE_MIN_MAX[yAxis];
 
-  const mapX = (v: number) => plotLeft + ((v - xSpec.min) / (xSpec.max - xSpec.min)) * plotW;
-  const mapY = (v: number) => plotBottom - ((v - ySpec.min) / (ySpec.max - ySpec.min)) * plotH;
+  const axisMinX = Math.min(xSpec.min, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.min)));
+  const axisMaxX = Math.max(xSpec.max, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.max)));
+  const axisMinY = Math.min(ySpec.min, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.min)));
+  const axisMaxY = Math.max(ySpec.max, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.max)));
+
+  const mapX = (v: number) => plotLeft + ((v - axisMinX) / (axisMaxX - axisMinX || 1)) * plotW;
+  const mapY = (v: number) => plotBottom - ((v - axisMinY) / (axisMaxY - axisMinY || 1)) * plotH;
 
   // Pointer Event to convert screen touch/click -> exact dataset domain coordinates
   const handlePlotPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -167,14 +203,14 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
     const clampedSvgX = Math.max(plotLeft, Math.min(plotRight, svgX));
     const clampedSvgY = Math.max(plotTop, Math.min(plotBottom, svgY));
 
-    const domainX = xSpec.min + ((clampedSvgX - plotLeft) / plotW) * (xSpec.max - xSpec.min);
-    const domainY = ySpec.min + ((plotBottom - clampedSvgY) / plotH) * (ySpec.max - ySpec.min);
+    const domainX = axisMinX + ((clampedSvgX - plotLeft) / plotW) * (axisMaxX - axisMinX);
+    const domainY = axisMinY + ((plotBottom - clampedSvgY) / plotH) * (axisMaxY - axisMinY);
 
     const roundedX = Math.round(domainX * 10) / 10;
     const roundedY = Math.round(domainY * 10) / 10;
 
-    const clX = Math.min(xSpec.max, Math.max(xSpec.min, roundedX));
-    const clY = Math.min(ySpec.max, Math.max(ySpec.min, roundedY));
+    const clX = Math.min(axisMaxX, Math.max(axisMinX, roundedX));
+    const clY = Math.min(axisMaxY, Math.max(axisMinY, roundedY));
     setNewPoint(prev => ({
       ...prev,
       [xAxis]: clX,
@@ -214,6 +250,9 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
           </button>
         </div>
       )}
+
+      {/* Prepared Dataset Status Badge */}
+      <LabDataStatusBadge totalCount={totalCount} usableCount={usableCount} excludedCount={excludedCount} />
 
       {/* Lab Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -452,20 +491,20 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
 
               {/* Axis Ticks & Labels */}
               <text x={plotLeft} y={plotBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.min}
+                {axisMinX}
               </text>
               <text x={plotRight} y={plotBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.max}
+                {axisMaxX}
               </text>
               <text x={(plotLeft + plotRight) / 2} y={plotBottom + 18} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">
                 {FEATURE_NAMES[xAxis]}
               </text>
 
               <text x={plotLeft - 10} y={plotBottom} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.min}
+                {axisMinY}
               </text>
               <text x={plotLeft - 10} y={plotTop + 6} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.max}
+                {axisMaxY}
               </text>
               <text x="15" y={(plotTop + plotBottom) / 2} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155" transform={`rotate(-90 15 ${(plotTop + plotBottom) / 2})`}>
                 {FEATURE_NAMES[yAxis]}
@@ -508,15 +547,15 @@ export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
               })}
 
               {/* Dataset Points with Exact Shapes (Circle: Setosa, Triangle: Versicolor, Square: Virginica) */}
-              {ORIGINAL_IRIS_DATASET.map(r => {
-                const cx = mapX(r[xAxis]);
-                const cy = mapY(r[yAxis]);
+              {usableData.map(r => {
+                const cx = mapX(r[xAxis] as number);
+                const cy = mapY(r[yAxis] as number);
                 const isNeighbor = knnResult.neighbors.some(n => n.record.id === r.id);
 
                 return (
                   <SpeciesMarker
                     key={r.id}
-                    species={r.species}
+                    species={r.species as any}
                     cx={cx}
                     cy={cy}
                     size={isNeighbor ? 6.5 : 4.5}

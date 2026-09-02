@@ -14,7 +14,7 @@ import {
   SPECIES_MAP,
 } from '../../data/irisDataset';
 import type { ErrorIrisRecord } from '../../types/iris';
-import { applyEditsToDataset } from '../../utils/irisHelpers';
+import { applyEditsToDataset, createPreparedIrisDataset, ERROR_GROUND_TRUTH_MAP } from '../../utils/irisHelpers';
 import {
   type FeatureKey,
   NUMERIC_FEATURE_LABELS,
@@ -86,6 +86,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return applyEditsToDataset(ERROR_IRIS_DATASET, module04Edits);
   }, [module04Edits]);
 
+  // Prepared 150 Dataset for downstream analysis (Activity 9 & subsequent ML modules)
+  const preparedDataset = useMemo<ErrorIrisRecord[]>(() => {
+    return createPreparedIrisDataset(module04Edits);
+  }, [module04Edits]);
+
   // Persistent Activity Completion State
   const [activityCompletion, setActivityCompletion] = useState<Module04CompletionState>(() => loadModule04Completion());
 
@@ -102,6 +107,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     const handleReset = () => {
       setModule04Edits([]);
       setActivityCompletion(DEFAULT_MODULE04_COMPLETION);
+      setSelectedFeatures04([]);
       setCurrentActivity(1);
     };
     window.addEventListener('module04_reset', handleReset);
@@ -149,14 +155,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const [missingChoice, setMissingChoice] = useState<string | null>(null);
   const [showMissingGroundTruth, setShowMissingGroundTruth] = useState<Record<number, boolean>>({});
   const [missingInputs, setMissingInputs] = useState<Record<number, string>>({});
-  const [missingFeedbacks, setMissingFeedbacks] = useState<Record<number, { type: 'success' | 'error'; msg: string }>>({});
+  const [missingFeedbacks, setMissingFeedbacks] = useState<Record<number, { type: 'success' | 'error' | 'warning'; msg: string }>>({});
 
   // ACTIVITY 5: Outliers (Step nav 1~5 and Feature tabs sepalLength, sepalWidth, petalLength, petalWidth)
   const [outlierStep, setOutlierStep] = useState<number>(1);
   const [outlierFeature, setOutlierFeature] = useState<FeatureKey>('sepalLength');
   const [showOutlierGroundTruth, setShowOutlierGroundTruth] = useState<Record<number, boolean>>({});
   const [outlierInputs, setOutlierInputs] = useState<Record<number, string>>({});
-  const [outlierFeedbacks, setOutlierFeedbacks] = useState<Record<number, { type: 'success' | 'error'; msg: string }>>({});
+  const [outlierFeedbacks, setOutlierFeedbacks] = useState<Record<number, { type: 'success' | 'error' | 'warning'; msg: string }>>({});
 
   // ACTIVITY 6: Inconsistent Labels (4 records) & Invalid Types (2 records)
   const [speciesChoices, setSpeciesChoices] = useState<Record<number, string>>({
@@ -190,7 +196,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
         if (Array.isArray(parsed) && parsed.length === 2) return parsed;
       }
     } catch {}
-    return ['petalLength', 'petalWidth'];
+    return [];
   });
 
   // Activity 3 completion: all 20 records attempted at least once
@@ -262,20 +268,101 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return { missing, outlier, inconsistent, invalidType, total: missing + outlier + inconsistent + invalidType };
   }, [workingDataset]);
 
-  // Automatically update activity completion status when error counts reach 0
+  // Participation-based activity completion tracking
+  const isAct4MissingAttempted = useMemo(() => {
+    const missingIds = [101, 102, 108, 115];
+    return missingIds.every(id => module04Edits.some(e => e.recordId === id));
+  }, [module04Edits]);
+
+  const isAct5OutlierAttempted = useMemo(() => {
+    const outlierIds = [103, 104];
+    return outlierIds.every(id => module04Edits.some(e => e.recordId === id));
+  }, [module04Edits]);
+
+  const isAct6Attempted = useMemo(() => {
+    const act6Ids = [105, 106, 107, 109, 112, 114];
+    return act6Ids.every(id => module04Edits.some(e => e.recordId === id));
+  }, [module04Edits]);
+
+  // Update activity completion status based on participation
   useEffect(() => {
-    if (currentErrorCounts.missing === 0) {
+    if (isAct4MissingAttempted) {
       setActivityCompletion(prev => ({ ...prev, missingComplete: true }));
     }
-    if (currentErrorCounts.outlier === 0) {
+  }, [isAct4MissingAttempted]);
+
+  useEffect(() => {
+    if (isAct5OutlierAttempted) {
       setActivityCompletion(prev => ({ ...prev, outlierComplete: true }));
     }
-    if (currentErrorCounts.inconsistent === 0 && currentErrorCounts.invalidType === 0) {
+  }, [isAct5OutlierAttempted]);
+
+  useEffect(() => {
+    if (isAct6Attempted) {
       setActivityCompletion(prev => ({ ...prev, formatTypeComplete: true }));
     }
-  }, [currentErrorCounts]);
+  }, [isAct6Attempted]);
 
   const [act8Confirmed, setAct8Confirmed] = useState(false);
+
+  // 12 Target Educational Errors for Activity 8 Review & Activity 9 Status
+  const target12Errors = useMemo(() => [
+    { id: 101, field: 'sepalLength', label: '꽃받침 길이', type: 'missing' as const, typeLabel: '결측치', beforeStr: 'null (값 없음)' },
+    { id: 102, field: 'petalWidth', label: '꽃잎 너비', type: 'missing' as const, typeLabel: '결측치', beforeStr: 'null (값 없음)' },
+    { id: 108, field: 'sepalWidth', label: '꽃받침 너비', type: 'missing' as const, typeLabel: '결측치', beforeStr: 'null (값 없음)' },
+    { id: 115, field: 'petalLength', label: '꽃잎 길이', type: 'missing' as const, typeLabel: '결측치', beforeStr: 'null (값 없음)' },
+    { id: 103, field: 'sepalLength', label: '꽃받침 길이', type: 'outlier' as const, typeLabel: '이상치', beforeStr: '50.0 cm' },
+    { id: 104, field: 'petalLength', label: '꽃잎 길이', type: 'outlier' as const, typeLabel: '이상치', beforeStr: '30.0 cm' },
+    { id: 105, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'setosa' },
+    { id: 106, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'Setosa' },
+    { id: 109, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'versicolor' },
+    { id: 114, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'virginica' },
+    { id: 107, field: 'sepalLength', label: '꽃받침 길이', type: 'invalidType' as const, typeLabel: '자료형 오류', beforeStr: '"5.1cm"' },
+    { id: 112, field: 'petalWidth', label: '꽃잎 너비', type: 'invalidType' as const, typeLabel: '자료형 오류', beforeStr: '"1.5cm"' },
+  ], []);
+
+  const act8Stats = useMemo(() => {
+    let attemptedCount = 0;
+    let correctCount = 0;
+    const byType: Record<string, { total: number; attempted: number; correct: number }> = {
+      missing: { total: 4, attempted: 0, correct: 0 },
+      outlier: { total: 2, attempted: 0, correct: 0 },
+      inconsistent: { total: 4, attempted: 0, correct: 0 },
+      invalidType: { total: 2, attempted: 0, correct: 0 },
+    };
+
+    const details = target12Errors.map(target => {
+      const edit = [...module04Edits].reverse().find(e => e.recordId === target.id && e.field === target.field);
+      const isAttempted = Boolean(edit);
+      const groundTruth = ERROR_GROUND_TRUTH_MAP[target.id]?.[target.field];
+      const isCorrect = isAttempted && edit?.after === groundTruth;
+
+      if (isAttempted) {
+        attemptedCount++;
+        byType[target.type].attempted++;
+      }
+      if (isCorrect) {
+        correctCount++;
+        byType[target.type].correct++;
+      }
+
+      return {
+        ...target,
+        edit,
+        isAttempted,
+        isCorrect,
+        groundTruth,
+      };
+    });
+
+    return {
+      attemptedCount,
+      correctCount,
+      needsReviewCount: attemptedCount - correctCount,
+      byType,
+      details,
+    };
+  }, [module04Edits, target12Errors]);
 
   // Unified activity completion check
   const isActivityCompleted = useMemo(() => {
@@ -287,11 +374,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
       case 3:
         return isDetectiveAllAttempted;
       case 4:
-        return currentErrorCounts.missing === 0;
+        return isAct4MissingAttempted;
       case 5:
-        return currentErrorCounts.outlier === 0;
+        return isAct5OutlierAttempted;
       case 6:
-        return currentErrorCounts.inconsistent === 0 && currentErrorCounts.invalidType === 0;
+        return isAct6Attempted;
       case 7:
         return isTransformReady;
       case 8:
@@ -307,7 +394,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     isAct0RoleChecked,
     act1Answer,
     isDetectiveAllAttempted,
-    currentErrorCounts,
+    isAct4MissingAttempted,
+    isAct5OutlierAttempted,
+    isAct6Attempted,
     isTransformReady,
     act8Confirmed,
     selectedFeatures04,
@@ -345,8 +434,8 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return calculateIsolatedBoxPlotStats(workingValues, 20.0);
   }, [workingValues]);
 
-  // Correlation matrix for Activity 8
-  const correlationMatrix = useMemo(() => calculateCorrelationMatrix(ORIGINAL_IRIS_DATASET), []);
+  // Correlation matrix calculated directly from Prepared 150 Dataset
+  const correlationMatrix = useMemo(() => calculateCorrelationMatrix(preparedDataset), [preparedDataset]);
 
   // Handlers for student edits
   const handleApplyEdit = (edit: Module04Edit) => {
@@ -359,7 +448,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const handleToggleFeature04 = (feat: FeatureKey) => {
     let nextFeats: FeatureKey[];
     if (selectedFeatures04.includes(feat)) {
-      if (selectedFeatures04.length <= 1) return;
       nextFeats = selectedFeatures04.filter(f => f !== feat);
     } else {
       if (selectedFeatures04.length >= 2) {
@@ -383,11 +471,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     return workingDataset.slice(start, start + pageSize);
   }, [workingDataset, fullDatasetPage]);
 
-  // Unique modified record count
-  const uniqueModifiedRecordCount = useMemo(() => {
-    return new Set(module04Edits.map(e => e.recordId)).size;
-  }, [module04Edits]);
-
   const promptText = `정제 대상 데이터(결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류)가 포함된 붓꽃 데이터셋을 정제하고 Min-Max 스케일링 및 원-핫 인코딩으로 변환하는 전처리 과정이 기계학습 모델에 미치는 영향을 설명해줘.`;
 
   // Checklist items
@@ -400,33 +483,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     { id: 'review', label: '전처리 결과 확인하기', isCompleted: activityCompletion.reviewComplete },
     { id: 'relation', label: '속성 관계 확인하기', isCompleted: activityCompletion.relationComplete },
   ];
-
-  // Formatting helpers for modified records review
-  const getErrorReasonLabel = (type: string) => {
-    switch (type) {
-      case 'missing': return '결측치 채우기';
-      case 'outlier': return '잘못 입력된 이상치 수정';
-      case 'inconsistent': return '표준 품종 표기 통일';
-      case 'invalidType': return '숫자 데이터형 변환';
-      default: return '오류 정제';
-    }
-  };
-
-  const formatBeforeDisplay = (edit: Module04Edit) => {
-    if (edit.errorType === 'missing') return '값 없음 (null)';
-    if (edit.errorType === 'inconsistent') return `"${edit.before}"`;
-    if (edit.errorType === 'invalidType') return `"${edit.before}" (문자)`;
-    if (typeof edit.before === 'number') return `${edit.before} cm`;
-    return String(edit.before);
-  };
-
-  const formatAfterDisplay = (edit: Module04Edit) => {
-    if (edit.field === 'species') {
-      return edit.after === 'Iris-setosa' ? '세토사 (Iris-setosa)' : edit.after === 'Iris-versicolor' ? '버시컬러 (Iris-versicolor)' : '버지니카 (Iris-virginica)';
-    }
-    if (typeof edit.after === 'number') return `${edit.after} cm`;
-    return String(edit.after);
-  };
 
   // Missing values metadata (4 items: 101, 102, 108, 115)
   const missingItemsConfig = [
@@ -1218,15 +1274,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <span>활동 4. [빠진 값을 어떻게 처리할까?] (결측치 4개 직접 수정)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-amber-100 text-amber-900 rounded-full">
-                결측치 해결: {4 - currentErrorCounts.missing} / 4 개 완료
+                결측치 처리: {[101, 102, 108, 115].filter(id => module04Edits.some(e => e.recordId === id)).length} / 4 개 완료
               </span>
             </div>
 
             {/* Missing Items Tab Selector */}
             <div className="flex flex-wrap gap-2 text-xs font-bold">
               {missingItemsConfig.map(item => {
-                const rec = workingDataset.find(r => r.id === item.id);
-                const isFixed = rec && (rec as any)[item.field] !== null;
+                const isFixed = module04Edits.some(e => e.recordId === item.id);
 
                 return (
                   <button
@@ -1339,18 +1394,34 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         <PrimaryButton
                           size="sm"
                           onClick={() => {
+                            if (!inputVal || inputVal.trim() === '') {
+                              setMissingFeedbacks(prev => ({ ...prev, [item.id]: { type: 'error', msg: '수치를 입력해 주세요.' } }));
+                              return;
+                            }
                             const val = parseFloat(inputVal);
+                            if (!Number.isFinite(val)) {
+                              setMissingFeedbacks(prev => ({ ...prev, [item.id]: { type: 'error', msg: '유효한 숫자를 입력해 주세요.' } }));
+                              return;
+                            }
+
+                            handleApplyEdit({
+                              recordId: item.id,
+                              field: item.field,
+                              before: null,
+                              after: val,
+                              errorType: 'missing',
+                            });
+
                             if (val === item.expected) {
-                              handleApplyEdit({
-                                recordId: item.id,
-                                field: item.field,
-                                before: null,
-                                after: item.expected,
-                                errorType: 'missing',
-                              });
-                              setMissingFeedbacks(prev => ({ ...prev, [item.id]: { type: 'success', msg: `🎉 빠진 ${item.label} 수치가 ${item.expected}cm로 완벽히 수정되었습니다!` } }));
+                              setMissingFeedbacks(prev => ({ ...prev, [item.id]: { type: 'success', msg: `✓ 원본 데이터와 일치하게 처리했습니다. (${val}cm)` } }));
                             } else {
-                              setMissingFeedbacks(prev => ({ ...prev, [item.id]: { type: 'error', msg: `❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: ${item.expected})` } }));
+                              setMissingFeedbacks(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  type: 'warning',
+                                  msg: `원본 데이터(${item.expected}cm)와는 다른 값(${val}cm)입니다. 이 값으로 전처리 결과에 반영되었습니다. 필요하면 다시 수정할 수 있습니다.`,
+                                }
+                              }));
                             }
                           }}
                         >
@@ -1359,7 +1430,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       </div>
 
                       {feedback && (
-                        <div className={`p-3 rounded-lg font-bold text-xs ${feedback.type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                        <div className={`p-3 rounded-lg font-bold text-xs ${
+                          feedback.type === 'success'
+                            ? 'bg-emerald-100 text-emerald-950'
+                            : feedback.type === 'warning'
+                            ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                            : 'bg-rose-100 text-rose-950'
+                        }`}>
                           {feedback.msg}
                         </div>
                       )}
@@ -1382,7 +1459,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <span>활동 5. [이 값은 정말 이상한 값일까?] (이상치 5단계 탐구)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
-                이상치 해결: {2 - currentErrorCounts.outlier} / 2 개 완료
+                이상치 처리: {[103, 104].filter(id => module04Edits.some(e => e.recordId === id)).length} / 2 개 완료
               </span>
             </div>
 
@@ -1864,7 +1941,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         <div className="p-2 bg-emerald-50 text-emerald-950 rounded">
                           <span className="block font-sans text-[10px] text-emerald-700">정답 원본 수치</span>
                           <span className="font-bold">
-                            {outlierFeature === 'sepalLength' ? '5.0 cm (#5)' : '1.5 cm (#4)'}
+                            {outlierFeature === 'sepalLength' ? '4.7 cm (#3)' : '1.5 cm (#4)'}
                           </span>
                         </div>
                       </div>
@@ -1879,7 +1956,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         <input
                           type="number"
                           step="0.1"
-                          placeholder={outlierFeature === 'sepalLength' ? '예: 5.0' : '예: 1.5'}
+                          placeholder={outlierFeature === 'sepalLength' ? '예: 4.7' : '예: 1.5'}
                           value={outlierInputs[outlierFeature === 'sepalLength' ? 103 : 104] || ''}
                           onChange={e => {
                             const targetId = outlierFeature === 'sepalLength' ? 103 : 104;
@@ -1892,23 +1969,43 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                           size="sm"
                           onClick={() => {
                             const targetId = outlierFeature === 'sepalLength' ? 103 : 104;
-                            const val = parseFloat(outlierInputs[targetId] || '');
-                            const expectedVal = outlierFeature === 'sepalLength' ? 5.0 : 1.5;
+                            const rawInput = outlierInputs[targetId];
+                            if (!rawInput || rawInput.trim() === '') {
+                              setOutlierFeedbacks(prev => ({ ...prev, [targetId]: { type: 'error', msg: '수치를 입력해 주세요.' } }));
+                              return;
+                            }
+                            const val = parseFloat(rawInput);
+                            if (!Number.isFinite(val)) {
+                              setOutlierFeedbacks(prev => ({ ...prev, [targetId]: { type: 'error', msg: '유효한 숫자를 입력해 주세요.' } }));
+                              return;
+                            }
+
+                            const expectedVal = outlierFeature === 'sepalLength' ? 4.7 : 1.5;
                             const wrongVal = outlierFeature === 'sepalLength' ? 50.0 : 30.0;
 
+                            handleApplyEdit({
+                              recordId: targetId,
+                              field: outlierFeature,
+                              before: wrongVal,
+                              after: val,
+                              errorType: 'outlier',
+                            });
+
                             if (val === expectedVal) {
-                              handleApplyEdit({
-                                recordId: targetId,
-                                field: outlierFeature,
-                                before: wrongVal,
-                                after: expectedVal,
-                                errorType: 'outlier',
-                              });
-                              setOutlierFeedbacks(prev => ({ ...prev, [targetId]: { type: 'success', msg: `🎉 ${expectedVal}cm로 올바르게 수정되었습니다!` } }));
-                              setOutlierStep(5);
+                              setOutlierFeedbacks(prev => ({
+                                ...prev,
+                                [targetId]: { type: 'success', msg: `🎉 ${expectedVal}cm로 올바르게 수정되었습니다! (원본 일치)` }
+                              }));
                             } else {
-                              setOutlierFeedbacks(prev => ({ ...prev, [targetId]: { type: 'error', msg: `❌ 올바른 수치가 아닙니다. 원본 비교를 확인해보세요. (정답: ${expectedVal})` } }));
+                              setOutlierFeedbacks(prev => ({
+                                ...prev,
+                                [targetId]: {
+                                  type: 'warning',
+                                  msg: `원본 데이터(${expectedVal}cm)와는 다른 값(${val}cm)입니다. 이 값으로 전처리 결과에 반영되었습니다. 필요하면 다시 수정할 수 있습니다.`
+                                }
+                              }));
                             }
+                            setOutlierStep(5);
                           }}
                         >
                           수정하기
@@ -1916,7 +2013,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       </div>
 
                       {outlierFeedbacks[outlierFeature === 'sepalLength' ? 103 : 104] && (
-                        <div className={`p-3 rounded-lg font-bold text-xs ${outlierFeedbacks[outlierFeature === 'sepalLength' ? 103 : 104].type === 'success' ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'}`}>
+                        <div className={`p-3 rounded-lg font-bold text-xs ${
+                          outlierFeedbacks[outlierFeature === 'sepalLength' ? 103 : 104].type === 'success'
+                            ? 'bg-emerald-100 text-emerald-950'
+                            : outlierFeedbacks[outlierFeature === 'sepalLength' ? 103 : 104].type === 'warning'
+                            ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                            : 'bg-rose-100 text-rose-950'
+                        }`}>
                           {outlierFeedbacks[outlierFeature === 'sepalLength' ? 103 : 104].msg}
                         </div>
                       )}
@@ -1995,7 +2098,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <span>활동 6. [같은 뜻인데 다르게 적혀 있다면?] (표현 4개 & 자료형 2개 정제)</span>
               </h3>
               <span className="text-xs font-mono font-extrabold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
-                표현: {4 - currentErrorCounts.inconsistent} / 4 | 자료형: {2 - currentErrorCounts.invalidType} / 2
+                표현: {[105, 106, 109, 114].filter(id => module04Edits.some(e => e.recordId === id)).length} / 4 | 자료형: {[107, 112].filter(id => module04Edits.some(e => e.recordId === id)).length} / 2
               </span>
             </div>
 
@@ -2003,19 +2106,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-4">
               <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <span className="font-extrabold text-slate-900 text-sm">Part A: 표현 불일치 정제 (총 4개)</span>
-                <span className="font-mono text-emerald-800 font-bold">완료: {4 - currentErrorCounts.inconsistent} / 4</span>
+                <span className="font-mono text-emerald-800 font-bold">완료: {[105, 106, 109, 114].filter(id => module04Edits.some(e => e.recordId === id)).length} / 4</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {inconsistentItemsConfig.map((item, idx) => {
-                  const rec = workingDataset.find(r => r.id === item.id);
-                  const isFixed = rec && rec.species === item.target;
+                  const isFixed = module04Edits.some(e => e.recordId === item.id);
 
                   return (
                     <div key={item.id} className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2">
                       <div className="flex justify-between items-center font-bold">
                         <span>데이터 #{item.id} ({item.desc})</span>
-                        {isFixed ? <span className="text-emerald-700 font-black">✓ 완료</span> : <span className="text-rose-600 text-[10px]">오류</span>}
+                        {isFixed ? <span className="text-emerald-700 font-black">✓ 완료</span> : <span className="text-rose-600 text-[10px]">미처리</span>}
                       </div>
 
                       {idx === 0 && (
@@ -2050,19 +2152,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-4">
               <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <span className="font-extrabold text-slate-900 text-sm">Part B: 데이터형 오류 정제 (총 2개)</span>
-                <span className="font-mono text-emerald-800 font-bold">완료: {2 - currentErrorCounts.invalidType} / 2</span>
+                <span className="font-mono text-emerald-800 font-bold">완료: {[107, 112].filter(id => module04Edits.some(e => e.recordId === id)).length} / 2</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {invalidTypeItemsConfig.map((item, idx) => {
-                  const rec = workingDataset.find(r => r.id === item.id);
-                  const isFixed = rec && typeof (rec as any)[item.field] === 'number';
+                  const isFixed = module04Edits.some(e => e.recordId === item.id);
 
                   return (
                     <div key={item.id} className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2">
                       <div className="flex justify-between items-center font-bold">
                         <span>데이터 #{item.id} ({item.fieldName}: "{item.beforeStr}")</span>
-                        {isFixed ? <span className="text-emerald-700 font-black">✓ 완료</span> : <span className="text-rose-600 text-[10px]">오류</span>}
+                        {isFixed ? <span className="text-emerald-700 font-black">✓ 완료</span> : <span className="text-rose-600 text-[10px]">미처리</span>}
                       </div>
 
                       {idx === 0 ? (
@@ -2290,12 +2391,28 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
             </div>
 
-            {/* Error Counter Dynamic Pre vs Post Comparison Dashboard */}
+            {/* 3 Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <span className="text-[11px] text-blue-700 font-bold block">1. 처리한 데이터</span>
+                <span className="text-xl font-black text-blue-950 font-mono">{act8Stats.attemptedCount} / 12</span>
+              </div>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <span className="text-[11px] text-emerald-700 font-bold block">2. 원본과 일치하게 처리</span>
+                <span className="text-xl font-black text-emerald-950 font-mono">{act8Stats.correctCount} / 12</span>
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <span className="text-[11px] text-amber-700 font-bold block">3. 재검토가 필요한 처리</span>
+                <span className="text-xl font-black text-amber-950 font-mono">{act8Stats.needsReviewCount} 개</span>
+              </div>
+            </div>
+
+            {/* Pre vs Post Category Comparison Table */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900 text-sm">[전처리 전 / 후 데이터 오류 상태 비교]</span>
+                <span className="font-extrabold text-slate-900 text-sm">[전처리 현황 및 원본 일치 여부]</span>
                 <span className="text-xs font-mono font-bold text-slate-600">
-                  남은 교육용 오류: <strong className={currentErrorCounts.total === 0 ? 'text-emerald-600 font-black' : 'text-rose-600 font-black'}>{currentErrorCounts.total}개</strong>
+                  전체 대상: <strong className="text-slate-900 font-black">12개</strong>
                 </span>
               </div>
 
@@ -2304,45 +2421,55 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <th className="p-2.5 text-left font-sans">오류 유형</th>
-                      <th className="p-2.5 text-rose-700 font-sans">전처리 전 (시작 데이터)</th>
-                      <th className="p-2.5 text-emerald-800 font-sans">전처리 후 (workingDataset)</th>
+                      <th className="p-2.5 font-sans">대상</th>
+                      <th className="p-2.5 font-sans text-blue-800">처리 완료</th>
+                      <th className="p-2.5 font-sans text-emerald-800">원본 일치</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr>
                       <td className="p-2.5 text-left font-bold text-slate-700">결측치 (Missing)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
-                      <td className={`p-2.5 font-black ${currentErrorCounts.missing === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.missing} 개</td>
+                      <td className="p-2.5 text-slate-600 font-bold">4 개</td>
+                      <td className="p-2.5 font-bold text-blue-800">{act8Stats.byType.missing.attempted} 개</td>
+                      <td className="p-2.5 font-bold text-emerald-700">{act8Stats.byType.missing.correct} 개</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 text-left font-bold text-slate-700">입력 오류 이상치 (Outlier)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
-                      <td className={`p-2.5 font-black ${currentErrorCounts.outlier === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.outlier} 개</td>
+                      <td className="p-2.5 text-slate-600 font-bold">2 개</td>
+                      <td className="p-2.5 font-bold text-blue-800">{act8Stats.byType.outlier.attempted} 개</td>
+                      <td className="p-2.5 font-bold text-emerald-700">{act8Stats.byType.outlier.correct} 개</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 text-left font-bold text-slate-700">표현 불일치 (Inconsistent)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">4 개</td>
-                      <td className={`p-2.5 font-black ${currentErrorCounts.inconsistent === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.inconsistent} 개</td>
+                      <td className="p-2.5 text-slate-600 font-bold">4 개</td>
+                      <td className="p-2.5 font-bold text-blue-800">{act8Stats.byType.inconsistent.attempted} 개</td>
+                      <td className="p-2.5 font-bold text-emerald-700">{act8Stats.byType.inconsistent.correct} 개</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 text-left font-bold text-slate-700">데이터형 오류 (Invalid Type)</td>
-                      <td className="p-2.5 text-rose-600 font-bold">2 개</td>
-                      <td className={`p-2.5 font-black ${currentErrorCounts.invalidType === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.invalidType} 개</td>
+                      <td className="p-2.5 text-slate-600 font-bold">2 개</td>
+                      <td className="p-2.5 font-bold text-blue-800">{act8Stats.byType.invalidType.attempted} 개</td>
+                      <td className="p-2.5 font-bold text-emerald-700">{act8Stats.byType.invalidType.correct} 개</td>
                     </tr>
                     <tr className="bg-slate-50 font-extrabold text-xs">
-                      <td className="p-2.5 text-left font-sans text-slate-900">총 정제 대상 (Total)</td>
-                      <td className="p-2.5 text-rose-700 font-black">12 개</td>
-                      <td className={`p-2.5 font-black text-sm ${currentErrorCounts.total === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentErrorCounts.total} 개</td>
+                      <td className="p-2.5 text-left font-sans text-slate-900">총계 (Total)</td>
+                      <td className="p-2.5 font-black">12 개</td>
+                      <td className="p-2.5 font-black text-blue-900">{act8Stats.attemptedCount} 개</td>
+                      <td className="p-2.5 font-black text-emerald-900">{act8Stats.correctCount} 개</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              {currentErrorCounts.total === 0 && (
+              {act8Stats.correctCount === 12 ? (
                 <div className="p-3.5 bg-emerald-100 text-emerald-950 rounded-xl font-black text-center text-xs shadow-2xs border border-emerald-300">
-                  🎉 축하합니다! 발견된 교육용 데이터 정제 대상 12개를 모두 올바르게 수정했습니다! (남은 오류 = 0개)
+                  🎉 축하합니다! 발견된 교육용 데이터 정제 대상 12개를 모두 원본과 일치하게 수정했습니다!
                 </div>
-              )}
+              ) : act8Stats.attemptedCount === 12 ? (
+                <div className="p-3.5 bg-amber-50 text-amber-950 rounded-xl font-bold text-center text-xs border border-amber-300">
+                  💡 12개 정제 대상을 모두 처리했습니다. 원본 데이터와 다르게 처리된 {act8Stats.needsReviewCount}개 항목은 활동 9 및 후속 머신러닝 분석에 실제 영향을 미칩니다. (필요 시 앞 활동으로 이동하여 재수정 가능)
+                </div>
+              ) : null}
             </div>
 
             {/* Modified Records Cards Section (Collapsible) */}
@@ -2350,10 +2477,10 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
                 <div>
                   <span className="font-extrabold text-slate-900 text-sm block">
-                    [내가 수정한 레코드 카드 (총 12개 정제 대상 전체)]
+                    [정제 대상 12개 상세 비교 카드]
                   </span>
                   <span className="font-mono text-xs font-bold text-slate-700">
-                    수정한 데이터: <strong className="text-emerald-700">{uniqueModifiedRecordCount}개</strong> | 수정한 항목: <strong className="text-emerald-700">{module04Edits.length}개</strong>
+                    처리 완료: <strong className="text-blue-700">{act8Stats.attemptedCount}개</strong> | 원본 일치: <strong className="text-emerald-700">{act8Stats.correctCount}개</strong>
                   </span>
                 </div>
                 <SecondaryButton
@@ -2365,63 +2492,65 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
 
               {isModifiedCardsOpen && (
-                <>
-                  {module04Edits.length === 0 ? (
-                    <div className="p-5 bg-white rounded-xl border border-slate-200 text-center space-y-2">
-                      <span className="font-extrabold text-slate-800 text-sm block">
-                        아직 직접 수정한 데이터가 없습니다.
-                      </span>
-                      <p className="text-slate-500 text-xs">
-                        앞의 전처리 활동(활동 4~6)에서 결측치, 입력 오류 이상치, 표현 불일치, 자료형 오류를 직접 정제해보세요.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
-                      {module04Edits.map((edit, idx) => {
-                        const actualRecord = workingDataset.find(r => r.id === edit.recordId);
-                        const actualVal = actualRecord ? (actualRecord as any)[edit.field] : edit.after;
-                        const isValVerified = String(actualVal) === String(edit.after);
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+                  {act8Stats.details.map((item) => {
+                    const formatVal = (v: any) => {
+                      if (v === null || v === undefined) return '값 없음';
+                      if (typeof v === 'number') return `${v} cm`;
+                      if (v === 'Iris-setosa') return '세토사 (Iris-setosa)';
+                      if (v === 'Iris-versicolor') return '버시컬러 (Iris-versicolor)';
+                      if (v === 'Iris-virginica') return '버지니카 (Iris-virginica)';
+                      return String(v);
+                    };
 
-                        return (
-                          <div key={idx} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                              <span className="font-extrabold text-slate-900 text-sm">
-                                [데이터 #{edit.recordId}]
-                              </span>
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
-                                {getErrorReasonLabel(edit.errorType)}
-                              </span>
-                            </div>
+                    return (
+                      <div key={item.id} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            [데이터 #{item.id}]
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                            {item.typeLabel}
+                          </span>
+                        </div>
 
-                            <div className="font-bold text-slate-700 text-xs">
-                              대상 속성: <span className="text-slate-900 font-mono">[{NUMERIC_FEATURE_LABELS[edit.field as FeatureKey]?.full || '품종'}]</span>
-                            </div>
+                        <div className="font-bold text-slate-700 text-xs">
+                          대상 속성: <span className="text-slate-900 font-mono">[{item.label}]</span>
+                        </div>
 
-                            {/* Mobile & PC Before / After Comparison Cards */}
-                            <div className="grid grid-cols-2 gap-2 text-center font-mono text-[11px]">
-                              <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-lg space-y-0.5">
-                                <span className="font-sans font-bold text-[10px] text-rose-700 block">수정 전</span>
-                                <span className="font-bold text-rose-950 text-xs">{formatBeforeDisplay(edit)}</span>
-                              </div>
-                              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-0.5">
-                                <span className="font-sans font-bold text-[10px] text-emerald-700 block">수정 후 (현재 반영)</span>
-                                <span className="font-black text-emerald-950 text-xs">{formatAfterDisplay(edit)}</span>
-                              </div>
-                            </div>
-
-                            {/* Real workingDataset validation check */}
-                            <div className="text-[10px] text-slate-500 font-sans flex items-center justify-between pt-1 border-t border-slate-100">
-                              <span>작업 데이터 검증:</span>
-                              <span className={isValVerified ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
-                                {isValVerified ? '✓ workingDataset 일치' : '⚠️ 작업 데이터 검증 필요'}
-                              </span>
-                            </div>
+                        {/* 3 Columns: 수정 전 / 수정한 값 / 원본 기준값 */}
+                        <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+                          <div className="p-2 bg-rose-50 border border-rose-100 rounded-lg space-y-0.5">
+                            <span className="font-sans font-bold text-[9px] text-rose-700 block">수정 전</span>
+                            <span className="font-bold text-rose-950 text-xs break-all">{item.beforeStr}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg space-y-0.5">
+                            <span className="font-sans font-bold text-[9px] text-blue-700 block">수정한 값</span>
+                            <span className="font-black text-blue-950 text-xs break-all">
+                              {item.isAttempted ? formatVal(item.edit?.after) : '미처리'}
+                            </span>
+                          </div>
+                          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg space-y-0.5">
+                            <span className="font-sans font-bold text-[9px] text-emerald-700 block">원본 기준값</span>
+                            <span className="font-bold text-emerald-950 text-xs break-all">{formatVal(item.groundTruth)}</span>
+                          </div>
+                        </div>
+
+                        {/* Status Check */}
+                        <div className="text-[10px] flex items-center justify-between pt-1 border-t border-slate-100">
+                          <span className="text-slate-500 font-sans">상태:</span>
+                          {item.isCorrect ? (
+                            <span className="text-emerald-700 font-bold">✓ 원본과 일치</span>
+                          ) : item.isAttempted ? (
+                            <span className="text-amber-700 font-bold">△ 원본과 다름 — 다시 수정할 수 있습니다</span>
+                          ) : (
+                            <span className="text-slate-400 font-medium">미처리 (앞 활동에서 수정 필요)</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -2576,6 +2705,19 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               <span>활동 9. [속성끼리는 어떤 관계가 있을까?] (산점도 & 상관계수 히트맵)</span>
             </h3>
 
+            {/* Top Notice Banner: Prepared Dataset reflection */}
+            <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Info size={16} className="text-teal-600 shrink-0" />
+                <span className="font-medium">
+                  이 그래프는 여러분이 앞에서 직접 전처리한 결과가 반영된 <strong>150개 붓꽃 데이터</strong>로 만들어집니다.
+                </span>
+              </div>
+              <span className="font-mono font-bold text-teal-800 bg-white px-2.5 py-0.5 rounded border border-teal-200 shrink-0">
+                현재 원본과 일치하게 처리한 데이터: {act8Stats.correctCount} / 12
+              </span>
+            </div>
+
             {/* 2D Scatter Plot */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2617,30 +2759,57 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </text>
 
                   {(() => {
-                    const origCleanX = extractValidNumericValues(ORIGINAL_IRIS_DATASET, scatterX);
-                    const origCleanY = extractValidNumericValues(ORIGINAL_IRIS_DATASET, scatterY);
-                    const minX = Math.min(...origCleanX);
-                    const maxX = Math.max(...origCleanX);
-                    const minY = Math.min(...origCleanY);
-                    const maxY = Math.max(...origCleanY);
-
-                    const mapX = (v: number) => 55 + ((v - minX) / (maxX - minX)) * 375;
-                    const mapY = (v: number) => 210 - ((v - minY) / (maxY - minY)) * 185;
-
-                    return ORIGINAL_IRIS_DATASET.map(r => {
-                      const cx = mapX(r[scatterX]);
-                      const cy = mapY(r[scatterY]);
-
-                      if (r.species === 'Iris-setosa') {
-                        return <circle key={r.id} cx={cx} cy={cy} r="3.5" fill="#10b981" opacity="0.75" />;
-                      } else if (r.species === 'Iris-versicolor') {
-                        return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#3b82f6" opacity="0.75" rx="1" />;
-                      } else {
-                        return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#8b5cf6" opacity="0.75" />;
-                      }
+                    const validRecords = preparedDataset.filter(r => {
+                      const vx = r[scatterX];
+                      const vy = r[scatterY];
+                      return typeof vx === 'number' && Number.isFinite(vx) && typeof vy === 'number' && Number.isFinite(vy);
                     });
+
+                    if (validRecords.length === 0) {
+                      return (
+                        <text x="240" y="130" textAnchor="middle" fontSize="12" fill="#94a3b8">
+                          표시할 수 있는 유효한 수치 데이터가 없습니다.
+                        </text>
+                      );
+                    }
+
+                    const allX = validRecords.map(r => r[scatterX] as number);
+                    const allY = validRecords.map(r => r[scatterY] as number);
+                    const minX = Math.min(...allX);
+                    const maxX = Math.max(...allX);
+                    const minY = Math.min(...allY);
+                    const maxY = Math.max(...allY);
+
+                    const rangeX = maxX === minX ? 1 : maxX - minX;
+                    const rangeY = maxY === minY ? 1 : maxY - minY;
+
+                    const mapX = (v: number) => 55 + ((v - minX) / rangeX) * 375;
+                    const mapY = (v: number) => 210 - ((v - minY) / rangeY) * 185;
+
+                    return (
+                      <>
+                        {validRecords.map(r => {
+                          const cx = mapX(r[scatterX] as number);
+                          const cy = mapY(r[scatterY] as number);
+
+                          if (r.species === 'Iris-setosa') {
+                            return <circle key={r.id} cx={cx} cy={cy} r="3.5" fill="#10b981" opacity="0.75" />;
+                          } else if (r.species === 'Iris-versicolor') {
+                            return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#3b82f6" opacity="0.75" rx="1" />;
+                          } else {
+                            return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#8b5cf6" opacity="0.75" />;
+                          }
+                        })}
+                      </>
+                    );
                   })()}
                 </svg>
+
+                {preparedDataset.some(r => typeof r[scatterX] !== 'number' || !Number.isFinite(r[scatterX]) || typeof r[scatterY] !== 'number' || !Number.isFinite(r[scatterY])) && (
+                  <div className="mt-2 text-[11px] text-amber-800 font-bold bg-amber-50 p-2 rounded border border-amber-200">
+                    ※ 수치로 계산할 수 없는 데이터는 분석에서 제외됩니다.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2687,6 +2856,12 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   ))}
                 </div>
               </div>
+
+              {preparedDataset.some(r => (['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'] as FeatureKey[]).some(f => typeof r[f] !== 'number' || !Number.isFinite(r[f]))) && (
+                <div className="text-[11px] text-amber-800 font-bold bg-amber-50 p-2 rounded border border-amber-200">
+                  ※ 수치로 계산할 수 없는 데이터는 상관분석에서 제외됩니다.
+                </div>
+              )}
             </div>
 
             {/* Key Features Selection for Module 06 Integration */}
@@ -2718,7 +2893,11 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
 
               <div className="p-3 bg-emerald-50 rounded-lg text-emerald-950 font-bold text-[11px]">
-                선택한 속성 2개: [{selectedFeatures04.map(f => NUMERIC_FEATURE_LABELS[f].full).join(', ')}] ➔ 06 알고리즘 실험실 진입 시 추천 속성으로 우선 연동됩니다.
+                {selectedFeatures04.length === 2 ? (
+                  <span>선택한 속성 2개: [{selectedFeatures04.map(f => NUMERIC_FEATURE_LABELS[f].full).join(', ')}] ➔ 06 알고리즘 실험실 진입 시 추천 속성으로 우선 연동됩니다.</span>
+                ) : (
+                  <span className="text-amber-900">위 4개 속성 중 기계학습 모델에 사용할 핵심 속성 2개를 선택해주세요. (현재 {selectedFeatures04.length}/2개 선택됨)</span>
+                )}
               </div>
             </div>
 

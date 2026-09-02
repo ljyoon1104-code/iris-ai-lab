@@ -14,6 +14,7 @@ export interface ActiveModelConfig {
   kParam: number;
   depthParam: number;
   trainedAt?: number;
+  featureKeys?: string[];
 }
 
 export interface Module04Edit {
@@ -60,7 +61,20 @@ export const loadModule04Edits = (): Module04Edit[] => {
 export const saveModule04Edits = (edits: Module04Edit[]): void => {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(MODULE04_EDITS_KEY, JSON.stringify(edits));
+    const prevSaved = localStorage.getItem(MODULE04_EDITS_KEY);
+    const nextSaved = JSON.stringify(edits);
+
+    const prevEdits = prevSaved ? JSON.parse(prevSaved) : [];
+    const hasChanged = JSON.stringify(prevEdits) !== nextSaved;
+
+    if (hasChanged) {
+      localStorage.setItem(MODULE04_EDITS_KEY, nextSaved);
+      // Prepared Dataset changed: invalidate stale Module 08 experiment evaluations
+      localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('module04_edits_changed'));
+      }
+    }
   } catch (e) {
     console.error('Failed to save module 04 edits to localStorage:', e);
   }
@@ -101,8 +115,12 @@ export const clearModule04DataOnly = (): void => {
   try {
     localStorage.removeItem(MODULE04_EDITS_KEY);
     localStorage.removeItem(MODULE04_COMPLETION_KEY);
+    localStorage.removeItem(SELECTED_FEATURES_KEY);
+    // Prepared Dataset reset: invalidate stale Module 08 experiment evaluations
+    localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('module04_reset'));
+      window.dispatchEvent(new Event('module04_edits_changed'));
     }
   } catch (e) {
     console.error('Failed to clear Module 04 data:', e);
@@ -135,6 +153,8 @@ export const saveActiveModelConfig = (config: ActiveModelConfig): void => {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(ACTIVE_MODEL_CONFIG_KEY, JSON.stringify(config));
+    // Clear stale experiments from previous model so they don't mix in Module 08
+    localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
   } catch (e) {
     console.error('Failed to save active model config to localStorage:', e);
   }

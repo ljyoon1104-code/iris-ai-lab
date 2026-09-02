@@ -274,6 +274,9 @@ export const ReinforcementLearningLab: React.FC<ReinforcementLearningLabProps> =
         <p className="leading-relaxed text-amber-900">
           로봇이 선택한 에피소드 횟수 동안 직접 부딪히고 길을 헤매며 시행착오를 겪다가, 스스로 장애물을 피해 목적지까지 도달하는 과정을 <strong>영상 배속처럼 연속으로 관찰</strong>할 수 있습니다.
         </p>
+        <p className="text-[11px] text-amber-800 font-medium">
+          ※ 강화학습 실험은 붓꽃 데이터와 별도의 가상 환경(5×5 격자 온실)을 사용합니다.
+        </p>
       </div>
 
       {/* 1. Episode Count Selection Section */}

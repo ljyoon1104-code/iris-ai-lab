@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { KNNLab } from './KNNLab';
 import { DecisionTreeLab } from './DecisionTreeLab';
@@ -8,7 +8,10 @@ import { ReinforcementLearningLab } from './ReinforcementLearningLab';
 import { MasterAlgorithmComparison } from './MasterAlgorithmComparison';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
-import { Target, GitBranch, Scale, LineChart, PieChart, Bot, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, ArrowRight } from 'lucide-react';
+import { Target, GitBranch, Scale, LineChart, PieChart, Bot, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, ArrowRight, Database, Check } from 'lucide-react';
+import { loadModule04Edits } from '../../utils/storage';
+import { createPreparedIrisDataset, ERROR_GROUND_TRUTH_MAP } from '../../utils/irisHelpers';
+import type { ErrorIrisRecord } from '../../types/iris';
 
 interface Module06ActivityProps {
   isCompleted: boolean;
@@ -18,6 +21,30 @@ interface Module06ActivityProps {
 export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted, onComplete }) => {
   const [activeTab, setActiveTab] = useState<'knn' | 'dt' | 'lr' | 'kmeans' | 'rl' | 'compare'>('knn');
   const topRef = useActivityScrollTop<HTMLDivElement>(activeTab);
+
+  // Load Module 04 edits and prepare the 150-record Prepared Dataset
+  const [module04Edits] = useState(() => loadModule04Edits());
+
+  const preparedDataset = useMemo<ErrorIrisRecord[]>(() => {
+    return createPreparedIrisDataset(module04Edits);
+  }, [module04Edits]);
+
+  // Informational quality status: count how many of the 12 target errors match ground truth
+  const correctCount04 = useMemo(() => {
+    const targetIds = [101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 114, 115];
+    let count = 0;
+    targetIds.forEach(id => {
+      const gt = ERROR_GROUND_TRUTH_MAP[id];
+      if (!gt) return;
+      const field = Object.keys(gt)[0];
+      const targetVal = gt[field];
+      const edit = [...module04Edits].reverse().find(e => e.recordId === id && e.field === field);
+      if (edit && edit.after === targetVal) {
+        count++;
+      }
+    });
+    return count;
+  }, [module04Edits]);
 
   const tabs: ('knn' | 'dt' | 'lr' | 'kmeans' | 'rl' | 'compare')[] = [
     'knn',
@@ -40,6 +67,20 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
+      {/* 04 Prepared Dataset Connection Notice & Quality Status Banner */}
+      <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Database size={16} className="text-emerald-700 shrink-0" />
+          <span className="font-medium">
+            <strong>04 데이터 전처리</strong>에서 준비한 150개 데이터(Prepared Dataset)가 이번 알고리즘 실험에 실제 반영됩니다.
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 self-start sm:self-auto font-mono text-xs bg-white px-2.5 py-1 rounded-lg border border-emerald-300 font-bold text-emerald-900 shrink-0">
+          <Check size={14} className="text-emerald-600" />
+          <span>원본과 일치하게 처리: {correctCount04} / 12</span>
+        </div>
+      </div>
+
       {/* 5 Algorithm Selection Navigation Cards */}
       <div className="space-y-3">
         <span className="text-xs font-bold text-slate-800 block">5대 알고리즘 실험실 선택:</span>
@@ -170,10 +211,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
       </div>
 
       {/* Tab Active Lab View */}
-      {activeTab === 'knn' && <KNNLab onInteract={() => setCompletedLabs(prev => ({ ...prev, knn: true }))} />}
-      {activeTab === 'dt' && <DecisionTreeLab onInteract={() => setCompletedLabs(prev => ({ ...prev, dt: true }))} />}
-      {activeTab === 'lr' && <LinearRegressionLab onInteract={() => setCompletedLabs(prev => ({ ...prev, lr: true }))} />}
-      {activeTab === 'kmeans' && <KMeansLab onInteract={() => setCompletedLabs(prev => ({ ...prev, kmeans: true }))} />}
+      {activeTab === 'knn' && <KNNLab dataset={preparedDataset} onInteract={() => setCompletedLabs(prev => ({ ...prev, knn: true }))} />}
+      {activeTab === 'dt' && <DecisionTreeLab dataset={preparedDataset} onInteract={() => setCompletedLabs(prev => ({ ...prev, dt: true }))} />}
+      {activeTab === 'lr' && <LinearRegressionLab dataset={preparedDataset} onInteract={() => setCompletedLabs(prev => ({ ...prev, lr: true }))} />}
+      {activeTab === 'kmeans' && <KMeansLab dataset={preparedDataset} onInteract={() => setCompletedLabs(prev => ({ ...prev, kmeans: true }))} />}
       {activeTab === 'rl' && <ReinforcementLearningLab onInteract={() => setCompletedLabs(prev => ({ ...prev, rl: true }))} />}
       {activeTab === 'compare' && <MasterAlgorithmComparison />}
 

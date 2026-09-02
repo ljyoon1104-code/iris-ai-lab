@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
+import type { IrisRecord, ErrorIrisRecord } from '../../types/iris';
 import {
   runKMeansWithHistory,
   runKMeansWithCustomCentroids,
@@ -7,6 +8,8 @@ import {
   type KMeansStepState,
   type Point2D,
 } from '../../algorithms/kmeans';
+import { getUsableIrisRecords } from '../../utils/irisHelpers';
+import { LabDataStatusBadge } from './LabDataStatusBadge';
 import { PrimaryButton } from '../common/PrimaryButton';
 import { SecondaryButton } from '../common/SecondaryButton';
 import { SpeciesLabel } from '../common/SpeciesBadge';
@@ -35,10 +38,11 @@ const CLUSTER_BG_LIGHT = [
 ];
 
 export interface KMeansLabProps {
+  dataset?: ErrorIrisRecord[];
   onInteract?: () => void;
 }
 
-export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
+export const KMeansLab: React.FC<KMeansLabProps> = ({ dataset, onInteract }) => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
@@ -51,8 +55,20 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
 
   const svgRef = useRef<SVGSVGElement | null>(null);
 
+  // Safe dataset filtering: require finite numbers for xAxis & yAxis. Species is NOT required.
+  const effectiveDataset = dataset || (ORIGINAL_IRIS_DATASET as any[]);
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(
+    () => getUsableIrisRecords(effectiveDataset, [xAxis, yAxis], false),
+    [effectiveDataset, xAxis, yAxis]
+  );
+
   const xSpec = FEATURE_MIN_MAX[xAxis];
   const ySpec = FEATURE_MIN_MAX[yAxis];
+
+  const axisMinX = Math.min(xSpec.min, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.min)));
+  const axisMaxX = Math.max(xSpec.max, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.max)));
+  const axisMinY = Math.min(ySpec.min, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.min)));
+  const axisMaxY = Math.max(ySpec.max, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.max)));
 
   const svgWidth = 460;
   const svgHeight = 320;
@@ -64,18 +80,20 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
   const plotH = svgHeight - paddingTop - paddingBottom;
 
   const getSvgX = (val: number) =>
-    paddingLeft + ((val - xSpec.min) / (xSpec.max - xSpec.min)) * plotW;
+    paddingLeft + ((val - axisMinX) / (axisMaxX - axisMinX || 1)) * plotW;
 
   const getSvgY = (val: number) =>
-    svgHeight - paddingBottom - ((val - ySpec.min) / (ySpec.max - ySpec.min)) * plotH;
+    svgHeight - paddingBottom - ((val - axisMinY) / (axisMaxY - axisMinY || 1)) * plotH;
 
-  // Compute history based on mode
-  let history: KMeansStepState[] = [];
-  if (initMode === 'auto') {
-    history = runKMeansWithHistory(ORIGINAL_IRIS_DATASET, xAxis, yAxis, k, 42);
-  } else if (userCentroids.length === k) {
-    history = runKMeansWithCustomCentroids(ORIGINAL_IRIS_DATASET, xAxis, yAxis, userCentroids);
-  }
+  // Compute history based on mode and usable dataset
+  const history = useMemo<KMeansStepState[]>(() => {
+    if (initMode === 'auto') {
+      return runKMeansWithHistory(usableData as IrisRecord[], xAxis, yAxis, k, 42);
+    } else if (userCentroids.length === k) {
+      return runKMeansWithCustomCentroids(usableData as IrisRecord[], xAxis, yAxis, userCentroids);
+    }
+    return [];
+  }, [usableData, xAxis, yAxis, k, initMode, userCentroids]);
 
   const currState = history.length > 0 ? history[Math.min(currentStepIndex, history.length - 1)] : null;
 
@@ -94,15 +112,13 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
     const clampedSvgX = Math.max(paddingLeft, Math.min(svgWidth - paddingRight, svgX));
     const clampedSvgY = Math.max(paddingTop, Math.min(svgHeight - paddingBottom, svgY));
 
-    const domainX = xSpec.min + ((clampedSvgX - paddingLeft) / plotW) * (xSpec.max - xSpec.min);
-    const domainY = ySpec.min + ((svgHeight - paddingBottom - clampedSvgY) / plotH) * (ySpec.max - ySpec.min);
+    const domainX = axisMinX + ((clampedSvgX - paddingLeft) / plotW) * (axisMaxX - axisMinX);
+    const domainY = axisMinY + ((svgHeight - paddingBottom - clampedSvgY) / plotH) * (axisMaxY - axisMinY);
 
-    const newCentroid: Point2D = {
-      x: Math.round(domainX * 10) / 10,
-      y: Math.round(domainY * 10) / 10,
-    };
+    const roundedX = Math.round(domainX * 10) / 10;
+    const roundedY = Math.round(domainY * 10) / 10;
 
-    setUserCentroids(prev => [...prev, newCentroid]);
+    setUserCentroids(prev => [...prev, { x: roundedX, y: roundedY }]);
   };
 
   const handleResetCentroids = () => {
@@ -125,6 +141,9 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Prepared Dataset Status Badge */}
+      <LabDataStatusBadge totalCount={totalCount} usableCount={usableCount} excludedCount={excludedCount} />
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
@@ -384,20 +403,20 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
 
               {/* Labels */}
               <text x={paddingLeft} y={svgHeight - paddingBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.min}
+                {axisMinX}
               </text>
               <text x={svgWidth - paddingRight} y={svgHeight - paddingBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.max}
+                {axisMaxX}
               </text>
               <text x={(paddingLeft + svgWidth - paddingRight) / 2} y={svgHeight - 12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">
                 {FEATURE_NAMES[xAxis]}
               </text>
 
               <text x={paddingLeft - 8} y={svgHeight - paddingBottom} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.min}
+                {axisMinY}
               </text>
               <text x={paddingLeft - 8} y={paddingTop + 6} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.max}
+                {axisMaxY}
               </text>
               <text x="15" y={(paddingTop + svgHeight - paddingBottom) / 2} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155" transform={`rotate(-90 15 ${(paddingTop + svgHeight - paddingBottom) / 2})`}>
                 {FEATURE_NAMES[yAxis]}
@@ -405,11 +424,11 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
 
               {/* Unassigned or Assigned Data Points */}
               {!isExecuted ? (
-                ORIGINAL_IRIS_DATASET.map(r => (
+                usableData.map(r => (
                   <circle
                     key={r.id}
-                    cx={getSvgX(r[xAxis])}
-                    cy={getSvgY(r[yAxis])}
+                    cx={getSvgX(r[xAxis] as number)}
+                    cy={getSvgY(r[yAxis] as number)}
                     r="3.5"
                     fill="#94a3b8"
                     opacity="0.6"
@@ -421,8 +440,8 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
                   return cl.records.map(r => (
                     <circle
                       key={r.id}
-                      cx={getSvgX(r[xAxis])}
-                      cy={getSvgY(r[yAxis])}
+                      cx={getSvgX(r[xAxis] as number)}
+                      cy={getSvgY(r[yAxis] as number)}
                       r="4"
                       fill={color}
                       opacity="0.8"

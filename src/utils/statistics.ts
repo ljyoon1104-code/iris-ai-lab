@@ -427,8 +427,9 @@ export function calculatePearsonCorrelation(x: number[], y: number[]): number {
     denY += dy * dy;
   }
 
-  if (denX === 0 || denY === 0) return 0;
+  if (denX === 0 || denY === 0 || !Number.isFinite(denX) || !Number.isFinite(denY)) return 0;
   const r = num / Math.sqrt(denX * denY);
+  if (!Number.isFinite(r)) return 0;
   const clamped = Math.max(-1, Math.min(1, r));
   return Math.round(clamped * 100) / 100;
 }
@@ -445,18 +446,11 @@ export interface CorrelationCell {
 }
 
 export function calculateCorrelationMatrix(
-  dataset: IrisRecord[],
+  dataset: Array<Record<string, any>>,
   features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth']
 ): { features: FeatureKey[]; matrix: number[][]; cells: CorrelationCell[] } {
   const matrix: number[][] = [];
   const cells: CorrelationCell[] = [];
-
-  const featureVectors: Record<FeatureKey, number[]> = {
-    sepalLength: dataset.map(r => r.sepalLength),
-    sepalWidth: dataset.map(r => r.sepalWidth),
-    petalLength: dataset.map(r => r.petalLength),
-    petalWidth: dataset.map(r => r.petalWidth),
-  };
 
   for (let i = 0; i < features.length; i++) {
     const row: number[] = [];
@@ -464,16 +458,33 @@ export function calculateCorrelationMatrix(
 
     for (let j = 0; j < features.length; j++) {
       const fY = features[j];
-      const r = i === j ? 1.0 : calculatePearsonCorrelation(featureVectors[fX], featureVectors[fY]);
-      row.push(r);
-
-      cells.push({
-        featureX: fX,
-        featureY: fY,
-        labelX: NUMERIC_FEATURE_LABELS[fX].short,
-        labelY: NUMERIC_FEATURE_LABELS[fY].short,
-        correlation: r,
-      });
+      if (i === j) {
+        row.push(1.0);
+        cells.push({
+          featureX: fX,
+          featureY: fY,
+          labelX: NUMERIC_FEATURE_LABELS[fX].short,
+          labelY: NUMERIC_FEATURE_LABELS[fY].short,
+          correlation: 1.0,
+        });
+      } else {
+        const validPairs = dataset.filter(r => {
+          const vx = r[fX];
+          const vy = r[fY];
+          return typeof vx === 'number' && Number.isFinite(vx) && typeof vy === 'number' && Number.isFinite(vy);
+        });
+        const vecX = validPairs.map(r => r[fX] as number);
+        const vecY = validPairs.map(r => r[fY] as number);
+        const r = calculatePearsonCorrelation(vecX, vecY);
+        row.push(r);
+        cells.push({
+          featureX: fX,
+          featureY: fY,
+          labelX: NUMERIC_FEATURE_LABELS[fX].short,
+          labelY: NUMERIC_FEATURE_LABELS[fY].short,
+          correlation: r,
+        });
+      }
     }
 
     matrix.push(row);

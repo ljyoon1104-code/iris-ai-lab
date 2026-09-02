@@ -1,10 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
+import type { IrisRecord, ErrorIrisRecord } from '../../types/iris';
 import {
   trainLinearRegression,
   predictLinearRegression,
   type FeatureKey,
 } from '../../algorithms/linearRegression';
+import { getUsableIrisRecords } from '../../utils/irisHelpers';
+import { LabDataStatusBadge } from './LabDataStatusBadge';
 import { LineChart, Sliders, Eye, HelpCircle, MousePointerClick } from 'lucide-react';
 
 const FEATURE_NAMES: Record<FeatureKey, string> = {
@@ -22,10 +25,11 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
 };
 
 export interface LinearRegressionLabProps {
+  dataset?: ErrorIrisRecord[];
   onInteract?: () => void;
 }
 
-export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInteract }) => {
+export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ dataset, onInteract }) => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
@@ -39,14 +43,29 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
 
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Train OLS model
-  const regResult = trainLinearRegression(ORIGINAL_IRIS_DATASET, xAxis, yAxis);
+  // Safe dataset filtering: require finite numbers for xAxis & yAxis. Species is NOT required.
+  const effectiveDataset = dataset || (ORIGINAL_IRIS_DATASET as any[]);
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(
+    () => getUsableIrisRecords(effectiveDataset, [xAxis, yAxis], false),
+    [effectiveDataset, xAxis, yAxis]
+  );
+
+  // Train OLS model on usable dataset
+  const regResult = useMemo(
+    () => trainLinearRegression(usableData as IrisRecord[], xAxis, yAxis),
+    [usableData, xAxis, yAxis]
+  );
   const predictedY = predictLinearRegression(regResult.slope, regResult.intercept, inputX);
   const manualPredY = predictLinearRegression(manualSlope, manualIntercept, inputX);
 
-  // SVG bounds
+  // SVG bounds with dynamic adaptation for outliers
   const xSpec = FEATURE_MIN_MAX[xAxis];
   const ySpec = FEATURE_MIN_MAX[yAxis];
+
+  const axisMinX = Math.min(xSpec.min, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.min)));
+  const axisMaxX = Math.max(xSpec.max, ...usableData.map(r => (typeof r[xAxis] === 'number' ? (r[xAxis] as number) : xSpec.max)));
+  const axisMinY = Math.min(ySpec.min, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.min)));
+  const axisMaxY = Math.max(ySpec.max, ...usableData.map(r => (typeof r[yAxis] === 'number' ? (r[yAxis] as number) : ySpec.max)));
 
   const svgWidth = 460;
   const svgHeight = 320;
@@ -58,18 +77,18 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
   const plotH = svgHeight - paddingTop - paddingBottom;
 
   const getSvgX = (val: number) =>
-    paddingLeft + ((val - xSpec.min) / (xSpec.max - xSpec.min)) * plotW;
+    paddingLeft + ((val - axisMinX) / (axisMaxX - axisMinX || 1)) * plotW;
 
   const getSvgY = (val: number) =>
-    svgHeight - paddingBottom - ((val - ySpec.min) / (ySpec.max - ySpec.min)) * plotH;
+    svgHeight - paddingBottom - ((val - axisMinY) / (axisMaxY - axisMinY || 1)) * plotH;
 
   const activeSlope = isManualMode ? manualSlope : regResult.slope;
   const activeIntercept = isManualMode ? manualIntercept : regResult.intercept;
   const activePredY = isManualMode ? manualPredY : predictedY;
 
-  const lineX1Val = xSpec.min;
+  const lineX1Val = axisMinX;
   const lineY1Val = predictLinearRegression(activeSlope, activeIntercept, lineX1Val);
-  const lineX2Val = xSpec.max;
+  const lineX2Val = axisMaxX;
   const lineY2Val = predictLinearRegression(activeSlope, activeIntercept, lineX2Val);
 
   const handleDirectNumberInput = (rawVal: string) => {
@@ -92,7 +111,7 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
       setRawInputX(String(inputX));
     } else {
       const parsed = parseFloat(str);
-      const clamped = Math.min(xSpec.max, Math.max(xSpec.min, Math.round(parsed * 10) / 10));
+      const clamped = Math.min(axisMaxX, Math.max(axisMinX, Math.round(parsed * 10) / 10));
       setInputX(clamped);
       setRawInputX(String(clamped));
     }
@@ -107,9 +126,9 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
     const svgX = (clientX / rect.width) * svgWidth;
     const clampedSvgX = Math.max(paddingLeft, Math.min(svgWidth - paddingRight, svgX));
 
-    const domainX = xSpec.min + ((clampedSvgX - paddingLeft) / plotW) * (xSpec.max - xSpec.min);
+    const domainX = axisMinX + ((clampedSvgX - paddingLeft) / plotW) * (axisMaxX - axisMinX);
     const roundedX = Math.round(domainX * 10) / 10;
-    const finalX = Math.min(xSpec.max, Math.max(xSpec.min, roundedX));
+    const finalX = Math.min(axisMaxX, Math.max(axisMinX, roundedX));
     setInputX(finalX);
     setRawInputX(String(finalX));
     onInteract?.();
@@ -120,6 +139,9 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Prepared Dataset Status Badge */}
+      <LabDataStatusBadge totalCount={totalCount} usableCount={usableCount} excludedCount={excludedCount} />
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
@@ -309,31 +331,31 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInte
 
               {/* Labels & Ticks */}
               <text x={paddingLeft} y={svgHeight - paddingBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.min}
+                {axisMinX}
               </text>
               <text x={svgWidth - paddingRight} y={svgHeight - paddingBottom + 14} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {xSpec.max}
+                {axisMaxX}
               </text>
               <text x={(paddingLeft + svgWidth - paddingRight) / 2} y={svgHeight - 12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">
                 {FEATURE_NAMES[xAxis]}
               </text>
 
               <text x={paddingLeft - 8} y={svgHeight - paddingBottom} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.min}
+                {axisMinY}
               </text>
               <text x={paddingLeft - 8} y={paddingTop + 6} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="monospace">
-                {ySpec.max}
+                {axisMaxY}
               </text>
               <text x="15" y={(paddingTop + svgHeight - paddingBottom) / 2} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155" transform={`rotate(-90 15 ${(paddingTop + svgHeight - paddingBottom) / 2})`}>
                 {FEATURE_NAMES[yAxis]}
               </text>
 
               {/* Data points */}
-              {ORIGINAL_IRIS_DATASET.map(r => (
+              {usableData.map(r => (
                 <circle
                   key={r.id}
-                  cx={getSvgX(r[xAxis])}
-                  cy={getSvgY(r[yAxis])}
+                  cx={getSvgX(r[xAxis] as number)}
+                  cy={getSvgY(r[yAxis] as number)}
                   r="3.5"
                   fill="#059669"
                   opacity="0.45"

@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
+import type { IrisRecord, ErrorIrisRecord } from '../../types/iris';
 import {
   trainDecisionTree,
   traceDecisionPath,
   type DecisionTreeNode,
   type FeatureKey,
 } from '../../algorithms/decisionTree';
+import { getUsableIrisRecords } from '../../utils/irisHelpers';
+import { LabDataStatusBadge } from './LabDataStatusBadge';
 import { SpeciesBadge } from '../common/SpeciesBadge';
 import { getSpeciesConfig } from '../../constants/species';
 import { GitBranch, Sliders, Eye, HelpCircle, Sparkles } from 'lucide-react';
@@ -118,27 +121,23 @@ function computeTreeLayout(tree: DecisionTreeNode, newPoint: Record<FeatureKey, 
     };
     allNodes.push(layoutNode);
 
-    const parentOnPath = isNodeOnPath(node);
-    const val = newPoint[node.feature!];
-    const goesLeft = val <= node.threshold!;
-
-    if (leftLayout) {
+    if (leftLayout && node.threshold !== undefined) {
       allEdges.push({
         parent: layoutNode,
         child: leftLayout,
         isLeft: true,
-        threshold: node.threshold!,
-        onPath: parentOnPath && goesLeft,
+        threshold: node.threshold,
+        onPath: isNodeOnPath(node) && isNodeOnPath(node.left!),
       });
     }
 
-    if (rightLayout) {
+    if (rightLayout && node.threshold !== undefined) {
       allEdges.push({
         parent: layoutNode,
         child: rightLayout,
         isLeft: false,
-        threshold: node.threshold!,
-        onPath: parentOnPath && !goesLeft,
+        threshold: node.threshold,
+        onPath: isNodeOnPath(node) && isNodeOnPath(node.right!),
       });
     }
 
@@ -146,7 +145,9 @@ function computeTreeLayout(tree: DecisionTreeNode, newPoint: Record<FeatureKey, 
   }
 
   const root = buildLayout(tree);
-  const totalWidth = Math.max(520, leafIndex * leafSpacing + paddingLeft * 2);
+  const maxX = Math.max(...allNodes.map(n => n.x + n.width / 2));
+  const totalWidth = Math.max(maxX + paddingLeft, 700);
+
   const maxDepthInTree = Math.max(...allNodes.map(n => n.depth));
   const totalHeight = topPadding + (maxDepthInTree + 1) * levelHeight + 35;
 
@@ -154,10 +155,11 @@ function computeTreeLayout(tree: DecisionTreeNode, newPoint: Record<FeatureKey, 
 }
 
 export interface DecisionTreeLabProps {
+  dataset?: ErrorIrisRecord[];
   onInteract?: () => void;
 }
 
-export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ onInteract }) => {
+export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ dataset, onInteract }) => {
   const [maxDepth, setMaxDepth] = useState<number>(3);
   const [newPoint, setNewPoint] = useState<Record<FeatureKey, number>>({
     sepalLength: 6.0,
@@ -176,9 +178,20 @@ export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ onInteract }) 
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
   const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
-  const tree = trainDecisionTree(ORIGINAL_IRIS_DATASET, features, maxDepth);
-  const trace = traceDecisionPath(tree, newPoint);
-  const layout = computeTreeLayout(tree, newPoint);
+
+  // Safe dataset filtering: require all 4 numeric features and canonical species for decision tree
+  const effectiveDataset = dataset || (ORIGINAL_IRIS_DATASET as any[]);
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(
+    () => getUsableIrisRecords(effectiveDataset, features, true),
+    [effectiveDataset, features]
+  );
+
+  const tree = useMemo(
+    () => trainDecisionTree(usableData as IrisRecord[], features, maxDepth),
+    [usableData, features, maxDepth]
+  );
+  const trace = useMemo(() => traceDecisionPath(tree, newPoint), [tree, newPoint]);
+  const layout = useMemo(() => computeTreeLayout(tree, newPoint), [tree, newPoint]);
 
   const handleAdjustValue = (feat: FeatureKey, delta: number) => {
     const spec = FEATURE_MIN_MAX[feat];
@@ -254,6 +267,9 @@ export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ onInteract }) 
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Prepared Dataset Status Badge */}
+      <LabDataStatusBadge totalCount={totalCount} usableCount={usableCount} excludedCount={excludedCount} />
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">

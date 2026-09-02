@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
-import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
-import type { IrisRecord, IrisSpecies } from '../../types/iris';
+import type { IrisRecord, IrisSpecies, ErrorIrisRecord } from '../../types/iris';
 import { stratifiedSplitDataset } from '../../algorithms/evaluation';
 import { predictKNN, type KNNPredictionResult } from '../../algorithms/knn';
 import {
@@ -11,7 +10,17 @@ import {
   type DecisionTreeNode,
   type TreeTrainingTrace,
 } from '../../algorithms/decisionTree';
-import { saveActiveModelConfig, clearActiveModelConfig } from '../../utils/storage';
+import {
+  saveActiveModelConfig,
+  clearActiveModelConfig,
+  loadModule04Edits,
+  SELECTED_FEATURES_KEY,
+} from '../../utils/storage';
+import {
+  createPreparedIrisDataset,
+  getUsableIrisRecords,
+  ERROR_GROUND_TRUTH_MAP,
+} from '../../utils/irisHelpers';
 import { ActivityProgress } from './ActivityProgress';
 import { SpeciesBadge, SpeciesLabel } from '../common/SpeciesBadge';
 import { PrimaryButton } from '../common/PrimaryButton';
@@ -37,6 +46,7 @@ import {
   FastForward,
   Lock,
   Unlock,
+  Database,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 
@@ -58,6 +68,57 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const topRef = useActivityScrollTop<HTMLDivElement>(currentStep);
+
+  // Load Module 04 edits and prepare the 150-record Prepared Dataset
+  const [module04Edits] = useState(() => loadModule04Edits());
+
+  const preparedDataset = useMemo<ErrorIrisRecord[]>(() => {
+    return createPreparedIrisDataset(module04Edits);
+  }, [module04Edits]);
+
+  // Classification-ready dataset: 4 numeric features must be finite, canonical species required
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(() => {
+    return getUsableIrisRecords(
+      preparedDataset,
+      ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
+      true
+    );
+  }, [preparedDataset]);
+
+  // Informational: count how many of the 12 target errors match ground truth
+  const correctCount04 = useMemo(() => {
+    const targetIds = [101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 114, 115];
+    let count = 0;
+    targetIds.forEach(id => {
+      const gt = ERROR_GROUND_TRUTH_MAP[id];
+      if (!gt) return;
+      const field = Object.keys(gt)[0];
+      const targetVal = gt[field];
+      const edit = [...module04Edits].reverse().find(e => e.recordId === id && e.field === field);
+      if (edit && edit.after === targetVal) {
+        count++;
+      }
+    });
+    return count;
+  }, [module04Edits]);
+
+  // Load selectedFeatures04 for k-NN feature pair
+  const [knnFeatures] = useState<[FeatureKey, FeatureKey]>(() => {
+    try {
+      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === 2 &&
+          parsed.every(f => ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'].includes(f))
+        ) {
+          return [parsed[0] as FeatureKey, parsed[1] as FeatureKey];
+        }
+      }
+    } catch {}
+    return ['petalLength', 'petalWidth'];
+  });
 
   // Step 1: Split ratio
   const [splitRatio, setSplitRatio] = useState<number>(0.8); // 80:20
@@ -128,8 +189,10 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
     }
   }, [currentStep, act1Confirmed, act2Confirmed, isTrained, predictedSpecies, act5Confirmed]);
 
-  // Compute stratified split
-  const splitResult = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, splitRatio, 42);
+  // Compute stratified split from classification-ready usableData
+  const splitResult = useMemo(() => {
+    return stratifiedSplitDataset(usableData as IrisRecord[], splitRatio, 42);
+  }, [usableData, splitRatio]);
 
   const invalidateTraining = () => {
     setIsTrained(false);
@@ -233,6 +296,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
         kParam,
         depthParam,
         trainedAt: Date.now(),
+        featureKeys: knnFeatures,
       });
     }
   };
@@ -306,13 +370,14 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
       kParam,
       depthParam,
       trainedAt: Date.now(),
+      featureKeys: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
     });
   };
 
   const handlePredictNewSample = () => {
     if (algorithm === 'knn') {
       if (!isTrained) return;
-      const res = predictKNN(splitResult.trainData, newPoint, ['petalLength', 'petalWidth'], kParam);
+      const res = predictKNN(splitResult.trainData, newPoint, knnFeatures, kParam);
       setKnnResult(res);
       setPredictedSpecies(res.predictedSpecies);
     } else {
@@ -402,6 +467,33 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
         </div>
       </div>
 
+      {/* 04 Prepared Dataset Connection Notice & Quality Status Banner */}
+      <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Database size={16} className="text-emerald-700 shrink-0" />
+            <span className="font-bold text-slate-900">[현재 Prepared Dataset]</span>
+            <span className="text-slate-700">
+              전체 데이터: <strong>{totalCount}</strong> · 모델에 사용 가능: <strong className="text-emerald-700 font-black">{usableCount}</strong>
+              {excludedCount > 0 && (
+                <span className="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold border border-amber-200 ml-1.5">
+                  분석 제외: {excludedCount}
+                </span>
+              )}
+            </span>
+          </div>
+          {excludedCount > 0 && (
+            <p className="text-[11px] text-amber-800 font-medium pl-6">
+              ※ 전처리가 완료되지 않아 수치 계산이나 분류에 사용할 수 없는 데이터는 Train/Test 분할에서 제외됩니다.
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 self-start sm:self-auto font-mono text-xs bg-white px-2.5 py-1 rounded-lg border border-emerald-300 font-bold text-emerald-900 shrink-0">
+          <Check size={14} className="text-emerald-600" />
+          <span>원본과 일치하게 처리: {correctCount04} / 12</span>
+        </div>
+      </div>
+
       {currentStep === 1 && (
         <div className="space-y-5 animate-fadeIn">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
@@ -411,7 +503,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              3개 품종의 비율(1:1:1)을 공정하게 유지하면서 150개의 데이터를 학습용(Train)과 테스트용(Test)으로 분리합니다.
+              3개 품종의 비율을 공정하게 유지하면서 사용 가능한 {usableData.length}개의 데이터를 학습용(Train)과 테스트용(Test)으로 분리합니다.
             </p>
 
             <div className="grid grid-cols-3 gap-2.5 text-xs">
@@ -729,7 +821,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                             <span className="font-mono">{splitResult.trainData.length}개</span>
                           </div>
                           <p className="text-[11px] text-emerald-800 font-medium">
-                            ✓ {splitResult.trainData.length}개의 꽃잎 좌표가 메모리에 등록되어 새로운 데이터와 거리 비교할 준비가 되었습니다.
+                            ✓ {splitResult.trainData.length}개의 {FEATURE_NAMES[knnFeatures[0]].split(' ')[0]}·{FEATURE_NAMES[knnFeatures[1]].split(' ')[0]} 특성 좌표가 메모리에 등록되어 새로운 데이터와 거리 비교할 준비가 되었습니다.
                           </p>
                         </div>
 
@@ -750,7 +842,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                       <div className="p-3.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold space-y-1">
                         <span className="block text-sm font-black">✓ 훈련 데이터 준비 완료</span>
                         <p className="text-emerald-100 font-medium text-[11px]">
-                          새로운 데이터가 들어오면 이 {splitResult.trainData.length}개 데이터와 거리를 비교할 준비가 되었습니다. (k={kParam})
+                          전처리된 데이터 중 사용 가능한 {usableData.length}개로 Train({splitResult.trainData.length}개)/Test({splitResult.testData.length}개)를 구성하여 준비했습니다. (k={kParam})
                         </p>
                       </div>
                     </div>
@@ -1101,7 +1193,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                     </div>
 
                     <p className="text-[11px] text-emerald-800 leading-relaxed font-medium">
-                      ✓ 이제 방금 구축한 판단 규칙 나무를 이용해 새로운 붓꽃 수치 데이터를 스무고개처럼 판정할 수 있습니다.
+                      ✓ 전처리된 데이터 중 사용 가능한 {usableData.length}개로 Train({splitResult.trainData.length}개)/Test({splitResult.testData.length}개)를 구성하여 모델을 생성했습니다.
                     </p>
                   </div>
 
@@ -1229,6 +1321,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                     newPoint={newPoint}
                     kParam={kParam}
                     knnResult={knnResult}
+                    featureKeys={knnFeatures}
                   />
                 </div>
               ) : (

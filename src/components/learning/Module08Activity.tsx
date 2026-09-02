@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
-import { ORIGINAL_IRIS_DATASET, SPECIES_MAP } from '../../data/irisDataset';
+import { SPECIES_MAP } from '../../data/irisDataset';
 import {
   stratifiedSplitDataset,
   evaluateClassifier,
   type ExperimentResult,
 } from '../../algorithms/evaluation';
-import { loadActiveModelConfig } from '../../utils/storage';
-import type { IrisSpecies } from '../../types/iris';
+import {
+  loadActiveModelConfig,
+  loadModule04Edits,
+  SELECTED_FEATURES_KEY,
+  EXPERIMENTS_STORAGE_KEY,
+} from '../../utils/storage';
+import {
+  createPreparedIrisDataset,
+  getUsableIrisRecords,
+  ERROR_GROUND_TRUTH_MAP,
+} from '../../utils/irisHelpers';
+import type { IrisRecord, IrisSpecies, ErrorIrisRecord } from '../../types/iris';
 import { SpeciesBadge, SpeciesLabel } from '../common/SpeciesBadge';
 import { SpeciesMarker } from '../common/SpeciesMarker';
 import { ALL_SPECIES_LIST } from '../../constants/species';
@@ -27,6 +37,8 @@ import {
   TrendingUp,
   Sparkles,
   BookOpen,
+  Database,
+  Check,
 } from 'lucide-react';
 import { ActivityChecklist } from './ActivityChecklist';
 
@@ -35,15 +47,93 @@ interface Module08ActivityProps {
   onComplete: () => void;
 }
 
-const LOCAL_STORAGE_EXP_KEY = 'iris_ai_lab_experiments';
+type FeatureKey = keyof Omit<IrisRecord, 'id' | 'species'>;
+
+const FEATURE_NAMES: Record<FeatureKey, string> = {
+  sepalLength: '꽃받침 길이 (cm)',
+  sepalWidth: '꽃받침 너비 (cm)',
+  petalLength: '꽃잎 길이 (cm)',
+  petalWidth: '꽃잎 너비 (cm)',
+};
+
+const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: number }> = {
+  sepalLength: { min: 4.0, max: 8.0, step: 0.1 },
+  sepalWidth: { min: 2.0, max: 4.5, step: 0.1 },
+  petalLength: { min: 1.0, max: 7.0, step: 0.1 },
+  petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
+};
+
+const LOCAL_STORAGE_EXP_KEY = EXPERIMENTS_STORAGE_KEY;
 
 export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const topRef = useActivityScrollTop<HTMLDivElement>(currentStep);
 
+  // Load Module 04 edits and prepare the 150-record Prepared Dataset
+  const [module04Edits] = useState(() => loadModule04Edits());
+
+  const preparedDataset = useMemo<ErrorIrisRecord[]>(() => {
+    return createPreparedIrisDataset(module04Edits);
+  }, [module04Edits]);
+
+  // Classification-ready dataset: 4 numeric features must be finite, canonical species required
+  const { usableData, excludedCount, usableCount, totalCount } = useMemo(() => {
+    return getUsableIrisRecords(
+      preparedDataset,
+      ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
+      true
+    );
+  }, [preparedDataset]);
+
+  // Informational: count how many of the 12 target errors match ground truth
+  const correctCount04 = useMemo(() => {
+    const targetIds = [101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 114, 115];
+    let count = 0;
+    targetIds.forEach(id => {
+      const gt = ERROR_GROUND_TRUTH_MAP[id];
+      if (!gt) return;
+      const field = Object.keys(gt)[0];
+      const targetVal = gt[field];
+      const edit = [...module04Edits].reverse().find(e => e.recordId === id && e.field === field);
+      if (edit && edit.after === targetVal) {
+        count++;
+      }
+    });
+    return count;
+  }, [module04Edits]);
+
   // Load configuration transferred from Module 07 if present, otherwise default fallback
   const [initialModelConfig] = useState(() => loadActiveModelConfig());
+
+  // Priority for k-NN featureKeys: 1. initialModelConfig.featureKeys, 2. selectedFeatures04, 3. fallback ['petalLength', 'petalWidth']
+  const [activeKnnFeatures] = useState<[FeatureKey, FeatureKey]>(() => {
+    const validFeatures: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
+    if (
+      initialModelConfig?.featureKeys &&
+      Array.isArray(initialModelConfig.featureKeys) &&
+      initialModelConfig.featureKeys.length === 2 &&
+      initialModelConfig.featureKeys[0] !== initialModelConfig.featureKeys[1] &&
+      initialModelConfig.featureKeys.every(f => validFeatures.includes(f as FeatureKey))
+    ) {
+      return [initialModelConfig.featureKeys[0] as FeatureKey, initialModelConfig.featureKeys[1] as FeatureKey];
+    }
+    try {
+      const saved = localStorage.getItem(SELECTED_FEATURES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === 2 &&
+          parsed[0] !== parsed[1] &&
+          parsed.every(f => validFeatures.includes(f as FeatureKey))
+        ) {
+          return [parsed[0] as FeatureKey, parsed[1] as FeatureKey];
+        }
+      }
+    } catch {}
+    return ['petalLength', 'petalWidth'];
+  });
 
   // Experiment setup state for current iteration
   const [algorithm, setAlgorithm] = useState<'knn' | 'decisionTree'>(() => initialModelConfig?.algorithm || 'knn');
@@ -88,9 +178,9 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
     }
   }, [experiments]);
 
-  // Listen for global reset event to reset in-memory experiment states
+  // Listen for reset and data change events to reset in-memory experiment states
   useEffect(() => {
-    const handleReset = () => {
+    const handleFullReset = () => {
       setExperiments([]);
       setSelectedFinalExpId(null);
       setSelectedCell(null);
@@ -104,14 +194,29 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       setDepthParam(3);
     };
 
-    window.addEventListener('learning_data_reset', handleReset);
-    return () => window.removeEventListener('learning_data_reset', handleReset);
+    const handleDataChanged = () => {
+      setExperiments([]);
+      setSelectedFinalExpId(null);
+      setHasReevaluated(false);
+    };
+
+    window.addEventListener('learning_data_reset', handleFullReset);
+    window.addEventListener('module04_reset', handleDataChanged);
+    window.addEventListener('module04_edits_changed', handleDataChanged);
+    return () => {
+      window.removeEventListener('learning_data_reset', handleFullReset);
+      window.removeEventListener('module04_reset', handleDataChanged);
+      window.removeEventListener('module04_edits_changed', handleDataChanged);
+    };
   }, []);
 
-  // Execute evaluation on current setup
+  // Execute evaluation on current setup using Prepared usableData
   const runCurrentEvaluation = (): ExperimentResult => {
-    const split = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, splitRatio, 42);
-    const params = algorithm === 'knn' ? { k: kParam } : { maxDepth: depthParam };
+    const split = stratifiedSplitDataset(usableData as IrisRecord[], splitRatio, 42);
+    const params =
+      algorithm === 'knn'
+        ? { k: kParam, featureKeys: activeKnnFeatures }
+        : { maxDepth: depthParam };
     const evalRes = evaluateClassifier(algorithm, split.trainData, split.testData, params);
 
     const ratioLabel = `${Math.round(splitRatio * 100)}:${Math.round((1 - splitRatio) * 100)}`;
@@ -129,12 +234,13 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       correctCount: evalRes.confusionMatrix.correctCount,
       confusionMatrix: evalRes.confusionMatrix,
       misclassifiedSamples: evalRes.misclassified,
+      featureKeys: algorithm === 'knn' ? activeKnnFeatures : ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
     };
   };
 
   const currentEval = useMemo<{ actual: IrisSpecies; predicted: IrisSpecies; count: number } | null | any>(() => {
     return runCurrentEvaluation();
-  }, [algorithm, splitRatio, kParam, depthParam]);
+  }, [usableData, algorithm, splitRatio, kParam, depthParam, activeKnnFeatures]);
 
   // Unified step completion check
   const isStepCompleted = useMemo(() => {
@@ -289,17 +395,47 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          07에서 만든 모델을 **독립된 테스트 데이터(30개)**에 적용하여 정확도 수치와 혼동행렬 오분류 원인을 다각도로 평가합니다.
+          07에서 선택한 모델 설정을 현재 준비된 데이터에 적용하여, **독립된 테스트 데이터({currentEval.testCount}개)**에서 정확도 수치와 혼동행렬 오분류 원인을 다각도로 평가합니다.
         </p>
 
         {initialModelConfig && (
           <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 font-bold">
-            <span className="text-emerald-700">✓ 07에서 만든 모델 설정을 불러왔습니다:</span>
+            <span className="text-emerald-700">✓ 07에서 선택한 모델 설정을 현재 준비된 데이터에 동일하게 적용하여 평가합니다:</span>
             <span className="bg-white px-2 py-0.5 rounded border border-emerald-300 font-mono text-[11px]">
               {initialModelConfig.algorithm === 'knn' ? `k-NN (k=${initialModelConfig.kParam})` : `의사결정트리 (깊이 ${initialModelConfig.depthParam})`} · 분할 {Math.round(initialModelConfig.splitRatio * 100)}:{Math.round((1 - initialModelConfig.splitRatio) * 100)}
             </span>
           </div>
         )}
+      </div>
+
+      {/* 04 Prepared Dataset Connection Notice & Quality Status Banner */}
+      <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Database size={16} className="text-emerald-700 shrink-0" />
+            <span className="font-bold text-slate-900">[현재 Prepared Dataset]</span>
+            <span className="text-slate-700">
+              전체 데이터: <strong>{totalCount}</strong> · 모델 평가에 사용 가능: <strong className="text-emerald-700 font-black">{usableCount}</strong>
+              {excludedCount > 0 && (
+                <span className="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold border border-amber-200 ml-1.5">
+                  분석 제외: {excludedCount}
+                </span>
+              )}
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600 font-medium pl-6">
+            04 데이터 전처리에서 준비한 데이터가 현재 모델의 학습 및 평가에 사용됩니다.
+            {excludedCount > 0 && (
+              <span className="text-amber-800 block mt-0.5 font-bold">
+                ※ 수치 계산이나 분류에 사용할 수 없는 데이터는 Train/Test 분할에서 제외됩니다.
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 self-start sm:self-auto font-mono text-xs bg-white px-2.5 py-1 rounded-lg border border-emerald-300 font-bold text-emerald-900 shrink-0">
+          <Check size={14} className="text-emerald-600" />
+          <span>원본과 일치하게 처리: {correctCount04} / 12</span>
+        </div>
       </div>
 
       {/* STEP 1: 테스트 데이터 성능 평가 & 3×3 혼동행렬 */}
@@ -661,7 +797,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
             {currentEval.misclassifiedSamples.length === 0 ? (
               <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-bold text-center space-y-1">
                 <span className="text-base block">🎉 오분류 데이터가 0개입니다!</span>
-                <p className="font-normal text-slate-600">현재 테스트 데이터 30개를 모두 100% 정확하게 맞혔습니다.</p>
+                <p className="font-normal text-slate-600">현재 테스트 데이터 {currentEval.testCount}개를 모두 100% 정확하게 맞혔습니다.</p>
               </div>
             ) : (
               <div className="space-y-4 text-xs">
@@ -711,6 +847,18 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                     if (!targetSample) return null;
 
                     const targetRec = targetSample.record;
+                    const xKey = algorithm === 'knn' ? activeKnnFeatures[0] : 'petalLength';
+                    const yKey = algorithm === 'knn' ? activeKnnFeatures[1] : 'petalWidth';
+
+                    const xSpec = FEATURE_MIN_MAX[xKey];
+                    const ySpec = FEATURE_MIN_MAX[yKey];
+                    const minX = Math.min(xSpec.min, ...usableData.map(r => (typeof r[xKey] === 'number' ? (r[xKey] as number) : xSpec.min)));
+                    const maxX = Math.max(xSpec.max, ...usableData.map(r => (typeof r[xKey] === 'number' ? (r[xKey] as number) : xSpec.max)));
+                    const minY = Math.min(ySpec.min, ...usableData.map(r => (typeof r[yKey] === 'number' ? (r[yKey] as number) : ySpec.min)));
+                    const maxY = Math.max(ySpec.max, ...usableData.map(r => (typeof r[yKey] === 'number' ? (r[yKey] as number) : ySpec.max)));
+
+                    const mapX = (v: number) => 55 + ((Math.max(minX, Math.min(maxX, v)) - minX) / (maxX - minX || 1)) * 375;
+                    const mapY = (v: number) => 210 - ((Math.max(minY, Math.min(maxY, v)) - minY) / (maxY - minY || 1)) * 185;
 
                     return (
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fadeIn">
@@ -720,7 +868,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                             <span>오분류 레코드 #{targetRec.id} 2D 산점도 위치 시각화</span>
                           </span>
                           <span className="text-[11px] text-slate-500 font-mono">
-                            (X: 꽃잎길이 {targetRec.petalLength}cm, Y: 꽃잎너비 {targetRec.petalWidth}cm)
+                            (X: {FEATURE_NAMES[xKey]} {targetRec[xKey]}cm, Y: {FEATURE_NAMES[yKey]} {targetRec[yKey]}cm)
                           </span>
                         </div>
 
@@ -743,68 +891,66 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                             <line x1="45" y1="20" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="2" />
 
                             <text x="240" y="250" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569">
-                              꽃잎 길이 (cm)
+                              {FEATURE_NAMES[xKey]}
                             </text>
                             <text x="15" y="120" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569" transform="rotate(-90 15 120)">
-                              꽃잎 너비 (cm)
+                              {FEATURE_NAMES[yKey]}
                             </text>
 
-                            {(() => {
-                              const minX = 1.0;
-                              const maxX = 7.0;
-                              const minY = 0.1;
-                              const maxY = 2.5;
+                            <g>
+                              {usableData.map(r => {
+                                const cx = mapX(r[xKey] as number);
+                                const cy = mapY(r[yKey] as number);
+                                const isTarget = r.id === targetRec.id;
 
-                              const mapX = (v: number) => 55 + ((v - minX) / (maxX - minX)) * 375;
-                              const mapY = (v: number) => 210 - ((v - minY) / (maxY - minY)) * 185;
+                                return (
+                                  <SpeciesMarker
+                                    key={r.id}
+                                    species={r.species}
+                                    cx={cx}
+                                    cy={cy}
+                                    size={isTarget ? 6.5 : 4}
+                                    opacity={isTarget ? 1 : 0.45}
+                                    stroke={isTarget ? '#000000' : '#ffffff'}
+                                    strokeWidth={isTarget ? 2 : 0.8}
+                                  />
+                                );
+                              })}
 
-                              return (
-                                <g>
-                                  {ORIGINAL_IRIS_DATASET.map(r => {
-                                    const cx = mapX(r.petalLength);
-                                    const cy = mapY(r.petalWidth);
-                                    const isTarget = r.id === targetRec.id;
+                              {(() => {
+                                const tX = mapX(targetRec[xKey] as number);
+                                const tY = mapY(targetRec[yKey] as number);
 
-                                    return (
-                                      <SpeciesMarker
-                                        key={r.id}
-                                        species={r.species}
-                                        cx={cx}
-                                        cy={cy}
-                                        size={isTarget ? 6.5 : 4}
-                                        opacity={isTarget ? 1 : 0.45}
-                                        stroke={isTarget ? '#000000' : '#ffffff'}
-                                        strokeWidth={isTarget ? 2 : 0.8}
-                                      />
-                                    );
-                                  })}
-
-                                  {(() => {
-                                    const tX = mapX(targetRec.petalLength);
-                                    const tY = mapY(targetRec.petalWidth);
-
-                                    return (
-                                      <g>
-                                        {/* Outer Red Dashed Ring for Misclassification Highlight */}
-                                        <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.2" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
-                                        {/* True Species Marker Preserved */}
-                                        <SpeciesMarker
-                                          species={targetRec.species}
-                                          cx={tX}
-                                          cy={tY}
-                                          size={7}
-                                          opacity={1}
-                                          stroke="#000000"
-                                          strokeWidth={2}
-                                        />
-                                      </g>
-                                    );
-                                  })()}
-                                </g>
-                              );
-                            })()}
+                                return (
+                                  <g>
+                                    {/* Outer Red Dashed Ring for Misclassification Highlight */}
+                                    <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.2" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
+                                    {/* True Species Marker Preserved */}
+                                    <SpeciesMarker
+                                      species={targetRec.species}
+                                      cx={tX}
+                                      cy={tY}
+                                      size={7}
+                                      opacity={1}
+                                      stroke="#000000"
+                                      strokeWidth={2}
+                                    />
+                                  </g>
+                                );
+                              })()}
+                            </g>
                           </svg>
                         </div>
+
+                        {algorithm === 'decisionTree' ? (
+                          <div className="p-2.5 bg-slate-100 rounded-lg text-[11px] text-slate-600 font-medium">
+                            ※ 의사결정트리는 4개 특성을 모두 사용하며, 이 산점도는 꽃잎 길이·너비 2개 특성만 나타낸 참고 시각화입니다.
+                          </div>
+                        ) : (
+                          <div className="p-2.5 bg-slate-100 rounded-lg text-[11px] text-slate-600 font-medium">
+                            ※ k-NN 평가는 07에서 설정된 {FEATURE_NAMES[xKey]}·{FEATURE_NAMES[yKey]} 2개 특성 공간에서 거리를 계산합니다.
+                          </div>
+                        )}
 
                         {/* Observation Question Section 16 */}
                         <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium space-y-1.5">
