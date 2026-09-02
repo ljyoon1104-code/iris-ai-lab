@@ -153,7 +153,11 @@ function computeTreeLayout(tree: DecisionTreeNode, newPoint: Record<FeatureKey, 
   return { root, allNodes, allEdges, totalWidth, totalHeight };
 }
 
-export const DecisionTreeLab: React.FC = () => {
+export interface DecisionTreeLabProps {
+  onInteract?: () => void;
+}
+
+export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ onInteract }) => {
   const [maxDepth, setMaxDepth] = useState<number>(3);
   const [newPoint, setNewPoint] = useState<Record<FeatureKey, number>>({
     sepalLength: 6.0,
@@ -184,6 +188,7 @@ export const DecisionTreeLab: React.FC = () => {
       setRawInputs(r => ({ ...r, [feat]: String(clamped) }));
       return { ...prev, [feat]: clamped };
     });
+    onInteract?.();
   };
 
   const handleDirectNumberInput = (feat: FeatureKey, rawVal: string) => {
@@ -196,6 +201,7 @@ export const DecisionTreeLab: React.FC = () => {
     const parsed = parseFloat(cleaned);
     if (!isNaN(parsed)) {
       setNewPoint(prev => ({ ...prev, [feat]: Math.round(parsed * 10) / 10 }));
+      onInteract?.();
     }
   };
 
@@ -228,6 +234,7 @@ export const DecisionTreeLab: React.FC = () => {
       petalLength: String(pt.petalLength),
       petalWidth: String(pt.petalWidth),
     });
+    onInteract?.();
   };
 
   const isNodeOnPath = (node: DecisionTreeNode): boolean => {
@@ -313,7 +320,10 @@ export const DecisionTreeLab: React.FC = () => {
             {[2, 3, 4].map(d => (
               <button
                 key={d}
-                onClick={() => setMaxDepth(d)}
+                onClick={() => {
+                  setMaxDepth(d);
+                  onInteract?.();
+                }}
                 className={`p-3 rounded-xl font-bold transition-all min-h-[44px] cursor-pointer ${
                   maxDepth === d
                     ? 'bg-teal-600 text-white shadow-xs'
@@ -740,7 +750,10 @@ export const DecisionTreeLab: React.FC = () => {
             ].map(opt => (
               <button
                 key={opt.key}
-                onClick={() => setUserObservationChoice(opt.key)}
+                onClick={() => {
+                  setUserObservationChoice(opt.key);
+                  onInteract?.();
+                }}
                 className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
                   userObservationChoice === opt.key
                     ? opt.key === 'ans1'

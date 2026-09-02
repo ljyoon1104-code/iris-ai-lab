@@ -29,7 +29,11 @@ export type RLLearningStatus = 'idle' | 'playing' | 'paused' | 'stopped' | 'comp
 
 export const EPISODE_OPTIONS: number[] = [10, 50, 100, 500, 1000];
 
-export const ReinforcementLearningLab: React.FC = () => {
+export interface ReinforcementLearningLabProps {
+  onInteract?: () => void;
+}
+
+export const ReinforcementLearningLab: React.FC<ReinforcementLearningLabProps> = ({ onInteract }) => {
   const [selectedEpisodes, setSelectedEpisodes] = useState<number>(100);
   const [agent] = useState(() => new QLearningAgent(DEFAULT_GRID_CONFIG, 42));
   const [traces, setTraces] = useState<RLEpisodeResult[]>([]);
@@ -152,6 +156,7 @@ export const ReinforcementLearningLab: React.FC = () => {
     }
     setLearningStatus('playing');
     setShowLearnedPath(false);
+    onInteract?.();
   };
 
   // Pause / Resume handler
@@ -178,6 +183,7 @@ export const ReinforcementLearningLab: React.FC = () => {
       setCurrentStepIdx(lastEp.steps.length - 1);
       setLearningStatus('completed');
       setShowLearnedPath(true);
+      onInteract?.();
     }
   };
 
@@ -815,7 +821,10 @@ export const ReinforcementLearningLab: React.FC = () => {
             ].map(opt => (
               <button
                 key={opt.key}
-                onClick={() => setUserObservationChoice(opt.key)}
+                onClick={() => {
+                  setUserObservationChoice(opt.key);
+                  onInteract?.();
+                }}
                 className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
                   userObservationChoice === opt.key
                     ? opt.key === 'ans1'

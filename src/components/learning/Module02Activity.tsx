@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { ActivityProgress } from './ActivityProgress';
 import { ChoiceCard } from './ChoiceCard';
@@ -30,11 +30,35 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
   const [act1A, setAct1A] = useState<'trad' | 'ml' | null>(null);
   const [act1B, setAct1B] = useState<'trad' | 'ml' | null>(null);
 
+  // Activity 2 State
+  const [act2Confirmed, setAct2Confirmed] = useState(false);
+
   // Activity 3 State
   const [act3Choice, setAct3Choice] = useState<string | null>(null);
 
   // Activity 4 State (Step order completed status)
   const [isOrderFinished, setIsOrderFinished] = useState(false);
+  const [act4Attempted, setAct4Attempted] = useState(false);
+
+  // Activity 5 State
+  const [act5Confirmed, setAct5Confirmed] = useState(false);
+
+  const isStepCompleted = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return act1A !== null && act1B !== null;
+      case 2:
+        return act2Confirmed;
+      case 3:
+        return act3Choice !== null;
+      case 4:
+        return isOrderFinished || act4Attempted;
+      case 5:
+        return act5Confirmed;
+      default:
+        return true;
+    }
+  }, [currentStep, act1A, act1B, act2Confirmed, act3Choice, isOrderFinished, act4Attempted, act5Confirmed]);
 
   const sampleIris = ORIGINAL_IRIS_DATASET[0]; // ID #1 (5.1, 3.5, 1.4, 0.2, Iris-setosa)
 
@@ -200,6 +224,17 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
                 </div>
               </div>
             </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span className="text-xs text-slate-600 font-medium">💡 기계학습의 개념과 흐름을 확인한 뒤 버튼을 눌러주세요.</span>
+              <SecondaryButton
+                size="sm"
+                onClick={() => setAct2Confirmed(true)}
+                className={act2Confirmed ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ''}
+              >
+                {act2Confirmed ? '✓ 내용 확인 완료' : '내용 확인 완료'}
+              </SecondaryButton>
+            </div>
           </div>
         </div>
       )}
@@ -292,7 +327,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
               <span>활동 4: 기계학습 문제 해결 6단계 순서 맞추기</span>
             </h3>
 
-            <StepOrderActivity onComplete={() => setIsOrderFinished(true)} />
+            <StepOrderActivity onComplete={() => setIsOrderFinished(true)} onAttempt={() => setAct4Attempted(true)} />
           </div>
         </div>
       )}
@@ -374,7 +409,21 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
                   ✓ 4단계 ML 6단계 순서 맞추기 미션을 완수하셨습니다.
                 </div>
               )}
-              <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
+              {!act5Confirmed && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-2">
+                  <p className="text-xs text-slate-600 font-medium">6단계 전체 흐름을 확인한 뒤 아래 완료 버튼을 눌러주세요.</p>
+                  <SecondaryButton size="sm" onClick={() => setAct5Confirmed(true)}>
+                    내용 확인 완료
+                  </SecondaryButton>
+                </div>
+              )}
+              <PrimaryButton
+                size="lg"
+                fullWidth
+                disabled={!act5Confirmed}
+                onClick={onComplete}
+                icon={<CheckCircle2 size={20} />}
+              >
                 02 기계학습 시작 학습 완료하기
               </PrimaryButton>
             </div>
@@ -383,28 +432,40 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
       )}
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
-
-        {currentStep < totalSteps ? (
-          <PrimaryButton
-            size="md"
-            onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
-            icon={<ChevronRight size={16} />}
-            className="flex-row-reverse"
-          >
-            다음 활동
-          </PrimaryButton>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {!isStepCompleted && currentStep < totalSteps && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            {currentStep === 1 && '💡 두 상황의 프로그래밍 방식을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 2 && '💡 핵심 동작 흐름을 확인한 뒤 [내용 확인 완료]를 눌러주세요.'}
+            {currentStep === 3 && '💡 질문에 응답하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 4 && '💡 6단계 순서 맞추기를 시도하면 다음 활동으로 이동할 수 있습니다.'}
+          </p>
         )}
+
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentStep < totalSteps ? (
+            <PrimaryButton
+              size="md"
+              disabled={!isStepCompleted}
+              onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
+              icon={<ChevronRight size={16} />}
+              className="flex-row-reverse"
+            >
+              다음 활동
+            </PrimaryButton>
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
     </div>
   );

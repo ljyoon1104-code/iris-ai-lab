@@ -25,7 +25,11 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
   petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
 };
 
-export const KNNLab: React.FC = () => {
+export interface KNNLabProps {
+  onInteract?: () => void;
+}
+
+export const KNNLab: React.FC<KNNLabProps> = ({ onInteract }) => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
@@ -76,6 +80,7 @@ export const KNNLab: React.FC = () => {
       return { ...prev, [feat]: clamped };
     });
     setIsBoundaryLoaded(false);
+    onInteract?.();
   };
 
   const handleDirectNumberInput = (feat: FeatureKey, rawVal: string) => {
@@ -89,6 +94,7 @@ export const KNNLab: React.FC = () => {
     if (!isNaN(parsed)) {
       setNewPoint(prev => ({ ...prev, [feat]: Math.round(parsed * 10) / 10 }));
       setIsBoundaryLoaded(false);
+      onInteract?.();
     }
   };
 
@@ -120,6 +126,7 @@ export const KNNLab: React.FC = () => {
         petalWidth: String(bCase.point.petalWidth ?? prev.petalWidth),
       }));
       setIsBoundaryLoaded(true);
+      onInteract?.();
     }
   };
 
@@ -173,12 +180,13 @@ export const KNNLab: React.FC = () => {
       [xAxis]: clX,
       [yAxis]: clY,
     }));
-    setRawInputs(prev => ({
-      ...prev,
+    setRawInputs(r => ({
+      ...r,
       [xAxis]: String(clX),
       [yAxis]: String(clY),
     }));
     setIsBoundaryLoaded(false);
+    onInteract?.();
   };
 
   const newX = mapX(newPoint[xAxis]);
@@ -254,6 +262,7 @@ export const KNNLab: React.FC = () => {
                   onClick={() => {
                     setK(kVal);
                     setIsBoundaryLoaded(false);
+                    onInteract?.();
                   }}
                   className={`p-2.5 rounded-xl font-mono font-bold text-sm cursor-pointer min-h-[44px] transition-all ${
                     k === kVal
@@ -609,7 +618,10 @@ export const KNNLab: React.FC = () => {
             ].map(opt => (
               <button
                 key={opt.key}
-                onClick={() => setUserObservationChoice(opt.key)}
+                onClick={() => {
+                  setUserObservationChoice(opt.key);
+                  onInteract?.();
+                }}
                 className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
                   userObservationChoice === opt.key
                     ? opt.key === 'ans1'

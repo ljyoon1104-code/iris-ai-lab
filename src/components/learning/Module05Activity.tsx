@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { ActivityProgress } from './ActivityProgress';
 import { ChoiceCard } from './ChoiceCard';
@@ -44,6 +44,30 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
 
   // Activity 6 State (Algorithm Map & Quiz)
   const [act6Quiz, setAct6Quiz] = useState<Record<string, string>>({});
+
+  // Activity 7 State
+  const [act7Confirmed, setAct7Confirmed] = useState(false);
+
+  const isStepCompleted = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return act1Q1 !== null && act1Q2 !== null;
+      case 2:
+        return act2Choice !== null;
+      case 3:
+        return act3Choice !== null;
+      case 4:
+        return act4Choice !== null;
+      case 5:
+        return Object.keys(act5Answers).length >= 3;
+      case 6:
+        return Object.keys(act6Quiz).length >= 4;
+      case 7:
+        return act7Confirmed;
+      default:
+        return true;
+    }
+  }, [currentStep, act1Q1, act1Q2, act2Choice, act3Choice, act4Choice, act5Answers, act6Quiz, act7Confirmed]);
 
   const sampleIris = ORIGINAL_IRIS_DATASET[0]; // Id #1 (5.1, 3.5, 1.4, 0.2, Iris-setosa)
 
@@ -642,7 +666,21 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
                   ✓ 이미 완료된 영역입니다. 언제든 자유롭게 복습 및 다시 학습이 가능합니다.
                 </div>
               )}
-              <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
+              {!act7Confirmed && (
+                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-2">
+                  <p className="text-xs text-slate-600 font-medium">학습 방법 핵심 요약을 확인한 뒤 아래 완료 버튼을 눌러주세요.</p>
+                  <SecondaryButton size="sm" onClick={() => setAct7Confirmed(true)}>
+                    내용 확인 완료
+                  </SecondaryButton>
+                </div>
+              )}
+              <PrimaryButton
+                size="lg"
+                fullWidth
+                disabled={!act7Confirmed}
+                onClick={onComplete}
+                icon={<CheckCircle2 size={20} />}
+              >
                 05 학습 방법 완료 & 06 알고리즘 실험실로 이동
               </PrimaryButton>
             </div>
@@ -651,28 +689,42 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
       )}
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
-
-        {currentStep < totalSteps ? (
-          <PrimaryButton
-            size="md"
-            onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
-            icon={<ChevronRight size={16} />}
-            className="flex-row-reverse"
-          >
-            다음 활동
-          </PrimaryButton>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {!isStepCompleted && currentStep < totalSteps && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            {currentStep === 1 && '💡 정답 유무 질문 2개에 모두 응답하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 2 && '💡 지도학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 3 && '💡 비지도학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 4 && '💡 강화학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 5 && '💡 3가지 상황의 학습 방법을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 6 && `💡 4개의 알고리즘 매핑 퀴즈에 모두 응답하면 다음 활동으로 이동할 수 있습니다. (현재 ${Object.keys(act6Quiz).length}/4개 응답됨)`}
+          </p>
         )}
+
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentStep < totalSteps ? (
+            <PrimaryButton
+              size="md"
+              disabled={!isStepCompleted}
+              onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
+              icon={<ChevronRight size={16} />}
+              className="flex-row-reverse"
+            >
+              다음 활동
+            </PrimaryButton>
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
     </div>
   );

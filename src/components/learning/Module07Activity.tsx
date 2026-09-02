@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useActivityScrollTop } from '../../hooks/useActivityScrollTop';
 import { ORIGINAL_IRIS_DATASET } from '../../data/irisDataset';
 import type { IrisRecord, IrisSpecies } from '../../types/iris';
@@ -61,9 +61,11 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
 
   // Step 1: Split ratio
   const [splitRatio, setSplitRatio] = useState<number>(0.8); // 80:20
+  const [act1Confirmed, setAct1Confirmed] = useState(false);
 
   // Step 2: Algorithm
   const [algorithm, setAlgorithm] = useState<'knn' | 'decisionTree'>('knn');
+  const [act2Confirmed, setAct2Confirmed] = useState(false);
 
   // Step 3: Hyperparameters & Training state
   const [kParam, setKParam] = useState<number>(5);
@@ -105,6 +107,26 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
   const [predictedSpecies, setPredictedSpecies] = useState<IrisSpecies | null>(null);
   const [knnResult, setKnnResult] = useState<KNNPredictionResult | null>(null);
   const [dtTracePath, setDtTracePath] = useState<ReturnType<typeof traceDecisionPath> | null>(null);
+
+  // Step 5: Summary
+  const [act5Confirmed, setAct5Confirmed] = useState(false);
+
+  const isStepCompleted = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return act1Confirmed;
+      case 2:
+        return act2Confirmed;
+      case 3:
+        return isTrained;
+      case 4:
+        return predictedSpecies !== null;
+      case 5:
+        return act5Confirmed;
+      default:
+        return true;
+    }
+  }, [currentStep, act1Confirmed, act2Confirmed, isTrained, predictedSpecies, act5Confirmed]);
 
   // Compute stratified split
   const splitResult = stratifiedSplitDataset(ORIGINAL_IRIS_DATASET, splitRatio, 42);
@@ -460,6 +482,17 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                 </p>
               </div>
             </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span className="text-xs text-slate-600 font-medium">💡 학습/테스트 데이터 분할 비율을 확인한 뒤 버튼을 눌러주세요.</span>
+              <SecondaryButton
+                size="sm"
+                onClick={() => setAct1Confirmed(true)}
+                className={act1Confirmed ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ''}
+              >
+                {act1Confirmed ? '✓ 데이터 분할 확인 완료' : '데이터 분할 확인 완료'}
+              </SecondaryButton>
+            </div>
           </div>
         </div>
       )}
@@ -518,6 +551,17 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                   학습 방식: 불순도를 줄이는 질문을 찾아 Tree 생성
                 </span>
               </button>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span className="text-xs text-slate-600 font-medium">💡 사용할 알고리즘을 선택한 뒤 버튼을 눌러주세요.</span>
+              <SecondaryButton
+                size="sm"
+                onClick={() => setAct2Confirmed(true)}
+                className={act2Confirmed ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ''}
+              >
+                {act2Confirmed ? '✓ 알고리즘 선택 완료' : '알고리즘 선택 완료'}
+              </SecondaryButton>
             </div>
           </div>
         </div>
@@ -1241,8 +1285,24 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
               <p className="text-slate-700 font-bold text-sm leading-relaxed">
                 "방금 만든 모델의 설정(알고리즘, 파라미터, 데이터 분할)을 그대로 이어받아, 독립된 테스트 데이터에서 종합 성능(정확도 및 3×3 혼동행렬)을 확인해 봅시다."
               </p>
+
+              {!act5Confirmed && (
+                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-2">
+                  <p className="text-xs text-slate-600 font-medium">모델 학습 결과를 확인한 뒤 아래 완료 버튼을 눌러주세요.</p>
+                  <SecondaryButton size="sm" onClick={() => setAct5Confirmed(true)}>
+                    내용 확인 완료
+                  </SecondaryButton>
+                </div>
+              )}
+
               <div className="pt-2">
-                <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<ArrowRight size={20} />}>
+                <PrimaryButton
+                  size="lg"
+                  fullWidth
+                  disabled={!act5Confirmed}
+                  onClick={onComplete}
+                  icon={<ArrowRight size={20} />}
+                >
                   08 모델 평가하러 가기 (성능 평가)
                 </PrimaryButton>
               </div>
@@ -1259,28 +1319,40 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
       />
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
-
-        {currentStep < totalSteps ? (
-          <PrimaryButton
-            size="md"
-            onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
-            icon={<ChevronRight size={16} />}
-            className="flex-row-reverse"
-          >
-            다음 활동
-          </PrimaryButton>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {!isStepCompleted && currentStep < totalSteps && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            {currentStep === 1 && '💡 학습/테스트 데이터 분할 비율을 확인하고 [데이터 분할 확인 완료]를 눌러주세요.'}
+            {currentStep === 2 && '💡 사용할 알고리즘을 선택하고 [알고리즘 선택 완료]를 눌러주세요.'}
+            {currentStep === 3 && '💡 모델 학습(또는 k-NN 준비)을 완료하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 4 && '💡 새로운 붓꽃 데이터의 품종을 1회 이상 예측하면 다음 활동으로 이동할 수 있습니다.'}
+          </p>
         )}
+
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentStep < totalSteps ? (
+            <PrimaryButton
+              size="md"
+              disabled={!isStepCompleted}
+              onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
+              icon={<ChevronRight size={16} />}
+              className="flex-row-reverse"
+            >
+              다음 활동
+            </PrimaryButton>
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
     </div>
   );

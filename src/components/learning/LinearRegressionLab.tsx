@@ -21,7 +21,11 @@ const FEATURE_MIN_MAX: Record<FeatureKey, { min: number; max: number; step: numb
   petalWidth: { min: 0.1, max: 2.5, step: 0.1 },
 };
 
-export const LinearRegressionLab: React.FC = () => {
+export interface LinearRegressionLabProps {
+  onInteract?: () => void;
+}
+
+export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ onInteract }) => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
@@ -78,6 +82,7 @@ export const LinearRegressionLab: React.FC = () => {
     const parsed = parseFloat(cleaned);
     if (!isNaN(parsed)) {
       setInputX(Math.round(parsed * 10) / 10);
+      onInteract?.();
     }
   };
 
@@ -107,6 +112,7 @@ export const LinearRegressionLab: React.FC = () => {
     const finalX = Math.min(xSpec.max, Math.max(xSpec.min, roundedX));
     setInputX(finalX);
     setRawInputX(String(finalX));
+    onInteract?.();
   };
 
   const predSvgX = getSvgX(inputX);
@@ -449,7 +455,10 @@ export const LinearRegressionLab: React.FC = () => {
           ].map(opt => (
             <button
               key={opt.key}
-              onClick={() => setUserObservationChoice(opt.key)}
+              onClick={() => {
+                setUserObservationChoice(opt.key);
+                onInteract?.();
+              }}
               className={`w-full text-left p-3 rounded-xl border font-bold transition-all min-h-[44px] cursor-pointer ${
                 userObservationChoice === opt.key
                   ? opt.key === 'ans1'

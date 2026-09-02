@@ -375,12 +375,16 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
   const syntheticPrompt =
     "붓꽃 데이터와 비슷한 형식의 가상 데이터 5개를 만들어줘. 실제 측정 데이터가 아니라 합성 데이터임을 표시해줘.";
 
+  const [act1Confirmed, setAct1Confirmed] = useState(false);
+  const [act7Confirmed, setAct7Confirmed] = useState(false);
+
   // Minimum completion requirement before proceeding to next activity
   const isStepActionCompleted = useMemo(() => {
     switch (currentStep) {
       case 1:
+        return act1Confirmed;
       case 2:
-        return true;
+        return act2A !== null && act2B !== null && act2C !== null;
       case 3:
         return isAct3Checked;
       case 4:
@@ -388,13 +392,13 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
       case 5:
         return isAct5Checked;
       case 6:
-        return act6Discovery === 'A' && isAct6CasesChecked;
+        return act6Discovery !== null && isAct6CasesChecked;
       case 7:
-        return true;
+        return act7Confirmed;
       default:
         return true;
     }
-  }, [currentStep, isAct3Checked, isAct4Checked, isAct5Checked, act6Discovery, isAct6CasesChecked]);
+  }, [currentStep, act1Confirmed, act2A, act2B, act2C, isAct3Checked, isAct4Checked, isAct5Checked, act6Discovery, isAct6CasesChecked, act7Confirmed]);
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
@@ -497,6 +501,17 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
               <p className="font-extrabold text-sm">
                 "기계학습을 시작하기 전에 무엇을 예측하거나 발견하려는지 먼저 문제를 명확히 정의해야 합니다."
               </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span className="text-xs text-slate-600 font-medium">💡 문제 정의의 3가지 목표 카드를 확인한 뒤 버튼을 눌러주세요.</span>
+              <SecondaryButton
+                size="sm"
+                onClick={() => setAct1Confirmed(true)}
+                className={act1Confirmed ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ''}
+              >
+                {act1Confirmed ? '✓ 내용 확인 완료' : '내용 확인 완료'}
+              </SecondaryButton>
             </div>
           </div>
         </div>
@@ -1710,7 +1725,21 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
                   ✓ 이미 완료된 영역입니다. 언제든 자유롭게 복습 및 다시 학습이 가능합니다.
                 </div>
               )}
-              <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={20} />}>
+              {!act7Confirmed && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-2">
+                  <p className="text-xs text-slate-600 font-medium">체크리스트를 확인한 뒤 아래 완료 버튼을 눌러주세요.</p>
+                  <SecondaryButton size="sm" onClick={() => setAct7Confirmed(true)}>
+                    내용 확인 완료
+                  </SecondaryButton>
+                </div>
+              )}
+              <PrimaryButton
+                size="lg"
+                fullWidth
+                disabled={!act7Confirmed}
+                onClick={onComplete}
+                icon={<CheckCircle2 size={20} />}
+              >
                 03 데이터 준비 학습 완료하기
               </PrimaryButton>
             </div>
@@ -1739,23 +1768,29 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
       </div>
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {!isStepActionCompleted && currentStep < totalSteps && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            {currentStep === 1 && '💡 3가지 목표 카드를 확인한 뒤 [내용 확인 완료]를 눌러주세요.'}
+            {currentStep === 2 && '💡 세 문제의 기계학습 유형(분류/회귀/군집)을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 3 && '💡 후보 속성 8개를 모두 분류하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 4 && '💡 3가지 상황의 수집 방법을 모두 판단하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 5 && '💡 데이터 신뢰도 기준을 확인하고 [선택 완료]를 눌러주세요.'}
+            {currentStep === 6 && '💡 편향 탐색을 시도하고 5가지 상황을 판단하면 다음 활동으로 이동할 수 있습니다.'}
+          </p>
+        )}
 
-        {currentStep < totalSteps ? (
-          <div className="flex items-center gap-2">
-            {!isStepActionCompleted && (
-              <span className="text-xs text-amber-700 font-bold hidden sm:inline-block">
-                💡 이번 활동의 탐구/판단을 먼저 완료해 보세요!
-              </span>
-            )}
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
               disabled={!isStepActionCompleted}
@@ -1765,10 +1800,10 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
             >
               다음 활동
             </PrimaryButton>
-          </div>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
-        )}
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
     </div>
   );

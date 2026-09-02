@@ -275,6 +275,44 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     }
   }, [currentErrorCounts]);
 
+  const [act8Confirmed, setAct8Confirmed] = useState(false);
+
+  // Unified activity completion check
+  const isActivityCompleted = useMemo(() => {
+    switch (currentActivity) {
+      case 1:
+        return isAct0TypeChecked && isAct0RoleChecked;
+      case 2:
+        return act1Answer !== null;
+      case 3:
+        return isDetectiveAllAttempted;
+      case 4:
+        return currentErrorCounts.missing === 0;
+      case 5:
+        return currentErrorCounts.outlier === 0;
+      case 6:
+        return currentErrorCounts.inconsistent === 0 && currentErrorCounts.invalidType === 0;
+      case 7:
+        return isTransformReady;
+      case 8:
+        return act8Confirmed;
+      case 9:
+        return selectedFeatures04.length === 2;
+      default:
+        return true;
+    }
+  }, [
+    currentActivity,
+    isAct0TypeChecked,
+    isAct0RoleChecked,
+    act1Answer,
+    isDetectiveAllAttempted,
+    currentErrorCounts,
+    isTransformReady,
+    act8Confirmed,
+    selectedFeatures04,
+  ]);
+
   // Feature specific metadata & live guidance generator
   const featureGuidance = useMemo(() => {
     return getFeatureDynamicGuidance(outlierFeature, workingDataset);
@@ -2500,6 +2538,17 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </p>
             </div>
 
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2">
+              <span className="text-xs text-slate-600 font-medium">💡 전처리 전/후 데이터 비교를 확인한 뒤 버튼을 눌러주세요.</span>
+              <SecondaryButton
+                size="sm"
+                onClick={() => setAct8Confirmed(true)}
+                className={act8Confirmed ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ''}
+              >
+                {act8Confirmed ? '✓ 정제 결과 확인 완료' : '정제 결과 확인 완료'}
+              </SecondaryButton>
+            </div>
+
             {/* Module 04 Activity Only Reset Button */}
             <div className="pt-2 flex justify-between items-center border-t border-slate-200">
               <SecondaryButton
@@ -2680,8 +2729,16 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
 
               <div className="pt-2">
-                <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<ArrowRight size={20} />}>
-                  05 기계학습 유형과 알고리즘 선정으로 이동
+                <PrimaryButton
+                  size="lg"
+                  fullWidth
+                  disabled={selectedFeatures04.length !== 2}
+                  onClick={onComplete}
+                  icon={<ArrowRight size={20} />}
+                >
+                  {selectedFeatures04.length === 2
+                    ? '05 기계학습 유형과 알고리즘 선정으로 이동'
+                    : `핵심 속성 2개를 선택해 주세요 (${selectedFeatures04.length}/2)`}
                 </PrimaryButton>
               </div>
             </div>
@@ -2700,21 +2757,16 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
       {/* Internal Step Control Navigation */}
       <div className="space-y-2 pt-3 border-t border-slate-200">
-        {currentActivity === 1 && (!isAct0TypeChecked || !isAct0RoleChecked) && (
+        {!isActivityCompleted && currentActivity < totalActivities && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            💡 수치형/범주형 분류와 입력 특성(X)/예측 목표(y) 역할 확인을 먼저 완료하면 다음 활동으로 이동할 수 있습니다.
-          </p>
-        )}
-
-        {currentActivity === 3 && !isDetectiveAllAttempted && (
-          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 {attemptedDetectiveCount} / {workingDataset.length}개 완료)
-          </p>
-        )}
-
-        {currentActivity === 7 && !isTransformReady && (
-          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            💡 스케일링을 한 번 실행하고 인코딩 문제에 응답하면 다음 활동으로 이동할 수 있습니다.
+            {currentActivity === 1 && '💡 수치형/범주형 분류와 입력 특성(X)/예측 목표(y) 역할 확인을 완료하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentActivity === 2 && '💡 데이터 정제 필요성 질문에 응답하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentActivity === 3 && `💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 ${attemptedDetectiveCount} / ${workingDataset.length}개 완료)`}
+            {currentActivity === 4 && `💡 4개의 결측치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 결측치: ${currentErrorCounts.missing}개)`}
+            {currentActivity === 5 && `💡 2개의 이상치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 이상치: ${currentErrorCounts.outlier}개)`}
+            {currentActivity === 6 && `💡 표현 불일치 4개와 자료형 오류 2개를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 오류: ${currentErrorCounts.inconsistent + currentErrorCounts.invalidType}개)`}
+            {currentActivity === 7 && '💡 스케일링을 한 번 실행하고 인코딩 문제에 응답하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentActivity === 8 && '💡 전처리 전/후 비교 결과를 확인한 뒤 [정제 결과 확인 완료]를 눌러주세요.'}
           </p>
         )}
 
@@ -2731,11 +2783,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           {currentActivity < totalActivities ? (
             <PrimaryButton
               size="md"
-              disabled={
-                (currentActivity === 1 && (!isAct0TypeChecked || !isAct0RoleChecked)) ||
-                (currentActivity === 3 && !isDetectiveAllAttempted) ||
-                (currentActivity === 7 && !isTransformReady)
-              }
+              disabled={!isActivityCompleted}
               onClick={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

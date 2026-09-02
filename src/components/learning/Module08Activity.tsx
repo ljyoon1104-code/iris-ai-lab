@@ -77,6 +77,8 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
   const [hasCheckedMatrix, setHasCheckedMatrix] = useState(false);
   const [hasReevaluated, setHasReevaluated] = useState(false);
 
+  const [act5Confirmed, setAct5Confirmed] = useState(false);
+
   // Sync experiments to localStorage
   useEffect(() => {
     try {
@@ -134,6 +136,34 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
     return runCurrentEvaluation();
   }, [algorithm, splitRatio, kParam, depthParam]);
 
+  // Unified step completion check
+  const isStepCompleted = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return quizUserAnswer !== null || hasCheckedMatrix;
+      case 2:
+        return currentEval.misclassifiedSamples.length === 0 || selectedMisclassifiedId !== null;
+      case 3:
+        return experiments.length > 0 || hasReevaluated;
+      case 4:
+        return selectedFinalExpId !== null;
+      case 5:
+        return act5Confirmed;
+      default:
+        return true;
+    }
+  }, [
+    currentStep,
+    quizUserAnswer,
+    hasCheckedMatrix,
+    currentEval.misclassifiedSamples.length,
+    selectedMisclassifiedId,
+    experiments.length,
+    hasReevaluated,
+    selectedFinalExpId,
+    act5Confirmed,
+  ]);
+
   // Find most confused pair in currentEval
   const mostConfusedPair = useMemo<{ actual: IrisSpecies; predicted: IrisSpecies; count: number } | null>(() => {
     let maxCount = 0;
@@ -155,7 +185,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
     return pair;
   }, [currentEval]);
 
-  // Auto-select initial cell or misclassified sample
+  // Auto-select initial cell
   useEffect(() => {
     if (!selectedCell) {
       if (mostConfusedPair) {
@@ -165,12 +195,6 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       }
     }
   }, [mostConfusedPair, selectedCell]);
-
-  useEffect(() => {
-    if (currentEval.misclassifiedSamples.length > 0 && selectedMisclassifiedId === null) {
-      setSelectedMisclassifiedId(currentEval.misclassifiedSamples[0].record.id);
-    }
-  }, [currentEval.misclassifiedSamples, selectedMisclassifiedId]);
 
   const handleSaveCurrentExperiment = () => {
     if (experiments.length >= 3) return;
@@ -681,116 +705,112 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                 </div>
 
                 {/* 2D Scatter Plot with Highlighted Misclassified Point */}
-                {selectedMisclassifiedId && (() => {
-                  const targetSample = currentEval.misclassifiedSamples.find((s: any) => s.record.id === selectedMisclassifiedId);
-                  if (!targetSample) return null;
+                {selectedMisclassifiedId ? (
+                  (() => {
+                    const targetSample = currentEval.misclassifiedSamples.find((s: any) => s.record.id === selectedMisclassifiedId);
+                    if (!targetSample) return null;
 
-                  const targetRec = targetSample.record;
+                    const targetRec = targetSample.record;
 
-                  return (
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fadeIn">
-                      <div className="flex items-center justify-between font-extrabold text-slate-900 text-xs">
-                        <span className="flex items-center gap-1.5">
-                          <TrendingUp size={16} className="text-rose-600" />
-                          <span>오분류 레코드 #{targetRec.id} 2D 산점도 위치 시각화</span>
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          (X: 꽃잎길이 {targetRec.petalLength}cm, Y: 꽃잎너비 {targetRec.petalWidth}cm)
-                        </span>
-                      </div>
+                    return (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fadeIn">
+                        <div className="flex items-center justify-between font-extrabold text-slate-900 text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <TrendingUp size={16} className="text-rose-600" />
+                            <span>오분류 레코드 #{targetRec.id} 2D 산점도 위치 시각화</span>
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            (X: 꽃잎길이 {targetRec.petalLength}cm, Y: 꽃잎너비 {targetRec.petalWidth}cm)
+                          </span>
+                        </div>
 
-                      {/* Accessible Legend Bar */}
-                      <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-                        <span className="font-extrabold text-slate-700 text-xs shrink-0">품종 범례:</span>
-                        {ALL_SPECIES_LIST.map(spKey => (
-                          <SpeciesBadge key={spKey} species={spKey} showEnglish size="xs" />
-                        ))}
-                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 sm:ml-auto">
-                          <span>★</span>
-                          <span>오분류 레코드 #{targetRec.id}</span>
-                        </span>
-                      </div>
+                        {/* Accessible Legend Bar */}
+                        <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+                          <span className="font-extrabold text-slate-700 text-xs shrink-0">품종 범례:</span>
+                          {ALL_SPECIES_LIST.map(spKey => (
+                            <SpeciesBadge key={spKey} species={spKey} showEnglish size="xs" />
+                          ))}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 sm:ml-auto">
+                            <span>★</span>
+                            <span>오분류 레코드 #{targetRec.id}</span>
+                          </span>
+                        </div>
 
-                      {/* SVG 2D Scatter Plot */}
-                      <div className="w-full overflow-x-auto bg-white p-3 rounded-lg border border-slate-200">
-                        <svg viewBox="0 0 460 260" className="w-full h-auto min-w-[300px]">
-                          <line x1="45" y1="220" x2="440" y2="220" stroke="#cbd5e1" strokeWidth="2" />
-                          <line x1="45" y1="20" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="2" />
+                        {/* SVG 2D Scatter Plot */}
+                        <div className="w-full overflow-x-auto bg-white p-3 rounded-lg border border-slate-200">
+                          <svg viewBox="0 0 460 260" className="w-full h-auto min-w-[300px]">
+                            <line x1="45" y1="220" x2="440" y2="220" stroke="#cbd5e1" strokeWidth="2" />
+                            <line x1="45" y1="20" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="2" />
 
-                          <text x="240" y="250" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569">
-                            꽃잎 길이 (cm)
-                          </text>
-                          <text x="15" y="120" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569" transform="rotate(-90 15 120)">
-                            꽃잎 너비 (cm)
-                          </text>
+                            <text x="240" y="250" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569">
+                              꽃잎 길이 (cm)
+                            </text>
+                            <text x="15" y="120" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#475569" transform="rotate(-90 15 120)">
+                              꽃잎 너비 (cm)
+                            </text>
 
-                          {(() => {
-                            const minX = 1.0;
-                            const maxX = 7.0;
-                            const minY = 0.1;
-                            const maxY = 2.5;
+                            {(() => {
+                              const minX = 1.0;
+                              const maxX = 7.0;
+                              const minY = 0.1;
+                              const maxY = 2.5;
 
-                            const mapX = (v: number) => 55 + ((v - minX) / (maxX - minX)) * 375;
-                            const mapY = (v: number) => 210 - ((v - minY) / (maxY - minY)) * 185;
+                              const mapX = (v: number) => 55 + ((v - minX) / (maxX - minX)) * 375;
+                              const mapY = (v: number) => 210 - ((v - minY) / (maxY - minY)) * 185;
 
-                            return (
-                              <g>
-                                {ORIGINAL_IRIS_DATASET.map(r => {
-                                  const cx = mapX(r.petalLength);
-                                  const cy = mapY(r.petalWidth);
-                                  const isTarget = r.id === targetRec.id;
+                              return (
+                                <g>
+                                  {ORIGINAL_IRIS_DATASET.map(r => {
+                                    const cx = mapX(r.petalLength);
+                                    const cy = mapY(r.petalWidth);
+                                    const isTarget = r.id === targetRec.id;
 
-                                  return (
-                                    <SpeciesMarker
-                                      key={r.id}
-                                      species={r.species}
-                                      cx={cx}
-                                      cy={cy}
-                                      size={isTarget ? 6.5 : 4}
-                                      opacity={isTarget ? 1 : 0.45}
-                                      stroke={isTarget ? '#000000' : '#ffffff'}
-                                      strokeWidth={isTarget ? 2 : 0.8}
-                                    />
-                                  );
-                                })}
-
-                                {(() => {
-                                  const tX = mapX(targetRec.petalLength);
-                                  const tY = mapY(targetRec.petalWidth);
-
-                                  return (
-                                    <g>
-                                      {/* Outer Red Dashed Ring for Misclassification Highlight */}
-                                      <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.2" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
-                                      {/* True Species Marker Preserved */}
+                                    return (
                                       <SpeciesMarker
-                                        species={targetRec.species}
-                                        cx={tX}
-                                        cy={tY}
-                                        size={7}
-                                        opacity={1}
-                                        stroke="#0f172a"
-                                        strokeWidth={2}
+                                        key={r.id}
+                                        species={r.species}
+                                        cx={cx}
+                                        cy={cy}
+                                        size={isTarget ? 6.5 : 4}
+                                        opacity={isTarget ? 1 : 0.45}
+                                        stroke={isTarget ? '#000000' : '#ffffff'}
+                                        strokeWidth={isTarget ? 2 : 0.8}
                                       />
-                                      {/* Top Badge Tooltip */}
-                                      <rect x={Math.min(300, tX - 45)} y={Math.max(25, tY - 28)} width="110" height="20" fill="#0f172a" rx="4" opacity="0.9" />
-                                      <text x={Math.min(300, tX - 45) + 55} y={Math.max(25, tY - 28) + 14} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#ffffff">
-                                        ★ 오분류 레코드 #{targetRec.id}
-                                      </text>
-                                    </g>
-                                  );
-                                })()}
-                              </g>
-                            );
-                          })()}
-                        </svg>
-                      </div>
+                                    );
+                                  })}
 
-                      {/* Observation Question Section 16 */}
-                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium space-y-1.5">
-                        <span className="font-extrabold text-amber-900 block flex items-center gap-1.5">
-                          <span>🤔 질문: 이 데이터는 왜 두 품종 사이에서 헷갈리기 쉬웠을까요?</span>
-                        </span>
+                                  {(() => {
+                                    const tX = mapX(targetRec.petalLength);
+                                    const tY = mapY(targetRec.petalWidth);
+
+                                    return (
+                                      <g>
+                                        {/* Outer Red Dashed Ring for Misclassification Highlight */}
+                                        <circle cx={tX} cy={tY} r="14" fill="#e11d48" fillOpacity="0.2" stroke="#e11d48" strokeWidth="2" strokeDasharray="3 3" />
+                                        {/* True Species Marker Preserved */}
+                                        <SpeciesMarker
+                                          species={targetRec.species}
+                                          cx={tX}
+                                          cy={tY}
+                                          size={7}
+                                          opacity={1}
+                                          stroke="#000000"
+                                          strokeWidth={2}
+                                        />
+                                      </g>
+                                    );
+                                  })()}
+                                </g>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+
+                        {/* Observation Question Section 16 */}
+                        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium space-y-1.5">
+                          <span className="font-extrabold text-amber-900 block flex items-center gap-1.5">
+                            <span>🤔 질문: 이 데이터는 왜 두 품종 사이에서 헷갈리기 쉬웠을까요?</span>
+                          </span>
                           <div className="flex items-center gap-1 flex-wrap">
                             <span>이 오분류 레코드 #{targetRec.id} (실제</span>
                             <SpeciesBadge species={targetSample.actualSpecies} size="xs" />
@@ -805,10 +825,15 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                             </span>
                             <span>에 위치해 있어, 이러한 밀집 영역에서는 오분류가 발생할 수 있습니다.</span>
                           </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-600 font-medium">
+                    👉 위 목록에서 오분류 레코드를 클릭하면 2D 산점도 상 위치와 품종 혼동 원인을 확인할 수 있습니다.
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1090,13 +1115,27 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
             </p>
           </div>
 
-          <div className="pt-2 text-center">
+          <div className="pt-2 text-center space-y-2">
             {isCompleted && (
               <div className="text-xs font-bold text-emerald-700 bg-emerald-100 p-2.5 rounded-xl block mb-2 max-w-xl mx-auto">
                 ✓ 이미 전체 8개 영역 학습이 모두 완료되었습니다. 언제든 다시 복습할 수 있습니다.
               </div>
             )}
-            <PrimaryButton size="lg" fullWidth onClick={onComplete} icon={<CheckCircle2 size={22} className="max-w-xl mx-auto" />}>
+            {!act5Confirmed && (
+              <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-2 max-w-xl mx-auto">
+                <p className="text-xs text-slate-600 font-medium">혼동행렬 핵심 정리 5가지를 확인한 뒤 아래 수료 버튼을 눌러주세요.</p>
+                <SecondaryButton size="sm" onClick={() => setAct5Confirmed(true)}>
+                  내용 확인 완료
+                </SecondaryButton>
+              </div>
+            )}
+            <PrimaryButton
+              size="lg"
+              fullWidth
+              disabled={!act5Confirmed}
+              onClick={onComplete}
+              icon={<CheckCircle2 size={22} className="max-w-xl mx-auto" />}
+            >
               Iris AI Lab 전체 완료 수료하기
             </PrimaryButton>
           </div>
@@ -1111,28 +1150,40 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       />
 
       {/* Internal Step Control Navigation */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
-        <SecondaryButton
-          size="md"
-          disabled={currentStep === 1}
-          onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-          icon={<ChevronLeft size={16} />}
-        >
-          이전 활동
-        </SecondaryButton>
-
-        {currentStep < totalSteps ? (
-          <PrimaryButton
-            size="md"
-            onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
-            icon={<ChevronRight size={16} />}
-            className="flex-row-reverse"
-          >
-            다음 활동
-          </PrimaryButton>
-        ) : (
-          <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+      <div className="space-y-2 pt-3 border-t border-slate-200">
+        {!isStepCompleted && currentStep < totalSteps && (
+          <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
+            {currentStep === 1 && '💡 혼동행렬 셀을 클릭하거나 퀴즈에 응답하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 2 && '💡 오분류 데이터 레코드를 선택해 산점도 상 위치를 확인하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 3 && '💡 새로운 조건으로 모델을 1회 이상 재평가 및 저장하면 다음 활동으로 이동할 수 있습니다.'}
+            {currentStep === 4 && '💡 최종 최적 모델 카드를 1개 선택하면 다음 활동으로 이동할 수 있습니다.'}
+          </p>
         )}
+
+        <div className="flex items-center justify-between gap-3">
+          <SecondaryButton
+            size="md"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            icon={<ChevronLeft size={16} />}
+          >
+            이전 활동
+          </SecondaryButton>
+
+          {currentStep < totalSteps ? (
+            <PrimaryButton
+              size="md"
+              disabled={!isStepCompleted}
+              onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
+              icon={<ChevronRight size={16} />}
+              className="flex-row-reverse"
+            >
+              다음 활동
+            </PrimaryButton>
+          ) : (
+            <span className="text-xs text-emerald-700 font-bold">마지막 활동</span>
+          )}
+        </div>
       </div>
     </div>
   );

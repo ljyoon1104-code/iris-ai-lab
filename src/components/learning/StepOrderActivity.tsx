@@ -7,6 +7,7 @@ import { SecondaryButton } from '../common/SecondaryButton';
 
 interface StepOrderActivityProps {
   onComplete: () => void;
+  onAttempt?: () => void;
 }
 
 const IRIS_STEP_EXAMPLES: Record<number, string> = {
@@ -18,7 +19,7 @@ const IRIS_STEP_EXAMPLES: Record<number, string> = {
   6: '테스트 데이터로 3x3 혼동행렬과 정확도를 평가하고 속성/파라미터를 바꿔 개선한다.',
 };
 
-export const StepOrderActivity: React.FC<StepOrderActivityProps> = ({ onComplete }) => {
+export const StepOrderActivity: React.FC<StepOrderActivityProps> = ({ onComplete, onAttempt }) => {
   // Initially shuffle the 6 steps using a fixed seed (e.g. 77)
   const [userOrder, setUserOrder] = useState(() => shuffleWithSeed(ML_STEPS, 77));
   const [resultStatus, setResultStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle');
@@ -41,6 +42,7 @@ export const StepOrderActivity: React.FC<StepOrderActivityProps> = ({ onComplete
 
   const handleCheckOrder = () => {
     const isCorrect = userOrder.every((step, idx) => step.stepNumber === idx + 1);
+    if (onAttempt) onAttempt();
     if (isCorrect) {
       setResultStatus('correct');
       onComplete();

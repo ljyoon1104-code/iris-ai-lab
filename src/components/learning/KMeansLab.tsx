@@ -34,7 +34,11 @@ const CLUSTER_BG_LIGHT = [
   'bg-indigo-50 text-indigo-950 border-indigo-300',
 ];
 
-export const KMeansLab: React.FC = () => {
+export interface KMeansLabProps {
+  onInteract?: () => void;
+}
+
+export const KMeansLab: React.FC<KMeansLabProps> = ({ onInteract }) => {
   const [xAxis, setXAxis] = useState<FeatureKey>('petalLength');
   const [yAxis, setYAxis] = useState<FeatureKey>('petalWidth');
 
@@ -111,6 +115,7 @@ export const KMeansLab: React.FC = () => {
     if (initMode === 'manual' && userCentroids.length !== k) return;
     setIsExecuted(true);
     setCurrentStepIndex(0);
+    onInteract?.();
   };
 
   const handleNextStep = () => {
@@ -167,6 +172,7 @@ export const KMeansLab: React.FC = () => {
                 setInitMode('auto');
                 handleResetCentroids();
                 setIsExecuted(true);
+                onInteract?.();
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
                 initMode === 'auto' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
