@@ -109,6 +109,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
       setActivityCompletion(DEFAULT_MODULE04_COMPLETION);
       setSelectedFeatures04([]);
       setCurrentActivity(1);
+      setDetectivePage(1);
     };
     window.addEventListener('module04_reset', handleReset);
     window.addEventListener('learning_data_reset', handleReset);
@@ -149,6 +150,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
   // ACTIVITY 3: Data Detective Choices for 20 Records
   const [detectiveAnswers, setDetectiveAnswers] = useState<Record<number, string>>({});
+  const [detectivePage, setDetectivePage] = useState<number>(1);
 
   // ACTIVITY 4: Missing Value State (4 Missing Records: 101, 102, 108, 115)
   const [selectedMissingId, setSelectedMissingId] = useState<number>(101);
@@ -772,7 +774,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => setAct0DataTypes(prev => ({ ...prev, [attr.id]: 'numeric' }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                             chosen === 'numeric'
                               ? 'bg-indigo-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -782,7 +784,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         </button>
                         <button
                           onClick={() => setAct0DataTypes(prev => ({ ...prev, [attr.id]: 'categorical' }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                             chosen === 'categorical'
                               ? 'bg-emerald-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -948,7 +950,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => setAct0Roles(prev => ({ ...prev, [attr.id]: 'X' }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                             chosen === 'X'
                               ? 'bg-sky-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -958,7 +960,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                         </button>
                         <button
                           onClick={() => setAct0Roles(prev => ({ ...prev, [attr.id]: 'y' }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                             chosen === 'y'
                               ? 'bg-rose-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1187,77 +1189,167 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
             </div>
 
-            {/* 20 Data Cards Grid */}
+            {/* 20 Data Cards - Paginated (5 per page, 4 pages) */}
             <div className="space-y-4 pt-2">
-              <span className="font-extrabold text-slate-900 text-xs block">
-                🕵️ 탐색 대상 전체 20개 데이터 카드 (클릭하여 오류 종류를 판단해보세요):
-              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-900">
+                      페이지 {detectivePage} / {Math.ceil(workingDataset.length / 5)}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      (데이터 #{(detectivePage - 1) * 5 + 1} ~ #{Math.min(detectivePage * 5, workingDataset.length)})
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    전체 20개 중 5개씩 나누어 탐색합니다. (판단 완료: <strong className="text-slate-900 font-mono">{attemptedDetectiveCount} / {workingDataset.length}</strong>개)
+                  </p>
+                </div>
 
+                {/* Page Selection Buttons */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={detectivePage === 1}
+                    onClick={() => setDetectivePage(p => Math.max(1, p - 1))}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[36px]"
+                  >
+                    이전 5개
+                  </button>
+
+                  {[1, 2, 3, 4].map(pageNum => {
+                    const pageRecords = workingDataset.slice((pageNum - 1) * 5, pageNum * 5);
+                    const pageDone = pageRecords.length > 0 && pageRecords.every(r => Boolean(detectiveAnswers[r.id]));
+                    const isCurrent = detectivePage === pageNum;
+
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setDetectivePage(pageNum)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[36px] flex items-center gap-1 ${
+                          isCurrent
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : pageDone
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>{pageNum}</span>
+                        {pageDone && <span className="text-[10px] text-emerald-600 font-black">✓</span>}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    disabled={detectivePage === Math.ceil(workingDataset.length / 5)}
+                    onClick={() => setDetectivePage(p => Math.min(Math.ceil(workingDataset.length / 5), p + 1))}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[36px]"
+                  >
+                    다음 5개
+                  </button>
+                </div>
+              </div>
+
+              {/* Paginated 5 Data Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {workingDataset.map(rec => {
-                  const answerObj = ERROR_IRIS_ANSWERS.find(a => a.recordId === rec.id);
-                  const isNormal = !answerObj;
-                  const currentAnswer = detectiveAnswers[rec.id];
-                  const isCorrect = isNormal
-                    ? currentAnswer === 'none'
-                    : currentAnswer === answerObj?.issueType;
+                {workingDataset
+                  .slice((detectivePage - 1) * 5, detectivePage * 5)
+                  .map(rec => {
+                    const answerObj = ERROR_IRIS_ANSWERS.find(a => a.recordId === rec.id);
+                    const isNormal = !answerObj;
+                    const currentAnswer = detectiveAnswers[rec.id];
+                    const isCorrect = isNormal
+                      ? currentAnswer === 'none'
+                      : currentAnswer === answerObj?.issueType;
 
-                  return (
-                    <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-2xs">
-                      <StudentDataCard record={rec} title={`데이터 #${rec.id}`} />
+                    return (
+                      <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-2xs">
+                        <StudentDataCard record={rec} title={`데이터 #${rec.id}`} />
 
-                      <div className="space-y-1.5 pt-1 border-t border-slate-100">
-                        <span className="font-bold text-slate-800 block text-[11px]">이 데이터의 문제는 무엇인가요?</span>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
-                          {[
-                            { type: 'missing', label: '결측치' },
-                            { type: 'outlier', label: '이상치' },
-                            { type: 'inconsistent', label: '표현 불일치' },
-                            { type: 'invalidType', label: '데이터형 오류' },
-                            { type: 'none', label: '오류 없음' },
-                          ].map((opt, optIdx) => {
-                            const isSelected = currentAnswer === opt.type;
-                            return (
-                              <button
-                                key={opt.type}
-                                onClick={() => setDetectiveAnswers(prev => ({ ...prev, [rec.id]: opt.type }))}
-                                className={`p-2 rounded-lg border font-bold text-center cursor-pointer transition-all min-h-[44px] text-[11px] ${
-                                  optIdx === 4 ? 'col-span-2 sm:col-span-1' : ''
-                                } ${
-                                  isSelected
-                                    ? isCorrect
-                                      ? 'bg-emerald-600 text-white border-emerald-600'
-                                      : 'bg-rose-600 text-white border-rose-600'
-                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {currentAnswer && (
-                          <div className={`p-2.5 rounded-lg font-bold text-[11px] leading-relaxed ${
-                            isCorrect
-                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-200'
-                              : 'bg-rose-100 text-rose-950 border border-rose-200'
-                          }`}>
-                            {isNormal
-                              ? currentAnswer === 'none'
-                                ? '👏 맞습니다. 이 데이터에서는 수정할 오류가 발견되지 않습니다.'
-                                : '💡 이 데이터는 정상 데이터입니다. 값을 다시 살펴보세요.'
-                              : currentAnswer === 'none'
-                              ? '⚠️ 이 데이터에는 확인해야 할 부분이 있습니다. 다시 살펴보세요.'
-                              : currentAnswer === answerObj?.issueType
-                              ? '✅ 정확하게 판별했습니다!'
-                              : '💡 탐정 수첩 기준값과 비교해보세요.'}
+                        <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                          <span className="font-bold text-slate-800 block text-[11px]">이 데이터의 문제는 무엇인가요?</span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+                            {[
+                              { type: 'missing', label: '결측치' },
+                              { type: 'outlier', label: '이상치' },
+                              { type: 'inconsistent', label: '표현 불일치' },
+                              { type: 'invalidType', label: '데이터형 오류' },
+                              { type: 'none', label: '오류 없음' },
+                            ].map((opt, optIdx) => {
+                              const isSelected = currentAnswer === opt.type;
+                              return (
+                                <button
+                                  key={opt.type}
+                                  onClick={() => setDetectiveAnswers(prev => ({ ...prev, [rec.id]: opt.type }))}
+                                  className={`p-2 rounded-lg border font-bold text-center cursor-pointer transition-all min-h-[44px] text-[11px] ${
+                                    optIdx === 4 ? 'col-span-2 sm:col-span-1' : ''
+                                  } ${
+                                    isSelected
+                                      ? isCorrect
+                                        ? 'bg-emerald-600 text-white border-emerald-600'
+                                        : 'bg-rose-600 text-white border-rose-600'
+                                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
                           </div>
-                        )}
+
+                          {currentAnswer && (
+                            <div className={`p-2.5 rounded-lg font-bold text-[11px] leading-relaxed ${
+                              isCorrect
+                                ? 'bg-emerald-100 text-emerald-950 border border-emerald-200'
+                                : 'bg-rose-100 text-rose-950 border border-rose-200'
+                            }`}>
+                              {isNormal
+                                ? currentAnswer === 'none'
+                                  ? '👏 맞습니다. 이 데이터에서는 수정할 오류가 발견되지 않습니다.'
+                                  : '💡 이 데이터는 정상 데이터입니다. 값을 다시 살펴보세요.'
+                                : currentAnswer === 'none'
+                                ? '⚠️ 이 데이터에는 확인해야 할 부분이 있습니다. 다시 살펴보세요.'
+                                : currentAnswer === answerObj?.issueType
+                                ? '✅ 정확하게 판별했습니다!'
+                                : '💡 탐정 수첩 기준값과 비교해보세요.'}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+              </div>
+
+              {/* Bottom Pagination Controls for Convenient Mobile/Desktop Flow */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={detectivePage === 1}
+                  onClick={() => setDetectivePage(p => Math.max(1, p - 1))}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[44px]"
+                >
+                  ← 이전 5개 데이터
+                </button>
+
+                <div className="text-center">
+                  <span className="text-xs font-extrabold text-slate-800 block">
+                    {detectivePage} / {Math.ceil(workingDataset.length / 5)} 페이지
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    진행: {attemptedDetectiveCount} / {workingDataset.length} 완료
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={detectivePage === Math.ceil(workingDataset.length / 5)}
+                  onClick={() => setDetectivePage(p => Math.min(Math.ceil(workingDataset.length / 5), p + 1))}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[44px]"
+                >
+                  다음 5개 데이터 →
+                </button>
               </div>
             </div>
           </div>

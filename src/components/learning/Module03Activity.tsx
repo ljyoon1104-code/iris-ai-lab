@@ -1582,7 +1582,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
               <div className="space-y-4 pt-2 border-t border-slate-100 animate-fadeIn">
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                   <span className="text-xs font-bold text-slate-900 block">
-                    7단계: 어떤 문제가 생길까? - 질문 2: 데이터셋 B(세토사 80%, 버시컬러 16%, 버지니카 4%)로 모델을 학습시키면 어떤 문제가 생길 가능성이 있을까요?
+                    생각해보기: 어떤 문제가 생길까? - 질문 2: 데이터셋 B(세토사 80%, 버시컬러 16%, 버지니카 4%)로 모델을 학습시키면 어떤 문제가 생길 가능성이 있을까요?
                   </span>
                   <div className="space-y-2">
                     <ChoiceCard
