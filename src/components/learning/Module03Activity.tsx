@@ -1442,13 +1442,67 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
 
                       {/* Mini visual for Long-tail */}
                       {bt.id === 'longtail' && (
-                        <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
-                          <span className="text-[10px] font-bold text-slate-500 block">📊 롱테일 분포 미니 시각화</span>
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                            <span className="p-1 rounded bg-indigo-100 text-indigo-900 font-bold w-24 text-center">Head (흔함)</span>
-                            <span className="h-1.5 bg-indigo-500 rounded-full w-28" />
-                            <span className="p-1 rounded bg-slate-100 text-slate-700 font-bold flex-1 text-center">Long Tail (희귀 사례들)</span>
-                            <span className="h-1.5 bg-slate-400 rounded-full w-12" />
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                              <span>📊</span>
+                              <span>롱테일(Long-tail) 데이터 분포 한눈에 보기</span>
+                            </span>
+                            <span className="text-[10px] font-medium text-slate-500">
+                              (막대 높이 = 데이터 개수)
+                            </span>
+                          </div>
+
+                          {/* 6-Bar Mini Chart */}
+                          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                            <div className="h-20 flex items-end justify-between gap-1.5 sm:gap-3 px-2 border-b-2 border-slate-200 pb-1">
+                              {/* 1: 매우 많음 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-16 bg-indigo-600 rounded-t-md" title="사례 A: 매우 많음" />
+                              </div>
+                              {/* 2: 많음 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-10 bg-indigo-500 rounded-t-md" title="사례 B: 많음" />
+                              </div>
+                              {/* 3: 보통 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-4 bg-indigo-400 rounded-t-sm" title="사례 C: 보통" />
+                              </div>
+                              {/* 4: 적음 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-2.5 bg-slate-300 rounded-t-sm" title="사례 D: 적음" />
+                              </div>
+                              {/* 5: 매우 적음 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-1.5 bg-slate-300 rounded-t-xs" title="사례 E: 매우 적음" />
+                              </div>
+                              {/* 6: 거의 없음 */}
+                              <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div className="w-full h-1 bg-slate-300 rounded-t-xs" title="사례 F: 거의 없음" />
+                              </div>
+                            </div>
+
+                            {/* Label Row: 자주 나오는 사례 / 데이터 많음 vs 드문 사례 / 데이터 적음 */}
+                            <div className="flex items-start justify-between text-xs font-bold pt-0.5 px-0.5">
+                              <div className="text-left text-indigo-900">
+                                <span className="block">자주 나오는 사례</span>
+                                <span className="text-[11px] text-indigo-600 font-extrabold">데이터 많음</span>
+                              </div>
+                              <div className="text-right text-slate-700">
+                                <span className="block">드문 사례</span>
+                                <span className="text-[11px] text-slate-500 font-extrabold">데이터 적음</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Student-friendly explanation */}
+                          <div className="p-2.5 bg-indigo-50/70 rounded-lg border border-indigo-100 text-[11px] text-slate-700 leading-relaxed space-y-1">
+                            <p>
+                              • <strong>일부 자주 나오는 사례</strong>에는 데이터가 많이 모이고, <strong>드문 사례</strong>에는 데이터가 적게 모일 수 있습니다.
+                            </p>
+                            <p>
+                              • 이처럼 <strong>희귀한 사례의 데이터가 부족한 현상</strong>을 <strong>롱테일 편향</strong>이라고 볼 수 있습니다.
+                            </p>
                           </div>
                         </div>
                       )}
