@@ -203,7 +203,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
   // Activity 3 completion: all 20 records attempted at least once
   const attemptedDetectiveCount = useMemo(() => Object.keys(detectiveAnswers).length, [detectiveAnswers]);
-  const isDetectiveAllAttempted = attemptedDetectiveCount >= workingDataset.length;
+  const isDetectiveAllAttempted = attemptedDetectiveCount >= ERROR_IRIS_DATASET.length;
 
   useEffect(() => {
     if (isDetectiveAllAttempted) {
@@ -319,8 +319,8 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     { id: 106, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'Setosa' },
     { id: 109, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'versicolor' },
     { id: 114, field: 'species', label: '품종 표기', type: 'inconsistent' as const, typeLabel: '표현 불일치', beforeStr: 'virginica' },
-    { id: 107, field: 'sepalLength', label: '꽃받침 길이', type: 'invalidType' as const, typeLabel: '자료형 오류', beforeStr: '"5.1cm"' },
-    { id: 112, field: 'petalWidth', label: '꽃잎 너비', type: 'invalidType' as const, typeLabel: '자료형 오류', beforeStr: '"1.5cm"' },
+    { id: 107, field: 'sepalLength', label: '꽃받침 길이', type: 'invalidType' as const, typeLabel: '데이터 형식 오류', beforeStr: '"5.1cm"' },
+    { id: 112, field: 'petalWidth', label: '꽃잎 너비', type: 'invalidType' as const, typeLabel: '데이터 형식 오류', beforeStr: '"1.5cm"' },
   ], []);
 
   const act8Stats = useMemo(() => {
@@ -426,6 +426,18 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
     mean: calculateMean(workingValues),
     median: calculateMedian(workingValues),
   }), [workingValues]);
+
+  // Dedicated statistics for Activity 7 scaling feature (original min/max per feature)
+  const scalingOrigValues = useMemo(
+    () => extractValidNumericValues(ORIGINAL_IRIS_DATASET, scalingFeature),
+    [scalingFeature]
+  );
+  const scalingOrigStats = useMemo(() => ({
+    count: scalingOrigValues.length,
+    minMax: calculateMinMax(scalingOrigValues),
+    mean: calculateMean(scalingOrigValues),
+    median: calculateMedian(scalingOrigValues),
+  }), [scalingOrigValues]);
 
   // Range-based histogram data and isolated boxplot statistics
   const rangeHistogramData = useMemo(() => {
@@ -1151,7 +1163,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                   : 'bg-slate-100 text-slate-700 border-slate-200'
               }`}>
-                판별 진행: {attemptedDetectiveCount} / {workingDataset.length} 개 완료
+                판별 진행: {attemptedDetectiveCount} / {ERROR_IRIS_DATASET.length} 개 완료
               </span>
             </div>
 
@@ -1180,11 +1192,24 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               </div>
 
               {/* Neutral observation hint */}
-              <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <span className="font-bold text-slate-800 block">💡 탐정 관찰 요령:</span>
-                <p className="leading-relaxed">
-                  • 같은 열의 다른 데이터와 비교했을 때 형태(—, 표기법, 단위)나 크기가 유난히 다른 값이 있는지 기준값과 비교해보세요.<br />
-                  • 정상적인 데이터는 수정할 필요가 없으므로 [오류 없음]을 선택합니다.
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+                <span className="font-bold text-slate-800 block">💡 탐정 관찰 요령: 4가지 오류 유형을 구별해보세요</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] text-slate-700">
+                  <div className="p-1.5 rounded bg-slate-50 border border-slate-100">
+                    <strong className="text-amber-800">1. 결측치:</strong> 값이 비어 있거나 누락됨 (<span className="font-mono font-bold">—</span>)
+                  </div>
+                  <div className="p-1.5 rounded bg-slate-50 border border-slate-100">
+                    <strong className="text-rose-800">2. 이상치:</strong> 기준값 범위를 비정상적으로 크게 벗어난 숫자 (예: <span className="font-mono font-bold">50.0 cm</span>)
+                  </div>
+                  <div className="p-1.5 rounded bg-slate-50 border border-slate-100">
+                    <strong className="text-purple-800">3. 표현 불일치:</strong> 품종 이름의 표기가 표준과 다름 (예: <span className="font-mono font-bold">'setosa'</span>)
+                  </div>
+                  <div className="p-1.5 rounded bg-slate-50 border border-slate-100">
+                    <strong className="text-blue-800">4. 데이터형 오류:</strong> 숫자 칸에 <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1 rounded text-[9px]">문자열</span>이나 단위가 적힌 오류 (예: <span className="font-mono font-bold">"5.1cm"</span>, <span className="font-mono font-bold">"1.5cm"</span>)
+                  </div>
+                </div>
+                <p className="leading-relaxed text-[10px] text-slate-500 pt-0.5">
+                  • 기준값 범위 내의 올바른 데이터는 수정할 필요가 없으므로 <strong>[오류 없음]</strong>을 선택합니다.
                 </p>
               </div>
             </div>
@@ -1195,14 +1220,14 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-extrabold text-slate-900">
-                      페이지 {detectivePage} / {Math.ceil(workingDataset.length / 5)}
+                      페이지 {detectivePage} / {Math.ceil(ERROR_IRIS_DATASET.length / 5)}
                     </span>
                     <span className="text-[11px] text-slate-500 font-medium">
-                      (데이터 #{(detectivePage - 1) * 5 + 1} ~ #{Math.min(detectivePage * 5, workingDataset.length)})
+                      (데이터 #{(detectivePage - 1) * 5 + 1} ~ #{Math.min(detectivePage * 5, ERROR_IRIS_DATASET.length)})
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600">
-                    전체 20개 중 5개씩 나누어 탐색합니다. (판단 완료: <strong className="text-slate-900 font-mono">{attemptedDetectiveCount} / {workingDataset.length}</strong>개)
+                    전체 20개 중 5개씩 나누어 탐색합니다. (판단 완료: <strong className="text-slate-900 font-mono">{attemptedDetectiveCount} / {ERROR_IRIS_DATASET.length}</strong>개)
                   </p>
                 </div>
 
@@ -1218,7 +1243,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                   </button>
 
                   {[1, 2, 3, 4].map(pageNum => {
-                    const pageRecords = workingDataset.slice((pageNum - 1) * 5, pageNum * 5);
+                    const pageRecords = ERROR_IRIS_DATASET.slice((pageNum - 1) * 5, pageNum * 5);
                     const pageDone = pageRecords.length > 0 && pageRecords.every(r => Boolean(detectiveAnswers[r.id]));
                     const isCurrent = detectivePage === pageNum;
 
@@ -1243,8 +1268,8 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
                   <button
                     type="button"
-                    disabled={detectivePage === Math.ceil(workingDataset.length / 5)}
-                    onClick={() => setDetectivePage(p => Math.min(Math.ceil(workingDataset.length / 5), p + 1))}
+                    disabled={detectivePage === Math.ceil(ERROR_IRIS_DATASET.length / 5)}
+                    onClick={() => setDetectivePage(p => Math.min(Math.ceil(ERROR_IRIS_DATASET.length / 5), p + 1))}
                     className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[36px]"
                   >
                     다음 5개
@@ -1254,7 +1279,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
               {/* Paginated 5 Data Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {workingDataset
+                {ERROR_IRIS_DATASET
                   .slice((detectivePage - 1) * 5, detectivePage * 5)
                   .map(rec => {
                     const answerObj = ERROR_IRIS_ANSWERS.find(a => a.recordId === rec.id);
@@ -1266,7 +1291,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
                     return (
                       <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-2xs">
-                        <StudentDataCard record={rec} title={`데이터 #${rec.id}`} />
+                        <StudentDataCard record={rec} title={`데이터 #${rec.id}`} showErrorHint={Boolean(currentAnswer)} />
 
                         <div className="space-y-1.5 pt-1 border-t border-slate-100">
                           <span className="font-bold text-slate-800 block text-[11px]">이 데이터의 문제는 무엇인가요?</span>
@@ -1305,15 +1330,27 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                                 ? 'bg-emerald-100 text-emerald-950 border border-emerald-200'
                                 : 'bg-rose-100 text-rose-950 border border-rose-200'
                             }`}>
-                              {isNormal
-                                ? currentAnswer === 'none'
-                                  ? '👏 맞습니다. 이 데이터에서는 수정할 오류가 발견되지 않습니다.'
-                                  : '💡 이 데이터는 정상 데이터입니다. 값을 다시 살펴보세요.'
-                                : currentAnswer === 'none'
-                                ? '⚠️ 이 데이터에는 확인해야 할 부분이 있습니다. 다시 살펴보세요.'
-                                : currentAnswer === answerObj?.issueType
-                                ? '✅ 정확하게 판별했습니다!'
-                                : '💡 탐정 수첩 기준값과 비교해보세요.'}
+                              {isNormal ? (
+                                currentAnswer === 'none' ? (
+                                  '👏 맞습니다. 이 데이터에서는 수정할 오류가 발견되지 않습니다.'
+                                ) : (
+                                  '💡 이 데이터는 정상 데이터입니다. 값을 다시 살펴보세요.'
+                                )
+                              ) : currentAnswer === 'none' ? (
+                                '⚠️ 이 데이터에는 확인해야 할 부분이 있습니다. 다시 살펴보세요.'
+                              ) : isCorrect ? (
+                                answerObj?.issueType === 'invalidType'
+                                  ? '✅ 정확하게 판별했습니다! (데이터형 오류: 수치형 변수에 [문자열]이 입력되어 계산할 수 없는 데이터형 오류입니다.)'
+                                  : answerObj?.issueType === 'missing'
+                                  ? '✅ 정확하게 판별했습니다! (결측치: 데이터 값이 비어 있는 오류입니다.)'
+                                  : answerObj?.issueType === 'outlier'
+                                  ? '✅ 정확하게 판별했습니다! (이상치: 정상 범위를 크게 벗어난 수치 오류입니다.)'
+                                  : '✅ 정확하게 판별했습니다! (표현 불일치: 품종 표기가 표준과 다른 오류입니다.)'
+                              ) : answerObj?.issueType === 'invalidType' ? (
+                                '💡 숫자 칸에 [문자열]이 입력되어 있는 [데이터형 오류]인지 확인해보세요.'
+                              ) : (
+                                '💡 탐정 수첩 기준값과 비교해보세요.'
+                              )}
                             </div>
                           )}
                         </div>
@@ -1335,17 +1372,17 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
                 <div className="text-center">
                   <span className="text-xs font-extrabold text-slate-800 block">
-                    {detectivePage} / {Math.ceil(workingDataset.length / 5)} 페이지
+                    {detectivePage} / {Math.ceil(ERROR_IRIS_DATASET.length / 5)} 페이지
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">
-                    진행: {attemptedDetectiveCount} / {workingDataset.length} 완료
+                    진행: {attemptedDetectiveCount} / {ERROR_IRIS_DATASET.length} 완료
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  disabled={detectivePage === Math.ceil(workingDataset.length / 5)}
-                  onClick={() => setDetectivePage(p => Math.min(Math.ceil(workingDataset.length / 5), p + 1))}
+                  disabled={detectivePage === Math.ceil(ERROR_IRIS_DATASET.length / 5)}
+                  onClick={() => setDetectivePage(p => Math.min(Math.ceil(ERROR_IRIS_DATASET.length / 5), p + 1))}
                   className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[44px]"
                 >
                   다음 5개 데이터 →
@@ -2353,15 +2390,38 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
               )}
 
               {isScalingExecuted && (
-                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 font-mono text-[11px]">
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5 font-mono text-[11px]">
                   <span className="font-sans font-bold text-emerald-800 block text-xs">
                     [{NUMERIC_FEATURE_LABELS[scalingFeature].full}] 변환 체험 결과 (scaledPreview):
                   </span>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2 bg-slate-50 rounded">원본 수치 범위: {origStats.minMax.min} ~ {origStats.minMax.max} cm</div>
-                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded font-bold">스케일링 범위: 0.00 ~ 1.00</div>
+                    <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                      원본 수치 범위: {scalingOrigStats.minMax.min.toFixed(1)} ~ {scalingOrigStats.minMax.max.toFixed(1)} cm
+                    </div>
+                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded border border-emerald-200 font-bold">
+                      스케일링 범위: 0.00 ~ 1.00
+                    </div>
                   </div>
-                  <p className="font-sans text-[11px] text-slate-600 pt-1">
+
+                  {/* Calculated scaling sample breakdown */}
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-sans space-y-1.5">
+                    <span className="font-bold text-slate-700 block text-[10px]">
+                      🔍 원본 범위 기준 스케일링 변환 예시 (공식: (x - 최솟값) / (최댓값 - 최솟값)):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 font-mono text-[10px]">
+                      <div className="p-1.5 bg-white rounded border border-slate-200">
+                        최솟값 {scalingOrigStats.minMax.min.toFixed(1)} cm ➔ <strong className="text-emerald-700 font-black">0.00</strong>
+                      </div>
+                      <div className="p-1.5 bg-white rounded border border-slate-200">
+                        중앙값 {scalingOrigStats.median.toFixed(1)} cm ➔ <strong className="text-emerald-700 font-black">{((scalingOrigStats.median - scalingOrigStats.minMax.min) / (scalingOrigStats.minMax.max - scalingOrigStats.minMax.min)).toFixed(2)}</strong>
+                      </div>
+                      <div className="p-1.5 bg-white rounded border border-slate-200">
+                        최댓값 {scalingOrigStats.minMax.max.toFixed(1)} cm ➔ <strong className="text-emerald-700 font-black">1.00</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="font-sans text-[11px] text-slate-600 pt-0.5">
                     💡 값의 범위는 0~1로 조정되었지만 데이터 간 상대적인 크기 비율과 순서 관계는 그대로 유지됩니다!
                   </p>
                 </div>
@@ -3032,10 +3092,10 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
             {currentActivity === 1 && '💡 수치형/범주형 분류와 입력 특성(X)/예측 목표(y) 역할 확인을 완료하면 다음 활동으로 이동할 수 있습니다.'}
             {currentActivity === 2 && '💡 데이터 정제 필요성 질문에 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentActivity === 3 && `💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 ${attemptedDetectiveCount} / ${workingDataset.length}개 완료)`}
+            {currentActivity === 3 && `💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 ${attemptedDetectiveCount} / ${ERROR_IRIS_DATASET.length}개 완료)`}
             {currentActivity === 4 && `💡 4개의 결측치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 결측치: ${currentErrorCounts.missing}개)`}
             {currentActivity === 5 && `💡 2개의 이상치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 이상치: ${currentErrorCounts.outlier}개)`}
-            {currentActivity === 6 && `💡 표현 불일치 4개와 자료형 오류 2개를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 오류: ${currentErrorCounts.inconsistent + currentErrorCounts.invalidType}개)`}
+            {currentActivity === 6 && `💡 표현 불일치 4개와 데이터 형식 오류 2개를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 오류: ${currentErrorCounts.inconsistent + currentErrorCounts.invalidType}개)`}
             {currentActivity === 7 && '💡 스케일링을 한 번 실행하고 인코딩 문제에 응답하면 다음 활동으로 이동할 수 있습니다.'}
             {currentActivity === 8 && '💡 전처리 전/후 비교 결과를 확인한 뒤 [정제 결과 확인 완료]를 눌러주세요.'}
           </p>
@@ -3079,12 +3139,13 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           </p>
 
           <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950">
-            <span className="font-bold text-emerald-900 block">💡 탐정 관찰 요령 (무엇을 비교할까요?)</span>
+            <span className="font-bold text-emerald-900 block">💡 탐정 관찰 요령: 4가지 오류 유형 판별 기준</span>
             <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-700">
-              <li>같은 열의 다른 정상 데이터와 비교해보세요.</li>
-              <li>값이 비어 있지는 않은지(—), 표현 방식이나 단위(cm)가 다른 값은 없는지 살펴보세요.</li>
-              <li>수치 데이터의 단위(cm)와 값의 범위를 비교해보세요.</li>
-              <li>다른 데이터와 비교했을 때 형태나 크기가 유난히 다른 값이 있는지 살펴보세요.</li>
+              <li><strong>결측치:</strong> 수치나 값이 누락되어 비어 있는 상태 (—)</li>
+              <li><strong>이상치:</strong> 붓꽃 정상 범위를 크게 벗어난 비정상적인 극단값 (예: 50.0 cm)</li>
+              <li><strong>표현 불일치:</strong> 품종 표기법이 표준('Iris-setosa' 등)과 다른 경우 (예: 'setosa')</li>
+              <li><strong>데이터 형식 오류:</strong> 숫자여야 하는 측정값에 문자나 단위가 함께 적혀 숫자로 계산되지 않는 형식 오류 (예: "5.1cm")</li>
+              <li><strong>오류 없음:</strong> 위 4가지 오류가 발견되지 않는 정상적인 관측 데이터</li>
             </ul>
           </div>
 

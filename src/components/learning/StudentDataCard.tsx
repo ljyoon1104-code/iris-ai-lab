@@ -37,7 +37,7 @@ export function formatIrisFieldForStudent(
       label,
       valueText: '—',
       isMissing: true,
-      note: showErrorHint ? '※ 값 없음' : undefined,
+      note: showErrorHint ? '※ 값 없음 (결측치)' : undefined,
     };
   }
 
@@ -50,7 +50,7 @@ export function formatIrisFieldForStudent(
     return {
       label,
       valueText: String(val),
-      note: showErrorHint ? '※ 표준 표기와 다름' : undefined,
+      note: showErrorHint ? '※ 표준 표기와 다름 (표현 불일치)' : undefined,
       isInconsistent: true,
     };
   }
@@ -59,8 +59,8 @@ export function formatIrisFieldForStudent(
   if (typeof val === 'string') {
     return {
       label,
-      valueText: String(val),
-      note: showErrorHint ? '※ 숫자가 아닌 문자로 저장됨' : undefined,
+      valueText: `"${val}"`,
+      note: showErrorHint ? '※ 숫자가 아닌 문자열로 입력됨 (데이터형 오류)' : undefined,
       isStringData: true,
     };
   }
@@ -104,28 +104,47 @@ export const StudentDataCard: React.FC<StudentDataCardProps> = ({ record, title,
           return (
             <div
               key={field}
-              className="flex flex-row items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium gap-2 min-w-0"
+              className={`flex flex-row items-center justify-between p-2 rounded-lg border font-medium gap-2 min-w-0 ${
+                formatted.isStringData
+                  ? 'bg-amber-50/80 border-amber-300 ring-1 ring-amber-300'
+                  : 'bg-slate-50 border-slate-100'
+              }`}
             >
               <span className="text-slate-600 font-bold shrink-0">{formatted.label}</span>
 
-              <div className="text-right min-w-0 break-words">
-                <span
-                  className={`font-bold inline-block font-mono ${
-                    showErrorHint
-                      ? formatted.isMissing
-                        ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200'
+              <div className="text-right min-w-0 break-words flex flex-col items-end">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {formatted.isStringData && (
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-400 font-sans shrink-0 shadow-2xs">
+                      문자열
+                    </span>
+                  )}
+                  <span
+                    className={`font-bold inline-block font-mono ${
+                      showErrorHint
+                        ? formatted.isMissing
+                          ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200'
+                          : formatted.isStringData
+                          ? 'text-amber-950 font-black'
+                          : formatted.isInconsistent
+                          ? 'text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200'
+                          : 'text-slate-900'
+                        : formatted.isMissing
+                        ? 'text-slate-400 font-bold'
                         : formatted.isStringData
-                        ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200'
-                        : formatted.isInconsistent
-                        ? 'text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200'
+                        ? 'text-amber-950 font-black'
                         : 'text-slate-900'
-                      : formatted.isMissing
-                      ? 'text-slate-400 font-bold'
-                      : 'text-slate-900'
-                  }`}
-                >
-                  {formatted.valueText}
-                </span>
+                    }`}
+                  >
+                    {formatted.valueText}
+                  </span>
+                </div>
+
+                {formatted.isStringData && (
+                  <span className="text-[10px] text-amber-800 font-sans font-bold pt-0.5">
+                    (데이터형: 문자열)
+                  </span>
+                )}
 
                 {showErrorHint && formatted.note && (
                   <span className="block text-[10px] text-slate-500 pt-0.5 font-sans">
