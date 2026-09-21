@@ -14,7 +14,7 @@ import {
   SPECIES_MAP,
 } from '../../data/irisDataset';
 import type { ErrorIrisRecord } from '../../types/iris';
-import { applyEditsToDataset, createPreparedIrisDataset, ERROR_GROUND_TRUTH_MAP } from '../../utils/irisHelpers';
+import { applyEditsToDataset, createPreparedIrisDataset, getOriginalGroundTruth, ERROR_GROUND_TRUTH_MAP } from '../../utils/irisHelpers';
 import {
   type FeatureKey,
   NUMERIC_FEATURE_LABELS,
@@ -241,34 +241,6 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
   const normalSampleSetosa = ORIGINAL_IRIS_DATASET[0];
   const normalSampleVersicolor = ORIGINAL_IRIS_DATASET[50];
   const normalSampleVirginica = ORIGINAL_IRIS_DATASET[100];
-
-  // Live Error Count Calculations from workingDataset
-  const currentErrorCounts = useMemo(() => {
-    let missing = 0;
-    let outlier = 0;
-    let inconsistent = 0;
-    let invalidType = 0;
-
-    workingDataset.forEach(rec => {
-      // Missing
-      if (rec.sepalLength === null || rec.sepalWidth === null || rec.petalLength === null || rec.petalWidth === null || !rec.species) {
-        missing++;
-      }
-      // Outlier (50cm or 30cm)
-      if (typeof rec.sepalLength === 'number' && rec.sepalLength > 20) outlier++;
-      if (typeof rec.petalLength === 'number' && rec.petalLength > 20) outlier++;
-      // Inconsistent species
-      if (rec.species && !['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'].includes(rec.species)) {
-        inconsistent++;
-      }
-      // Invalid string type
-      if (typeof rec.sepalLength === 'string' || typeof rec.sepalWidth === 'string' || typeof rec.petalLength === 'string' || typeof rec.petalWidth === 'string') {
-        invalidType++;
-      }
-    });
-
-    return { missing, outlier, inconsistent, invalidType, total: missing + outlier + inconsistent + invalidType };
-  }, [workingDataset]);
 
   // Participation-based activity completion tracking
   const isAct4MissingAttempted = useMemo(() => {
@@ -2194,7 +2166,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
 
                 {outlierFeature === 'sepalLength' || outlierFeature === 'petalLength' ? (
                   <div className="p-3.5 bg-emerald-100 text-emerald-950 font-bold rounded-xl border border-emerald-200">
-                    👏 잘못 입력된 이상치가 올바른 수치로 정제되어 {featureGuidance.base.label}의 평균과 수치 분포가 정상 복원되었습니다!
+                    {workingDataset.find(r => r.id === (outlierFeature === 'sepalLength' ? 103 : 104))?.[outlierFeature] === getOriginalGroundTruth(outlierFeature === 'sepalLength' ? 103 : 104, outlierFeature)
+                      ? '✓ 이 속성의 교육용 이상치가 원본과 같은 값으로 수정되었습니다.'
+                      : '현재 값과 원본을 비교해 보세요. 수정하지 않았거나 원본과 다른 값이 남아 있습니다.'}
                   </div>
                 ) : (
                   <div className="p-3.5 bg-blue-50 text-blue-950 font-bold rounded-xl border border-blue-200">
@@ -2947,9 +2921,9 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                           if (r.species === 'Iris-setosa') {
                             return <circle key={r.id} cx={cx} cy={cy} r="3.5" fill="#10b981" opacity="0.75" />;
                           } else if (r.species === 'Iris-versicolor') {
-                            return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#3b82f6" opacity="0.75" rx="1" />;
+                            return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#f97316" opacity="0.75" />;
                           } else {
-                            return <polygon key={r.id} points={`${cx},${cy-4} ${cx+4},${cy+3} ${cx-4},${cy+3}`} fill="#8b5cf6" opacity="0.75" />;
+                            return <rect key={r.id} x={cx - 3} y={cy - 3} width="6" height="6" fill="#8b5cf6" opacity="0.75" rx="1" />;
                           }
                         })}
                       </>
@@ -3063,13 +3037,10 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
                 <PrimaryButton
                   size="lg"
                   fullWidth
-                  disabled={selectedFeatures04.length !== 2}
                   onClick={onComplete}
                   icon={<ArrowRight size={20} />}
                 >
-                  {selectedFeatures04.length === 2
-                    ? '05 기계학습 유형과 알고리즘 선정으로 이동'
-                    : `핵심 속성 2개를 선택해 주세요 (${selectedFeatures04.length}/2)`}
+                  05 기계학습 유형과 알고리즘 선정으로 이동
                 </PrimaryButton>
               </div>
             </div>
@@ -3090,14 +3061,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isActivityCompleted && currentActivity < totalActivities && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentActivity === 1 && '💡 수치형/범주형 분류와 입력 특성(X)/예측 목표(y) 역할 확인을 완료하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentActivity === 2 && '💡 데이터 정제 필요성 질문에 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentActivity === 3 && `💡 20개 데이터 카드를 모두 한 번씩 판별해보세요. (현재 ${attemptedDetectiveCount} / ${ERROR_IRIS_DATASET.length}개 완료)`}
-            {currentActivity === 4 && `💡 4개의 결측치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 결측치: ${currentErrorCounts.missing}개)`}
-            {currentActivity === 5 && `💡 2개의 이상치를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 이상치: ${currentErrorCounts.outlier}개)`}
-            {currentActivity === 6 && `💡 표현 불일치 4개와 데이터 형식 오류 2개를 모두 수정한 뒤 다음 활동으로 이동할 수 있습니다. (남은 오류: ${currentErrorCounts.inconsistent + currentErrorCounts.invalidType}개)`}
-            {currentActivity === 7 && '💡 스케일링을 한 번 실행하고 인코딩 문제에 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentActivity === 8 && '💡 전처리 전/후 비교 결과를 확인한 뒤 [정제 결과 확인 완료]를 눌러주세요.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -3114,7 +3078,7 @@ export const Module04Activity: React.FC<Module04ActivityProps> = ({ isCompleted:
           {currentActivity < totalActivities ? (
             <PrimaryButton
               size="md"
-              disabled={!isActivityCompleted}
+
               onClick={() => setCurrentActivity(a => Math.min(totalActivities, a + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

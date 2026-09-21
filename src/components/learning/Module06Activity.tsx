@@ -18,7 +18,7 @@ interface Module06ActivityProps {
   onComplete: () => void;
 }
 
-export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted, onComplete }) => {
+export const Module06Activity: React.FC<Module06ActivityProps> = ({ onComplete }) => {
   const [activeTab, setActiveTab] = useState<'knn' | 'dt' | 'lr' | 'kmeans' | 'rl' | 'compare'>('knn');
   const topRef = useActivityScrollTop<HTMLDivElement>(activeTab);
 
@@ -57,13 +57,6 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
   const [completedLabs, setCompletedLabs] = useState<Record<string, boolean>>({});
 
-  const isTabUnlocked = (tabKey: string) => {
-    if (isCompleted) return true;
-    const tabIdx = tabs.indexOf(tabKey as any);
-    if (tabIdx === 0) return true;
-    const prevTabKey = tabs[tabIdx - 1];
-    return !!completedLabs[prevTabKey];
-  };
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={topRef}>
@@ -105,12 +98,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
           {/* 2. Decision Tree */}
           <button
-            disabled={!isTabUnlocked('dt')}
+
             onClick={() => setActiveTab('dt')}
             className={`p-3 rounded-2xl border-2 text-left transition-all min-h-[52px] ${
-              !isTabUnlocked('dt')
-                ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                : activeTab === 'dt'
+              activeTab === 'dt'
                 ? 'border-teal-600 bg-teal-50 text-teal-950 shadow-xs cursor-pointer'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-teal-300 cursor-pointer'
             }`}
@@ -126,12 +117,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
           {/* 3. Linear Regression */}
           <button
-            disabled={!isTabUnlocked('lr')}
+
             onClick={() => setActiveTab('lr')}
             className={`p-3 rounded-2xl border-2 text-left transition-all min-h-[52px] ${
-              !isTabUnlocked('lr')
-                ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                : activeTab === 'lr'
+              activeTab === 'lr'
                 ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-xs cursor-pointer'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 cursor-pointer'
             }`}
@@ -147,12 +136,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
           {/* 4. k-means */}
           <button
-            disabled={!isTabUnlocked('kmeans')}
+
             onClick={() => setActiveTab('kmeans')}
             className={`p-3 rounded-2xl border-2 text-left transition-all min-h-[52px] ${
-              !isTabUnlocked('kmeans')
-                ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                : activeTab === 'kmeans'
+              activeTab === 'kmeans'
                 ? 'border-blue-600 bg-blue-50 text-blue-950 shadow-xs cursor-pointer'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 cursor-pointer'
             }`}
@@ -168,12 +155,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
           {/* 5. Reinforcement Learning */}
           <button
-            disabled={!isTabUnlocked('rl')}
+
             onClick={() => setActiveTab('rl')}
             className={`p-3 rounded-2xl border-2 text-left transition-all min-h-[52px] ${
-              !isTabUnlocked('rl')
-                ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                : activeTab === 'rl'
+              activeTab === 'rl'
                 ? 'border-amber-600 bg-amber-50 text-amber-950 shadow-xs cursor-pointer'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-amber-300 cursor-pointer'
             }`}
@@ -189,12 +174,10 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
 
           {/* 6. Master Comparison */}
           <button
-            disabled={!isTabUnlocked('compare')}
+
             onClick={() => setActiveTab('compare')}
             className={`p-3 rounded-2xl border-2 text-left transition-all min-h-[52px] ${
-              !isTabUnlocked('compare')
-                ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                : activeTab === 'compare'
+              activeTab === 'compare'
                 ? 'border-purple-600 bg-purple-50 text-purple-950 shadow-xs cursor-pointer'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-purple-300 cursor-pointer'
             }`}
@@ -245,7 +228,7 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
                 </span>
               </div>
               <span className="text-[11px] text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 font-medium">
-                다음 알고리즘 해금됨
+                실험 참여 기록됨
               </span>
             </div>
           )}
@@ -292,7 +275,6 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
           <PrimaryButton
             size="lg"
             fullWidth
-            disabled={!completedLabs['compare']}
             onClick={onComplete}
             icon={<ArrowRight size={20} />}
           >
@@ -305,12 +287,7 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!completedLabs[activeTab] && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {activeTab === 'knn' && '💡 k값 변경이나 예측을 최소 1회 실행하면 다음 알고리즘으로 이동할 수 있습니다.'}
-            {activeTab === 'dt' && '💡 트리 깊이 조절이나 샘플 분기 탐구를 최소 1회 실행하면 다음 알고리즘으로 이동할 수 있습니다.'}
-            {activeTab === 'lr' && '💡 입력값 조작이나 회귀선 분석을 최소 1회 실행하면 다음 알고리즘으로 이동할 수 있습니다.'}
-            {activeTab === 'kmeans' && '💡 k-means 군집화 알고리즘을 최소 1회 실행하면 다음 알고리즘으로 이동할 수 있습니다.'}
-            {activeTab === 'rl' && '💡 강화학습 에피소드를 최소 1회 실행하면 다음 알고리즘으로 이동할 수 있습니다.'}
-            {activeTab === 'compare' && '💡 5대 알고리즘 비교 내용을 확인한 뒤 [비교 내용 확인 완료]를 눌러주세요.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -330,7 +307,7 @@ export const Module06Activity: React.FC<Module06ActivityProps> = ({ isCompleted,
           {activeTab !== 'compare' ? (
             <PrimaryButton
               size="md"
-              disabled={!completedLabs[activeTab]}
+
               onClick={() => {
                 const idx = tabs.indexOf(activeTab);
                 if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1]);

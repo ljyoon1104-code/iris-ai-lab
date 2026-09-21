@@ -1392,7 +1392,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
                 <PrimaryButton
                   size="lg"
                   fullWidth
-                  disabled={!act5Confirmed}
+
                   onClick={onComplete}
                   icon={<ArrowRight size={20} />}
                 >
@@ -1415,10 +1415,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isStepCompleted && currentStep < totalSteps && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentStep === 1 && '💡 학습/테스트 데이터 분할 비율을 확인하고 [데이터 분할 확인 완료]를 눌러주세요.'}
-            {currentStep === 2 && '💡 사용할 알고리즘을 선택하고 [알고리즘 선택 완료]를 눌러주세요.'}
-            {currentStep === 3 && '💡 모델 학습(또는 k-NN 준비)을 완료하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 4 && '💡 새로운 붓꽃 데이터의 품종을 1회 이상 예측하면 다음 활동으로 이동할 수 있습니다.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -1435,7 +1432,7 @@ export const Module07Activity: React.FC<Module07ActivityProps> = ({ isCompleted:
           {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
-              disabled={!isStepCompleted}
+
               onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

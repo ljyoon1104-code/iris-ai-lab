@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "verify": "npx tsx src/utils/verifyProject.ts"
+    "verify": "npx tsx src/utils/verifyProject.ts",
+    "test": "tsx --test scripts/tests/*.test.ts",
+    "test:browser": "tsx scripts/qa/browserRegression.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

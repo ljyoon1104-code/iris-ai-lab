@@ -26,7 +26,15 @@ export function App() {
   const [activeModuleId, setActiveModuleId] = useState<number | null>(() => parseModuleFromHash());
   const [previousModuleId, setPreviousModuleId] = useState<number | null>(null);
   const activeModuleIdRef = useRef<number | null>(activeModuleId);
-  activeModuleIdRef.current = activeModuleId;
+  useEffect(() => { activeModuleIdRef.current = activeModuleId; }, [activeModuleId]);
+
+  // Recreate activity state after a reset, including cached data and trained models.
+  const [dataRevision, setDataRevision] = useState(0);
+  useEffect(() => {
+    const handleReset = () => setDataRevision(value => value + 1);
+    window.addEventListener('module04_reset', handleReset);
+    return () => window.removeEventListener('module04_reset', handleReset);
+  }, []);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
@@ -125,6 +133,7 @@ export function App() {
           />
         ) : (
           <ModuleDetailPage
+            key={`${activeModuleId}-${dataRevision}`}
             moduleId={activeModuleId}
             completedModuleIds={progress.completedModuleIds}
             onSelectModule={handleSelectModule}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { LearningProgress } from '../types';
 import {
   loadProgress,
@@ -32,12 +32,12 @@ export function useProgress() {
     });
   };
 
-  const setCurrentModule = (moduleId: number) => {
+  const setCurrentModule = useCallback((moduleId: number) => {
     setProgressState(prev => ({
       ...prev,
       currentModuleId: moduleId,
     }));
-  };
+  }, []);
 
   const resetAllProgress = () => {
     clearAllLearningData();

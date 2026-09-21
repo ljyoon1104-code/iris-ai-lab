@@ -123,7 +123,7 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ dataset, onInteract }) => 
 
   const handleResetCentroids = () => {
     setUserCentroids([]);
-    setIsExecuted(false);
+    setIsExecuted(initMode === 'auto');
     setCurrentStepIndex(0);
   };
 
@@ -179,6 +179,7 @@ export const KMeansLab: React.FC<KMeansLabProps> = ({ dataset, onInteract }) => 
               onClick={() => {
                 setInitMode('manual');
                 handleResetCentroids();
+                setIsExecuted(false);
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
                 initMode === 'manual' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'

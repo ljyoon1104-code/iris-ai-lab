@@ -92,3 +92,15 @@ main 브랜치에 코드를 push하면 `.github/workflows/deploy.yml`의 GitHub 
 
 - **Iris Species Dataset**: Edgar Anderson 및 Ronald Fisher의 클래식 붓꽃 데이터셋 (150 레코드: Setosa 50, Versicolor 50, Virginica 50).
 - 본 학습용 자료는 수업용 교육 목적으로 가공·정제되어 포함되어 있습니다.
+
+
+## 2026-09-21 수정 및 검증
+
+- 8개 영역의 다음 활동 버튼과 알고리즘 탭은 활동 수행 여부와 관계없이 사용할 수 있습니다.
+- 초기화는 Iris AI Lab 저장값만 지우고, 현재 열려 있는 활동의 데이터와 학습 상태도 다시 불러옵니다.
+- k-NN 경계 사례, k-means 자동 모드, 수동 회귀선 R², 검증 실패 종료 처리를 수정했습니다.
+- `npm test`: 알고리즘·저장소 회귀 테스트.
+- `npm run verify`: 기존 데이터·알고리즘 검증. 실패 시 명령도 실패합니다.
+- `npm run build` 후 `npm run test:browser`: 별도 임시 브라우저 프로필로 390px·1280px에서 8개 영역의 자유 이동과 수정 기능을 검사합니다. 기본 브라우저는 Windows Edge이며, 다른 Chromium 실행 파일은 `IRIS_BROWSER_PATH`로 지정할 수 있습니다.
+- 기존 `scripts/qa/` 실행 명령은 최신 공통 브라우저 검사로 연결됩니다. 검증 실패는 성공 문구 없이 비정상 종료합니다.
+- 학습·평가 분할을 재현 가능한 셔플 방식으로 바꾸었으므로 이전 버전과 정확도 수치가 달라질 수 있습니다.

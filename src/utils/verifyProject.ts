@@ -128,8 +128,8 @@ export async function runFullVerification() {
     // Test Ground Truth Lookup
     const gt101 = getOriginalGroundTruth(101, 'sepalLength');
     const gt103 = getOriginalGroundTruth(103, 'sepalLength');
-    if (gt101 !== 5.1 || gt103 !== 5.0) {
-      console.error(`   ❌ Ground truth lookup failed! Expected 5.1 & 5.0, got ${gt101} & ${gt103}`);
+    if (gt101 !== 5.1 || gt103 !== 4.7) {
+      console.error(`   ❌ Ground truth lookup failed! Expected 5.1 & 4.7, got ${gt101} & ${gt103}`);
       m4Passed = false;
     }
 
@@ -602,8 +602,9 @@ export async function runFullVerification() {
     } else {
       passedAll = false;
     }
-  } catch (e) {
-    console.log('   ✓ Storage reset helper functions verified.');
+  } catch (error) {
+    console.error('   ❌ Storage reset verification failed:', error);
+    passedAll = false;
   }
 
   // 10. Unified Species Visual System & Accessibility Check
@@ -967,9 +968,11 @@ export async function runFullVerification() {
     console.log(' 🎉 ALL VERIFICATION TESTS PASSED SUCCESSFULLY! ');
   } else {
     console.error(' ❌ SOME VERIFICATION TESTS FAILED.');
+    throw new Error('Project verification failed');
   }
   console.log('====================================================\n');
 }
 
 // Execute if run via CLI node/tsx
-runFullVerification();
+// A failed check throws; an unhandled rejection makes the CLI exit unsuccessfully.
+void runFullVerification();

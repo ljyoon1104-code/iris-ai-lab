@@ -118,10 +118,20 @@ export function findBoundaryCase(
   dataset: IrisRecord[],
   features: (keyof Omit<IrisRecord, 'id' | 'species'>)[]
 ): { point: Record<string, number>; k1Result: IrisSpecies; k5Result: IrisSpecies } | null {
-  // Search grid in feature space (e.g. petalLength 4.5~5.2, petalWidth 1.3~1.8)
-  for (let pl = 4.5; pl <= 5.2; pl += 0.1) {
-    for (let pw = 1.3; pw <= 1.8; pw += 0.1) {
-      const p = { petalLength: Math.round(pl * 10) / 10, petalWidth: Math.round(pw * 10) / 10 };
+  const axes = [...new Set(features)];
+  if (dataset.length < 5 || axes.length === 0 || axes.length > 2) return null;
+  const ranges = axes.map(feature => {
+    const values = dataset.map(row => row[feature]);
+    return { min: Math.min(...values), max: Math.max(...values) };
+  });
+  // Search the selected feature space, using the same precision as the inputs.
+  for (let x = 0; x <= 40; x++) {
+    for (let y = 0; y <= (axes.length === 2 ? 40 : 0); y++) {
+      const p = Object.fromEntries(axes.map((feature, index) => {
+        const fraction = (index === 0 ? x : y) / 40;
+        const { min, max } = ranges[index];
+        return [feature, Math.round((min + (max - min) * fraction) * 10) / 10];
+      }));
       const res1 = predictKNN(dataset, p, features, 1);
       const res5 = predictKNN(dataset, p, features, 5);
       if (res1.predictedSpecies !== res5.predictedSpecies) {
@@ -133,10 +143,5 @@ export function findBoundaryCase(
       }
     }
   }
-  // Default boundary case if grid search exact match fallback
-  return {
-    point: { petalLength: 4.8, petalWidth: 1.6 },
-    k1Result: predictKNN(dataset, { petalLength: 4.8, petalWidth: 1.6 }, features, 1).predictedSpecies,
-    k5Result: predictKNN(dataset, { petalLength: 4.8, petalWidth: 1.6 }, features, 5).predictedSpecies,
-  };
+  return null;
 }

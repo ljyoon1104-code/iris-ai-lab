@@ -145,7 +145,8 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
   const [experiments, setExperiments] = useState<ExperimentResult[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_EXP_KEY);
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.id === 'string' && typeof item.accuracyPercent === 'number' && item.confusionMatrix?.matrix && Array.isArray(item.misclassifiedSamples)).slice(0, 3) : [];
     } catch {
       return [];
     }
@@ -211,7 +212,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
   }, []);
 
   // Execute evaluation on current setup using Prepared usableData
-  const runCurrentEvaluation = (): ExperimentResult => {
+  const currentEval = useMemo<ExperimentResult>(() => {
     const split = stratifiedSplitDataset(usableData as IrisRecord[], splitRatio, 42);
     const params =
       algorithm === 'knn'
@@ -223,7 +224,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
     const paramLabel = algorithm === 'knn' ? `k = ${kParam}` : `깊이 = ${depthParam}`;
 
     return {
-      id: `exp_${Date.now()}`,
+      id: 'current',
       algorithm,
       algorithmLabel: algorithm === 'knn' ? 'k-NN' : '의사결정트리',
       splitRatioLabel: ratioLabel,
@@ -236,10 +237,6 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       misclassifiedSamples: evalRes.misclassified,
       featureKeys: algorithm === 'knn' ? activeKnnFeatures : ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'],
     };
-  };
-
-  const currentEval = useMemo<{ actual: IrisSpecies; predicted: IrisSpecies; count: number } | null | any>(() => {
-    return runCurrentEvaluation();
   }, [usableData, algorithm, splitRatio, kParam, depthParam, activeKnnFeatures]);
 
   // Unified step completion check
@@ -395,7 +392,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
         </h2>
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          07에서 선택한 모델 설정을 현재 준비된 데이터에 적용하여, **독립된 테스트 데이터({currentEval.testCount}개)**에서 정확도 수치와 혼동행렬 오분류 원인을 다각도로 평가합니다.
+          07에서 선택한 모델 설정을 현재 준비된 데이터에 적용하여, <strong>독립된 테스트 데이터({currentEval.testCount}개)</strong>에서 정확도 수치와 혼동행렬 오분류 원인을 다각도로 평가합니다.
         </p>
 
         {initialModelConfig && (
@@ -507,8 +504,8 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
                   💡 2단계: 행(줄)과 열(칸)의 구분
                 </span>
                 <p className="leading-relaxed">
-                  ① <strong>행 (줄 ↓)</strong>: 데이터의 **실제 정답 품종 (Actual)**<br />
-                  ② <strong>열 (칸 →)</strong>: 기계학습 모델이 출력한 **예측 품종 (Predicted)**
+                  ① <strong>행 (줄 ↓)</strong>: 데이터의 <strong>실제 정답 품종 (Actual)</strong><br />
+                  ② <strong>열 (칸 →)</strong>: 기계학습 모델이 출력한 <strong>예측 품종 (Predicted)</strong>
                 </p>
                 <p className="text-[11px] text-blue-900/80 font-medium">
                   ※ 행과 열이 교차하는 칸의 숫자를 읽으면 "실제 어떤 품종을 어떤 품종으로 몇 개 헷갈렸는지"를 정확히 알 수 있습니다.
@@ -1278,7 +1275,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
             <PrimaryButton
               size="lg"
               fullWidth
-              disabled={!act5Confirmed}
+
               onClick={onComplete}
               icon={<CheckCircle2 size={22} className="max-w-xl mx-auto" />}
             >
@@ -1299,10 +1296,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isStepCompleted && currentStep < totalSteps && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentStep === 1 && '💡 혼동행렬 셀을 클릭하거나 퀴즈에 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 2 && '💡 오분류 데이터 레코드를 선택해 산점도 상 위치를 확인하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 3 && '💡 새로운 조건으로 모델을 1회 이상 재평가 및 저장하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 4 && '💡 최종 최적 모델 카드를 1개 선택하면 다음 활동으로 이동할 수 있습니다.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -1319,7 +1313,7 @@ export const Module08Activity: React.FC<Module08ActivityProps> = ({ isCompleted,
           {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
-              disabled={!isStepCompleted}
+
               onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

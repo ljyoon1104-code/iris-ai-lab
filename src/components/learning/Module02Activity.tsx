@@ -420,7 +420,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
               <PrimaryButton
                 size="lg"
                 fullWidth
-                disabled={!act5Confirmed}
+
                 onClick={onComplete}
                 icon={<CheckCircle2 size={20} />}
               >
@@ -435,10 +435,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isStepCompleted && currentStep < totalSteps && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentStep === 1 && '💡 두 상황의 프로그래밍 방식을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 2 && '💡 핵심 동작 흐름을 확인한 뒤 [내용 확인 완료]를 눌러주세요.'}
-            {currentStep === 3 && '💡 질문에 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 4 && '💡 6단계 순서 맞추기를 시도하면 다음 활동으로 이동할 수 있습니다.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -455,7 +452,7 @@ export const Module02Activity: React.FC<Module02ActivityProps> = ({ isCompleted,
           {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
-              disabled={!isStepCompleted}
+
               onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

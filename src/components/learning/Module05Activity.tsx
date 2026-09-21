@@ -459,7 +459,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               활동 5: 어떤 학습 방법을 선택해야 할까? (매핑 선택)
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              4가지 문제 상황에 가장 적절한 [학습 유형 $\rightarrow$ 문제 종류]를 연결하세요.
+              4가지 문제 상황에 가장 적절한 [학습 유형 → 문제 종류]를 연결하세요.
             </p>
 
             <div className="space-y-3">
@@ -677,7 +677,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
               <PrimaryButton
                 size="lg"
                 fullWidth
-                disabled={!act7Confirmed}
+
                 onClick={onComplete}
                 icon={<CheckCircle2 size={20} />}
               >
@@ -692,12 +692,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isStepCompleted && currentStep < totalSteps && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentStep === 1 && '💡 정답 유무 질문 2개에 모두 응답하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 2 && '💡 지도학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 3 && '💡 비지도학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 4 && '💡 강화학습 문제 상황을 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 5 && '💡 3가지 상황의 학습 방법을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 6 && `💡 4개의 알고리즘 매핑 퀴즈에 모두 응답하면 다음 활동으로 이동할 수 있습니다. (현재 ${Object.keys(act6Quiz).length}/4개 응답됨)`}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -714,7 +709,7 @@ export const Module05Activity: React.FC<Module05ActivityProps> = ({ isCompleted,
           {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
-              disabled={!isStepCompleted}
+
               onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

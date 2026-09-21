@@ -1790,7 +1790,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
               <PrimaryButton
                 size="lg"
                 fullWidth
-                disabled={!act7Confirmed}
+
                 onClick={onComplete}
                 icon={<CheckCircle2 size={20} />}
               >
@@ -1825,12 +1825,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
       <div className="space-y-2 pt-3 border-t border-slate-200">
         {!isStepActionCompleted && currentStep < totalSteps && (
           <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center font-medium animate-fadeIn">
-            {currentStep === 1 && '💡 3가지 목표 카드를 확인한 뒤 [내용 확인 완료]를 눌러주세요.'}
-            {currentStep === 2 && '💡 세 문제의 기계학습 유형(분류/회귀/군집)을 모두 선택하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 3 && '💡 후보 속성 8개를 모두 분류하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 4 && '💡 3가지 상황의 수집 방법을 모두 판단하면 다음 활동으로 이동할 수 있습니다.'}
-            {currentStep === 5 && '💡 데이터 신뢰도 기준을 확인하고 [선택 완료]를 눌러주세요.'}
-            {currentStep === 6 && '💡 편향 탐색을 시도하고 5가지 상황을 판단하면 다음 활동으로 이동할 수 있습니다.'}
+            활동은 원하는 만큼 살펴보고, 언제든 다음 활동으로 이동할 수 있습니다.
           </p>
         )}
 
@@ -1847,7 +1842,7 @@ export const Module03Activity: React.FC<Module03ActivityProps> = ({ isCompleted,
           {currentStep < totalSteps ? (
             <PrimaryButton
               size="md"
-              disabled={!isStepActionCompleted}
+
               onClick={() => setCurrentStep(s => Math.min(totalSteps, s + 1))}
               icon={<ChevronRight size={16} />}
               className="flex-row-reverse"

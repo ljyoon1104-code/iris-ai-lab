@@ -1,5 +1,6 @@
 import type { IrisRecord, IrisSpecies } from '../types/iris';
 import { predictKNN } from './knn';
+import { shuffleWithSeed } from '../utils/irisHelpers';
 import { trainDecisionTree, traceDecisionPath } from './decisionTree';
 
 export interface SplitResult {
@@ -45,24 +46,12 @@ export interface ExperimentResult {
   featureKeys?: (keyof Omit<IrisRecord, 'id' | 'species'>)[];
 }
 
-// Seeded PRNG Mulberry32 for reproducible stratified splitting
-function createPRNG(seed: number) {
-  let s = seed >>> 0;
-  return function () {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 // 1. Stratified Split Dataset into Train / Test sets by ratio (e.g. 0.8 => 80:20)
 export function stratifiedSplitDataset(
   dataset: IrisRecord[],
   trainRatio: number = 0.8,
   seed: number = 42
 ): SplitResult {
-  const prng = createPRNG(seed);
   const speciesList: IrisSpecies[] = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'];
 
   const trainData: IrisRecord[] = [];
@@ -83,7 +72,7 @@ export function stratifiedSplitDataset(
   speciesList.forEach(sp => {
     // Clone & shuffle species records
     const spRecords = dataset.filter(r => r.species === sp);
-    const shuffled = [...spRecords].sort(() => prng() - 0.5);
+    const shuffled = shuffleWithSeed(spRecords, seed);
 
     const targetTrainCount = Math.round(shuffled.length * trainRatio);
 

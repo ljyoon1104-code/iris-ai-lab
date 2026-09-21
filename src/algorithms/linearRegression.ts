@@ -19,6 +19,23 @@ export interface LinearResidualSample {
   residual: number; // |actual - predicted|
 }
 
+// Score the actual line being displayed, including manually chosen coefficients.
+export function calculateRSquared(
+  dataset: IrisRecord[], xFeature: FeatureKey, yFeature: FeatureKey,
+  slope: number, intercept: number
+): number {
+  if (dataset.length === 0) return 0;
+  const mean = dataset.reduce((sum, row) => sum + row[yFeature], 0) / dataset.length;
+  let total = 0;
+  let residual = 0;
+  for (const row of dataset) {
+    total += (row[yFeature] - mean) ** 2;
+    residual += (row[yFeature] - (slope * row[xFeature] + intercept)) ** 2;
+  }
+  if (total === 0) return residual === 0 ? 1 : 0;
+  return 1 - residual / total;
+}
+
 // 1. Train Ordinary Least Squares (OLS) Linear Regression: y = a*x + b
 export function trainLinearRegression(
   dataset: IrisRecord[],

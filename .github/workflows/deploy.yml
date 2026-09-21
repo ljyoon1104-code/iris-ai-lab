@@ -37,6 +37,9 @@ jobs:
       - name: Run Automated Verification Suite
         run: npm run verify
 
+      - name: Run Regression Tests
+        run: npm test
+
       - name: Build Application for Production
         run: npm run build
 

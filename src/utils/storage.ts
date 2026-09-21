@@ -69,6 +69,7 @@ export const saveModule04Edits = (edits: Module04Edit[]): void => {
 
     if (hasChanged) {
       localStorage.setItem(MODULE04_EDITS_KEY, nextSaved);
+      localStorage.removeItem(ACTIVE_MODEL_CONFIG_KEY);
       // Prepared Dataset changed: invalidate stale Module 08 experiment evaluations
       localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
       if (typeof window !== 'undefined') {
@@ -115,6 +116,7 @@ export const clearModule04DataOnly = (): void => {
   try {
     localStorage.removeItem(MODULE04_EDITS_KEY);
     localStorage.removeItem(MODULE04_COMPLETION_KEY);
+    localStorage.removeItem(ACTIVE_MODEL_CONFIG_KEY);
     localStorage.removeItem(SELECTED_FEATURES_KEY);
     // Prepared Dataset reset: invalidate stale Module 08 experiment evaluations
     localStorage.removeItem(EXPERIMENTS_STORAGE_KEY);
@@ -230,12 +232,7 @@ export const clearAllLearningData = (): void => {
       const key = localStorage.key(i);
       if (
         key &&
-        (key.includes('iris_ai_lab') ||
-          key.includes('fruit_ai_lab') ||
-          key.includes('progress') ||
-          key.includes('experiment') ||
-          key.includes('model') ||
-          key.includes('evaluation'))
+        (key.startsWith('iris_ai_lab_') || key.startsWith('fruit_ai_lab_'))
       ) {
         keysToRemove.push(key);
       }

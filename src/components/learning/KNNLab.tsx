@@ -84,6 +84,7 @@ export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
 
   const [k, setK] = useState<number>(5);
   const [isBoundaryLoaded, setIsBoundaryLoaded] = useState(false);
+  const [boundaryNotice, setBoundaryNotice] = useState('');
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -144,6 +145,8 @@ export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
 
   const handleLoadBoundaryCase = () => {
     const bCase = findBoundaryCase(usableData as IrisRecord[], [xAxis, yAxis]);
+    setIsBoundaryLoaded(false);
+    setBoundaryNotice(bCase ? '' : '선택한 속성의 탐색 범위에서 k=1과 k=5의 예측이 다른 사례를 찾지 못했습니다. 다른 속성을 선택해 보세요.');
     if (bCase) {
       setNewPoint(prev => ({
         ...prev,
@@ -290,6 +293,8 @@ export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
           </SecondaryButton>
         </div>
 
+        {boundaryNotice && <p role="status" className="text-xs text-amber-800">{boundaryNotice}</p>}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           {/* k Value Selection */}
           <div>
@@ -320,7 +325,7 @@ export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
             <span className="font-bold text-slate-700 block mb-1.5">X축 속성:</span>
             <select
               value={xAxis}
-              onChange={e => setXAxis(e.target.value as FeatureKey)}
+              onChange={e => { setXAxis(e.target.value as FeatureKey); setIsBoundaryLoaded(false); setBoundaryNotice(''); onInteract?.(); }}
               className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
             >
               <option value="petalLength">꽃잎 길이 (petalLength)</option>
@@ -335,7 +340,7 @@ export const KNNLab: React.FC<KNNLabProps> = ({ dataset, onInteract }) => {
             <span className="font-bold text-slate-700 block mb-1.5">Y축 속성:</span>
             <select
               value={yAxis}
-              onChange={e => setYAxis(e.target.value as FeatureKey)}
+              onChange={e => { setYAxis(e.target.value as FeatureKey); setIsBoundaryLoaded(false); setBoundaryNotice(''); onInteract?.(); }}
               className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs min-h-[44px] cursor-pointer"
             >
               <option value="petalWidth">꽃잎 너비 (petalWidth)</option>

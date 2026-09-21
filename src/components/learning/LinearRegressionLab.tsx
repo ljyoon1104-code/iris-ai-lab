@@ -4,6 +4,7 @@ import type { IrisRecord, ErrorIrisRecord } from '../../types/iris';
 import {
   trainLinearRegression,
   predictLinearRegression,
+  calculateRSquared,
   type FeatureKey,
 } from '../../algorithms/linearRegression';
 import { getUsableIrisRecords } from '../../utils/irisHelpers';
@@ -85,6 +86,7 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ datase
   const activeSlope = isManualMode ? manualSlope : regResult.slope;
   const activeIntercept = isManualMode ? manualIntercept : regResult.intercept;
   const activePredY = isManualMode ? manualPredY : predictedY;
+  const activeRSquared = calculateRSquared(usableData as IrisRecord[], xAxis, yAxis, activeSlope, activeIntercept);
 
   const lineX1Val = axisMinX;
   const lineY1Val = predictLinearRegression(activeSlope, activeIntercept, lineX1Val);
@@ -160,7 +162,7 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ datase
             <span>[무엇을 관찰하면 되나요?]</span>
           </span>
           <p className="text-slate-600 leading-relaxed font-medium">
-            최소자승법(OLS)으로 계산된 최적 회귀 직선($y = ax + b$) 위에서 <strong>x값에 따라 예측점(●)이 움직이는 모습과 R² 설명력</strong>을 관찰하세요.
+            최소자승법(OLS)으로 계산된 최적 회귀 직선(y = ax + b) 위에서 <strong>x값에 따라 예측점(●)이 움직이는 모습과 R² 설명력</strong>을 관찰하세요.
           </p>
         </div>
       </div>
@@ -283,7 +285,7 @@ export const LinearRegressionLab: React.FC<LinearRegressionLabProps> = ({ datase
           <div className="flex items-center justify-between font-bold border-b border-emerald-500 pb-2">
             <span>도출된 선형 회귀 방정식 (Linear Model)</span>
             <span className="font-mono font-black text-sm bg-emerald-700/80 px-2 py-0.5 rounded border border-emerald-500">
-              R² 설명력: {(regResult.rSquared * 100).toFixed(1)}%
+              현재 직선의 R²: {activeRSquared.toFixed(3)}
             </span>
           </div>
 

@@ -13,6 +13,8 @@ import { SpeciesBadge } from '../common/SpeciesBadge';
 import { getSpeciesConfig } from '../../constants/species';
 import { GitBranch, Sliders, Eye, HelpCircle, Sparkles } from 'lucide-react';
 
+const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
+
 const FEATURE_LABELS: Record<FeatureKey, string> = {
   sepalLength: '꽃받침 길이',
   sepalWidth: '꽃받침 너비',
@@ -177,18 +179,17 @@ export const DecisionTreeLab: React.FC<DecisionTreeLabProps> = ({ dataset, onInt
 
   const [userObservationChoice, setUserObservationChoice] = useState<string | null>(null);
 
-  const features: FeatureKey[] = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'];
 
   // Safe dataset filtering: require all 4 numeric features and canonical species for decision tree
   const effectiveDataset = dataset || (ORIGINAL_IRIS_DATASET as any[]);
   const { usableData, excludedCount, usableCount, totalCount } = useMemo(
     () => getUsableIrisRecords(effectiveDataset, features, true),
-    [effectiveDataset, features]
+    [effectiveDataset]
   );
 
   const tree = useMemo(
     () => trainDecisionTree(usableData as IrisRecord[], features, maxDepth),
-    [usableData, features, maxDepth]
+    [usableData, maxDepth]
   );
   const trace = useMemo(() => traceDecisionPath(tree, newPoint), [tree, newPoint]);
   const layout = useMemo(() => computeTreeLayout(tree, newPoint), [tree, newPoint]);

@@ -108,42 +108,60 @@ export const ModuleDetailPage: React.FC<ModuleDetailPageProps> = ({
         <LearningCard title="01 AI 활용법 — 생성형 AI 탐구 활동" subtitle="생성형 AI 올바른 질문법, 답변 검증 및 윤리 수칙">
           <Module01Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 2 ? (
         <LearningCard title="02 기계학습 시작 — 머신러닝 기초 및 6단계 미션" subtitle="기계학습 개념, 전통적 프로그래밍 비교 및 문제 해결 6단계 과정">
           <Module02Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 3 ? (
         <LearningCard title="03 데이터 준비 — 문제 정의, 속성(X, y), 수집 및 데이터 편향" subtitle="Iris 데이터 기반 문제 정의, 분류/회귀/군집 구별, 데이터 편향 분석">
           <Module03Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 4 ? (
         <LearningCard title="04 데이터 전처리 — 데이터 탐정 활동" subtitle="Iris 데이터 결측치·이상치·표현불일치 발견, 정제 및 전처리 전후 비교">
           <Module04Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 5 ? (
         <LearningCard title="05 학습 방법 알아보기 — 지도/비지도/강화학습 및 알고리즘 지도" subtitle="지도·비지도·강화학습 탐구, 분류·회귀·군집 연결 및 알고리즘 지도 구축">
           <Module05Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 6 ? (
         <LearningCard title="06 알고리즘 실험실 — 5대 머신러닝 알고리즘 시뮬레이터" subtitle="k-NN, 의사결정트리, 선형회귀, k-means 및 강화학습 터치 시뮬레이션">
           <Module06Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       ) : currentModule.id === 7 ? (
@@ -160,7 +178,10 @@ export const ModuleDetailPage: React.FC<ModuleDetailPageProps> = ({
         <LearningCard title="08 모델 평가·개선 — 정확도, 3x3 혼동행렬 및 실험 비교" subtitle="독립된 테스트 데이터 평가, 3x3 혼동행렬 시각화 및 최대 3회 실험 비교">
           <Module08Activity
             isCompleted={isCompleted}
-            onComplete={() => onToggleComplete(currentModule.id)}
+            onComplete={() => {
+              onToggleComplete(currentModule.id);
+              if (nextModule) onSelectModule(nextModule.id);
+            }}
           />
         </LearningCard>
       )}
